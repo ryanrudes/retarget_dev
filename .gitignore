@@ -1,0 +1,31 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# MacOS
+.DS_Store
+
+# Virtual environments
+.venv
+
+# ROS workspace
+rosws/build/
+rosws/install/
+rosws/log/
+
+# Vendored ros2_unbag build artifacts
+vendor/ros2_unbag/build/
+vendor/ros2_unbag/ros2_unbag.egg-info/
+
+# IDEs
+.vscode/
+.idea/
+.cursor/
+.cursorrules
+
+# Unbagged bags
+bags/**/unbagged/
