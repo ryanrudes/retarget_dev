@@ -145,7 +145,12 @@ def load_segment_pose_trajectories(
     poses_by_key: dict[SegmentKey, list[RigidTransform]] = {
         key: [] for key in expected_keys
     }
+    key_by_label_pair = {
+        (key.subject.label, key.segment.label): key for key in expected_keys
+    }
 
+    # TODO: Parse timestamp keys into numeric time values before sorting if the
+    # export format ever stops using lexicographically sortable keys.
     for timestamp_key in sorted(messages):
         message = messages[timestamp_key]
         subject_name, segment_name = parse_tf_child_frame(
@@ -154,18 +159,15 @@ def load_segment_pose_trajectories(
         )
         pose = rigid_transform_from_ros_json(message["transform"])
 
-        for key in expected_keys:
-            if (
-                key.subject.label == subject_name
-                and key.segment.label == segment_name
-            ):
-                poses_by_key[key].append(pose)
-                break
-        else:
+        label_pair = (subject_name, segment_name)
+        try:
+            key = key_by_label_pair[label_pair]
+        except KeyError as exc:
             raise KeyError(
                 f"TF frame '{message['child_frame_id']}' at {timestamp_key} "
                 f"does not match any segment in the scene spec."
-            )
+            ) from exc
+        poses_by_key[key].append(pose)
 
     trajectories: dict[SegmentKey, SegmentPoseTrajectory] = {}
     for key, poses in poses_by_key.items():

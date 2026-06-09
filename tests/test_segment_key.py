@@ -45,18 +45,18 @@ SHOE_SEGMENT_SPEC = SegmentSpec(
 
 @dataclass(frozen=True, slots=True)
 class _LeftShoeSubjectSpec(SubjectSpec):
-    segment: SegmentSpec[_TestMarkerId, _TestPatchId]
+    shoe: SegmentSpec[_TestMarkerId, _TestPatchId]
 
     def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.segment
+        yield self.shoe
 
 
 @dataclass(frozen=True, slots=True)
 class _RightShoeSubjectSpec(SubjectSpec):
-    segment: SegmentSpec[_TestMarkerId, _TestPatchId]
+    shoe: SegmentSpec[_TestMarkerId, _TestPatchId]
 
     def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.segment
+        yield self.shoe
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,11 +72,11 @@ class _TestSceneSpec(SceneSpec):
 TEST_SCENE_SPEC = _TestSceneSpec(
     left_shoe=_LeftShoeSubjectSpec(
         subject=_LeftShoeSubject.LEFT_SHOE,
-        segment=SHOE_SEGMENT_SPEC,
+        shoe=SHOE_SEGMENT_SPEC,
     ),
     right_shoe=_RightShoeSubjectSpec(
         subject=_RightShoeSubject.RIGHT_SHOE,
-        segment=SHOE_SEGMENT_SPEC,
+        shoe=SHOE_SEGMENT_SPEC,
     ),
 )
 
