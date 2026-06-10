@@ -1,0 +1,184 @@
+---
+description: Preserve the core retarget architecture while editing specs, state, views, IO, and examples.
+globs:
+  - "src/retarget/**/*.py"
+  - "examples/**/*.py"
+  - "tests/**/*.py"
+alwaysApply: true
+---
+
+# Retarget architecture rules
+
+This repository uses a layered typed architecture. Do not flatten it. Do not “simplify” it by throwing away the distinctions between specs, state, views, tracks, and IO. That would be simpler in the way a pile of rubble is simpler than a building.
+
+## Core layers
+
+### Specs
+
+Specs are static definitions.
+
+`SegmentSpec[M, P]` is subject-independent. It must not contain a `SubjectId`.
+
+A segment spec defines:
+
+- segment-local marker vocabulary
+- patch vocabulary
+- axis convention
+- segment-local marker positions
+- patch calibrations
+- built patch specs
+
+Do not add world-frame pose, observations, timestamps, or subject identity to `SegmentSpec`.
+
+### Runtime state
+
+Runtime state stores concrete time-varying values.
+
+`SceneState` must use:
+
+```python
+SegmentKey(subject, segment)
+```
+
+Do not key runtime segment state by bare `SegmentId`.
+
+Segment IDs are subject-local.
+
+### Views
+
+Views combine static specs with runtime state.
+
+`SceneView` must hold:
+
+```python
+spec: SceneSpec
+state: SceneState
+```
+
+`SubjectView` must hold:
+
+```python
+subject_spec: SubjectSpec
+state: SceneState
+```
+
+Do not regress to `SceneView(state)` only.
+
+Segment lookup must support both paths:
+
+```python
+scene.subject(subject_id).segment(segment_spec)
+scene.subject(subject_id).segment(segment_id)
+```
+
+The first path preserves marker/patch generic types. The second path is ergonomic runtime lookup and may return `SegmentView[Any, Any]`.
+
+Do not remove either path.
+
+## Concrete dataclasses
+
+Concrete project specs should use typed fields with domain names.
+
+Good:
+
+```python
+@dataclass(frozen=True, slots=True)
+class LeftShoeSubjectSpec(SubjectSpec):
+    left_shoe: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
+```
+
+Avoid:
+
+```python
+@dataclass(frozen=True, slots=True)
+class LeftShoeSubjectSpec(SubjectSpec):
+    segment: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
+```
+
+A field named `segment` shadows `SubjectSpec.segment(...)`. Do not introduce that shadowing in new code.
+
+## Handles and targets
+
+`MarkerHandle[M]` and `PatchHandle[P]` are segment-scoped, not subject-scoped.
+
+Do not add `SubjectId` to marker or patch handles.
+
+Use `PatchTarget[P]` for scene-level contact references:
+
+```python
+PatchTarget(subject=subject_id, handle=patch_handle)
+```
+
+Contact data should key off `PatchTarget`, not raw strings.
+
+## IO
+
+IO modules may contain low-level parsing and helper functions. They should hide raw external string labels behind typed IDs/specs/views.
+
+High-level examples should not expose raw Vicon label plumbing.
+
+Good:
+
+```python
+observed = marker_position(
+    marker_frame,
+    segment=left_shoe,
+    marker=LeftShoeMarkerId.HEEL,
+)
+```
+
+Better at the demo layer:
+
+```python
+left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
+```
+
+Low-level IO helpers are allowed. Do not make them the primary demo API.
+
+## Patch calibration
+
+Preserve the current patch calibration semantics:
+
+1. take segment-local marker positions
+2. apply sparse `marker_translations` before fitting
+3. fit the patch frame
+4. apply `normal_offset` after fitting along the fitted normal
+
+`PatchCalibrationSpec.markers` is required.
+
+Do not infer calibration markers from `marker_translations`.
+
+## Type style
+
+Use Python 3.12 generic class/function syntax where the repo already uses it.
+
+Prefer:
+
+```python
+class SegmentSpec[M: MarkerId, P: PatchId]:
+    ...
+```
+
+Use `Mapping` for inputs and freeze stored mappings with `MappingProxyType` when appropriate.
+
+Do not weaken typed IDs to raw strings.
+
+## Testing
+
+Any architecture-sensitive change must include or update tests covering:
+
+- subject-local segment identity
+- typed `SegmentSpec` lookup
+- ergonomic `SegmentId` lookup
+- marker/patch type validation
+- patch calibration behavior
+- IO helpers hiding raw external labels
+- new demo/query behavior when added
+
+Run:
+
+```bash
+python -m compileall -q src/retarget
+python -m compileall -q examples
+pytest -q
+```

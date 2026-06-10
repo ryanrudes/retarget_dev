@@ -1,0 +1,42 @@
+---
+description: How to run tests, scripts, and ad-hoc Python in this repo
+alwaysApply: true
+---
+
+# Running commands
+
+Work from the **repository root** unless a command says otherwise.
+
+Use `python3`, not `python`, when calling the interpreter directly on macOS.
+
+## After code changes
+
+```bash
+python3 -m compileall -q src/retarget
+python3 -m compileall -q examples
+pytest -q
+```
+
+`pytest` adds `src/` automatically (`pythonpath` in `pyproject.toml`). Do not require `PYTHONPATH=src` for tests.
+
+`uv run pytest -q` is also fine.
+
+## Ad-hoc `python3 -c` or scripts
+
+```bash
+PYTHONPATH=src python3 -c "from retarget.core import ..."
+```
+
+## `tests/conftest.py`
+
+Loaded by pytest only. Not importable as `from conftest import ...` from the repo root.
+
+- Prefer: `pytest -q` or `pytest -q tests/test_foo.py`
+- Outside pytest: `cd tests` then `PYTHONPATH=../src python3 ...`, or `PYTHONPATH=src:tests`
+
+## Examples
+
+```bash
+cd examples/process_mocap_data
+PYTHONPATH=../../src:. python3 run_demo_example.py
+```

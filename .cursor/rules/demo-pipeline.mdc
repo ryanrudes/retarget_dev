@@ -1,0 +1,421 @@
+---
+description: Guardrails for the upcoming demonstration, alignment, SMPL, video, and contact pipeline.
+globs:
+  - "src/retarget/demo/**/*.py"
+  - "src/retarget/smpl/**/*.py"
+  - "src/retarget/contact/**/*.py"
+  - "src/retarget/core/**/*.py"
+  - "examples/**/*.py"
+  - "tests/**/*.py"
+alwaysApply: true
+---
+
+# Demonstration pipeline rules
+
+The demonstration layer should provide a human-friendly interface for multimodal, time-indexed demonstrations while preserving typed domain abstractions.
+
+A demonstration may contain mocap, video, SMPL/GVHMR-derived body state, annotations, contact states, and future user-defined tracks.
+
+Do not design only for the current Vicon shoe example. Also do not over-generalize so hard that the common case becomes unreadable. Yes, this is the annoying middle path. Walk it anyway.
+
+## Target API feel
+
+A good demonstration API should feel like:
+
+```python
+demo = load_ground_estimation_demo(root)
+clip = demo.slice_time(2.0, 5.0)
+
+left_shoe = clip.mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
+    LeftShoeSegmentId.LEFT_SHOE
+)
+
+heel_obs = left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
+heel_model = left_shoe.marker_positions(LeftShoeMarkerId.HEEL, modeled=True)
+heel_vel = left_shoe.marker_velocities(LeftShoeMarkerId.HEEL)
+
+sole_contacts = left_shoe.patch_contacts(LeftShoePatchId.SOLE)
+```
+
+The user should not have to manually coordinate marker frames, raw timestamps, low-level IO helpers, and segment views for common queries.
+
+## Track IDs
+
+Tracks must use typed string enum IDs.
+
+Use:
+
+```python
+class TrackId(NameId): ...
+```
+
+Concrete demos should define their own track IDs:
+
+```python
+class GroundEstimationTrackId(TrackId):
+    MOCAP = "mocap"
+    VIDEO = "video"
+    SMPL = "smpl"
+    CONTACTS = "contacts"
+```
+
+Avoid raw string track keys in public APIs.
+
+Acceptable:
+
+```python
+demo.track(GroundEstimationTrackId.MOCAP)
+```
+
+Not acceptable:
+
+```python
+demo.track("mocap")
+```
+
+Concrete demos should expose ergonomic properties too:
+
+```python
+demo.mocap
+demo.video
+demo.smpl
+demo.contacts
+```
+
+## Query methods
+
+Domain-specific track views should own their own query methods.
+
+For mocap segment views:
+
+```python
+left_shoe.marker_positions(...)
+left_shoe.marker_velocities(...)
+left_shoe.marker_speed(...)
+left_shoe.translations()
+left_shoe.rotations(...)
+left_shoe.poses(...)
+left_shoe.patch_points(...)
+left_shoe.patch_normals(...)
+left_shoe.patch_contacts(...)
+```
+
+For SMPL body views:
+
+```python
+person.root_positions()
+person.root_velocities()
+person.joint_positions(...)
+person.joint_velocities(...)
+person.joint_rotations(...)
+```
+
+Do not make high-level demo users call low-level free functions for ordinary queries.
+
+## Binary options
+
+Use booleans for simple binary choices.
+
+Observed vs modeled marker data:
+
+```python
+left_shoe.marker_positions(marker)               # observed
+left_shoe.marker_positions(marker, modeled=True) # modeled
+```
+
+Collection output:
+
+```python
+left_shoe.marker_positions(markers)                    # ndarray shape (T, N, 3)
+left_shoe.marker_positions(markers, return_dict=True)  # Mapping[M, ndarray shape (T, 3)]
+```
+
+Do not define enums for two-way switches unless the choice becomes genuinely multi-way.
+
+## Multi-format representation options
+
+Use enums for multi-way representation choices.
+
+Examples:
+
+```python
+class RotationFormat(NameId):
+    MATRIX = "matrix"
+    QUATERNION_XYZW = "quaternion_xyzw"
+    QUATERNION_WXYZ = "quaternion_wxyz"
+    ROTVEC = "rotvec"
+```
+
+```python
+class PoseFormat(NameId):
+    RIGID_TRANSFORM = "rigid_transform"
+    MATRIX_4X4 = "matrix_4x4"
+    TRANSLATION_QUATERNION_XYZW = "translation_quaternion_xyzw"
+```
+
+Use these for methods like:
+
+```python
+left_shoe.rotations(format=RotationFormat.QUATERNION_XYZW)
+left_shoe.poses(format=PoseFormat.MATRIX_4X4)
+```
+
+## Array layout
+
+Internal canonical layout is time-major AoS.
+
+Use:
+
+- `(T, 3)` for one vector-valued signal
+- `(T, N, 3)` for multiple marker/joint/patch vector signals
+- `(T, 3, 3)` for rotation matrices
+- `(T, 4)` for quaternions
+- `(T,)` for one scalar/bool signal
+- `(T, N)` for multiple scalar/bool signals
+
+Do not switch internals to feature-major SoA.
+
+If users need labeled outputs, provide `return_dict=True`.
+
+## Single ID vs sequence inputs
+
+Query methods should accept both a single typed ID and a sequence of typed IDs.
+
+Example:
+
+```python
+left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
+
+left_shoe.marker_positions(
+    [LeftShoeMarkerId.HEEL, LeftShoeMarkerId.TOE]
+)
+```
+
+Use overloads where helpful.
+
+Use runtime `isinstance` checks against typed enum bases where appropriate.
+
+## Missing observed data
+
+Observed markers can be missing.
+
+Default missing-data behavior for returned arrays should be `np.nan` rows, not ragged lists.
+
+For one missing marker at one timestep:
+
+```python
+[nan, nan, nan]
+```
+
+Future policies may include `raise` or masked arrays, but do not start by forcing masked arrays into the public API. That way lies paperwork.
+
+## Alignment
+
+Alignment must be generic enough for arbitrary modalities and idiomatic enough for mocap/video/SMPL out of the box.
+
+Do not hard-code alignment only for mocap and video.
+
+Core alignment concepts:
+
+```python
+EnergySignal
+TimelineTransform
+TrackAlignment
+```
+
+`TimelineTransform` should initially support affine time mapping:
+
+```python
+t_reference = scale * t_source + offset
+```
+
+Start with offset-only cross-correlation. Leave room for clock drift/scale later.
+
+Generic public API should look like:
+
+```python
+alignment = demo.align(
+    reference=GroundEstimationTrackId.MOCAP,
+    source=GroundEstimationTrackId.SMPL,
+    reference_signal=mocap_signal,
+    source_signal=smpl_signal,
+    max_lag_seconds=2.0,
+)
+```
+
+Human-friendly common-case helpers are allowed and encouraged:
+
+```python
+aligned = demo.align_smpl_to_mocap(...)
+```
+
+But helpers should be wrappers around generic alignment machinery, not separate bespoke pipelines.
+
+## Energy signals
+
+Energy signals are extracted from track views.
+
+Examples:
+
+```python
+mocap_signal = left_shoe.speed()
+smpl_signal = person.root_speed()
+```
+
+Alignment should consume these signals without caring whether they came from mocap, SMPL, video, contact, or something else.
+
+## Resampling
+
+Tracks have native timelines. Alignment maps timelines; resampling produces a view on a chosen target timeline.
+
+Do not assume all tracks are synchronized at load time.
+
+Expected API shape:
+
+```python
+aligned = demo.align(...)
+clip = aligned.slice_time(2.0, 5.0)
+
+clip_on_mocap = clip.resample_to(GroundEstimationTrackId.MOCAP)
+```
+
+Track-specific resampling rules:
+
+- mocap translations: linear
+- mocap rotations: SLERP or rotation-aware interpolation
+- observed markers: linear or nearest with missing-data handling
+- video frames: nearest by default
+- SMPL rotations: rotation-aware interpolation
+- contact states: nearest or interval-aware logic
+
+Never impose one universal interpolation method across all modalities.
+
+## Contact state
+
+Contact state must be planned as a derived track.
+
+It is tightly coupled to patch definitions and must be keyed by `PatchTarget[P]`, not raw strings.
+
+Internal shape:
+
+```python
+ContactTrack.contacts: Mapping[PatchTarget[Any], np.ndarray]
+```
+
+Each contact array should have shape:
+
+```text
+(T,)
+```
+
+and dtype bool, or float for confidence arrays.
+
+User-facing access should be patch-local:
+
+```python
+left_shoe.patch_contacts(LeftShoePatchId.SOLE)
+```
+
+This method should resolve the relevant `PatchTarget` using the segment view’s subject ID and patch handle.
+
+Do not store contact data as arbitrary metadata on demonstrations, mocap tracks, or marker arrays.
+
+Future contact detection should produce a `ContactTrack` from patch/mocap time-series.
+
+## Contact detection
+
+Do not implement full contact detection until requested, but keep the structure compatible with it.
+
+Future detector shape:
+
+```python
+contacts = demo.mocap.detect_contacts(contact_spec)
+demo_with_contacts = demo.with_contacts(contacts)
+```
+
+or:
+
+```python
+demo_with_contacts = demo.with_detected_contacts(...)
+```
+
+Contact detection specs should reference patch targets or typed patch IDs, not raw strings.
+
+Likely detector inputs:
+
+- patch points
+- patch normals
+- patch velocities
+- vertical height or signed distance
+- velocity norm
+- temporal smoothing/minimum duration thresholds
+
+## SMPL/GVHMR
+
+GVHMR output should feed a typed SMPL track.
+
+Do not represent SMPL as a loose dictionary of arrays.
+
+Planned structure:
+
+```text
+src/retarget/smpl/
+    enums.py
+    specs.py
+    state.py
+    track.py
+    views.py
+```
+
+SMPL should expose typed body/joint queries:
+
+```python
+person = clip.smpl.body(SmplBodyId.PERSON)
+
+root = person.root_positions()
+root_vel = person.root_velocities()
+
+ankle = person.joint_positions(SmplJointId.LEFT_ANKLE)
+
+hip_rot = person.joint_rotations(
+    SmplJointId.LEFT_HIP,
+    format=RotationFormat.QUATERNION_XYZW,
+)
+```
+
+SMPL tracks should participate in generic alignment and resampling.
+
+## Tests required for demo-layer changes
+
+When adding demo/track/alignment/contact/SMPL code, add tests for:
+
+- typed track IDs
+- demo track lookup by enum ID
+- ergonomic concrete properties
+- time slicing
+- single ID vs sequence inputs
+- `return_dict=True`
+- observed vs modeled marker behavior
+- NaN behavior for missing observations
+- representation conversions
+- simple known-offset alignment recovery
+- resampling onto another track’s timeline
+- contact lookup by patch target
+- SMPL typed joint/body lookup when SMPL is added
+
+Do not use real video files in tests unless specifically required. Use tiny arrays and fake paths.
+
+## Anti-goals
+
+Do not:
+
+- replace typed track IDs with raw strings
+- make generic tracks the only user-facing API
+- make high-level examples call IO free functions for ordinary queries
+- store contacts as metadata blobs
+- hard-code alignment only for mocap/video
+- force one interpolation method on all modalities
+- expose global timestep bookkeeping in common user queries
+- make SMPL/GVHMR a bag of arrays without typed IDs/views
+
+The point is a typed, ergonomic, extensible pipeline. Try not to convert it into a mystery box with `dict[str, Any]` written on the lid.
