@@ -11,12 +11,12 @@ from retarget.core import (
 )
 
 
-class TestSubjectId(SubjectId):
+class _SubjectId(SubjectId):
     A = "a"
     B = "b"
 
 
-class TestSegmentId(SegmentId):
+class _SegmentId(SegmentId):
     FOOT = "foot"
 
 
@@ -28,16 +28,16 @@ def test_scene_state_allows_same_segment_id_in_different_subjects() -> None:
     )
     state = SceneState(
         segment_poses={
-            SegmentKey(TestSubjectId.A, TestSegmentId.FOOT): SegmentPoseTrajectory(
+            SegmentKey(_SubjectId.A, _SegmentId.FOOT): SegmentPoseTrajectory(
                 poses=(pose_a,),
             ),
-            SegmentKey(TestSubjectId.B, TestSegmentId.FOOT): SegmentPoseTrajectory(
+            SegmentKey(_SubjectId.B, _SegmentId.FOOT): SegmentPoseTrajectory(
                 poses=(pose_b,),
             ),
         }
     )
-    resolved_a = state.pose(TestSubjectId.A, TestSegmentId.FOOT).at(0)
-    resolved_b = state.pose(TestSubjectId.B, TestSegmentId.FOOT).at(0)
+    resolved_a = state.pose(_SubjectId.A, _SegmentId.FOOT).at(0)
+    resolved_b = state.pose(_SubjectId.B, _SegmentId.FOOT).at(0)
     np.testing.assert_allclose(
         resolved_a.translation,
         np.array([0.0, 0.0, 0.0]),
@@ -64,10 +64,10 @@ def test_segment_pose_trajectory_checks_bounds() -> None:
 def test_scene_state_rejects_inconsistent_trajectory_lengths() -> None:
     state = SceneState(
         segment_poses={
-            SegmentKey(TestSubjectId.A, TestSegmentId.FOOT): SegmentPoseTrajectory(
+            SegmentKey(_SubjectId.A, _SegmentId.FOOT): SegmentPoseTrajectory(
                 poses=(RigidTransform.identity(),),
             ),
-            SegmentKey(TestSubjectId.B, TestSegmentId.FOOT): SegmentPoseTrajectory(
+            SegmentKey(_SubjectId.B, _SegmentId.FOOT): SegmentPoseTrajectory(
                 poses=(
                     RigidTransform.identity(),
                     RigidTransform.identity(),

@@ -17,50 +17,50 @@ from retarget.core import (
 )
 
 
-class TestMarkerId(MarkerId):
+class _MarkerId(MarkerId):
     A = "a"
     B = "b"
     C = "c"
     D = "d"
 
 
-class TestPatchId(PatchId):
+class _PatchId(PatchId):
     SURFACE = "surface"
 
 
-class TestSegmentId(SegmentId):
+class _SegmentId(SegmentId):
     BODY = "body"
 
 
 def make_segment(
-    calibration: PatchCalibrationSpec[TestMarkerId, TestPatchId],
-) -> SegmentSpec[TestMarkerId, TestPatchId]:
+    calibration: PatchCalibrationSpec[_MarkerId, _PatchId],
+) -> SegmentSpec[_MarkerId, _PatchId]:
     return SegmentSpec(
-        segment=TestSegmentId.BODY,
-        marker_type=TestMarkerId,
-        patch_type=TestPatchId,
+        segment=_SegmentId.BODY,
+        marker_type=_MarkerId,
+        patch_type=_PatchId,
         axis_convention=Z_UP_AXES,
-        marker_set=MarkerSetSpec(marker_type=TestMarkerId),
+        marker_set=MarkerSetSpec(marker_type=_MarkerId),
         marker_positions_segment={
-            TestMarkerId.A: np.array([0.0, 0.0, 0.0]),
-            TestMarkerId.B: np.array([1.0, 0.0, 0.0]),
-            TestMarkerId.C: np.array([0.0, 1.0, 0.0]),
-            TestMarkerId.D: np.array([0.0, 0.0, 1.0]),
+            _MarkerId.A: np.array([0.0, 0.0, 0.0]),
+            _MarkerId.B: np.array([1.0, 0.0, 0.0]),
+            _MarkerId.C: np.array([0.0, 1.0, 0.0]),
+            _MarkerId.D: np.array([0.0, 0.0, 1.0]),
         },
         patch_calibrations={
-            TestPatchId.SURFACE: calibration,
+            _PatchId.SURFACE: calibration,
         },
     )
 
 
 def test_patch_calibration_accepts_markers_without_translations() -> None:
     calibration = PatchCalibrationSpec(
-        patch=TestPatchId.SURFACE,
-        markers=(TestMarkerId.A, TestMarkerId.B, TestMarkerId.C),
+        patch=_PatchId.SURFACE,
+        markers=(_MarkerId.A, _MarkerId.B, _MarkerId.C),
         region=RectangularRegion(width=1.0, height=1.0),
     )
     segment = make_segment(calibration).with_built_patches()
-    patch = segment.patch_spec(TestPatchId.SURFACE)
+    patch = segment.patch_spec(_PatchId.SURFACE)
     np.testing.assert_allclose(
         patch.transform_segment_patch.translation,
         np.array([1.0 / 3.0, 1.0 / 3.0, 0.0]),
@@ -69,13 +69,13 @@ def test_patch_calibration_accepts_markers_without_translations() -> None:
 
 def test_normal_offset_moves_patch_origin_along_fitted_normal() -> None:
     calibration = PatchCalibrationSpec(
-        patch=TestPatchId.SURFACE,
-        markers=(TestMarkerId.A, TestMarkerId.B, TestMarkerId.C),
+        patch=_PatchId.SURFACE,
+        markers=(_MarkerId.A, _MarkerId.B, _MarkerId.C),
         normal_offset=0.1,
         region=RectangularRegion(width=1.0, height=1.0),
     )
     segment = make_segment(calibration).with_built_patches()
-    patch = segment.patch_spec(TestPatchId.SURFACE)
+    patch = segment.patch_spec(_PatchId.SURFACE)
     normal = patch.transform_segment_patch.rotation[:, 2]
     expected = np.array([1.0 / 3.0, 1.0 / 3.0, 0.0]) + 0.1 * normal
     np.testing.assert_allclose(
@@ -86,18 +86,18 @@ def test_normal_offset_moves_patch_origin_along_fitted_normal() -> None:
 
 def test_sparse_marker_translations_are_applied_before_fitting() -> None:
     calibration = PatchCalibrationSpec(
-        patch=TestPatchId.SURFACE,
-        markers=(TestMarkerId.A, TestMarkerId.B, TestMarkerId.C),
+        patch=_PatchId.SURFACE,
+        markers=(_MarkerId.A, _MarkerId.B, _MarkerId.C),
         marker_translations={
-            TestMarkerId.A: 0.1 * SemanticAxis.UP,
+            _MarkerId.A: 0.1 * SemanticAxis.UP,
         },
         region=RectangularRegion(width=1.0, height=1.0),
     )
     surface_points = calibration.surface_points(
         marker_positions_segment={
-            TestMarkerId.A: np.array([0.0, 0.0, 0.0]),
-            TestMarkerId.B: np.array([1.0, 0.0, 0.0]),
-            TestMarkerId.C: np.array([0.0, 1.0, 0.0]),
+            _MarkerId.A: np.array([0.0, 0.0, 0.0]),
+            _MarkerId.B: np.array([1.0, 0.0, 0.0]),
+            _MarkerId.C: np.array([0.0, 1.0, 0.0]),
         },
         segment=make_segment(calibration),
     )
@@ -117,16 +117,16 @@ def test_sparse_marker_translations_are_applied_before_fitting() -> None:
 
 def test_body_frame_marker_translation_supports_cad_offsets() -> None:
     calibration = PatchCalibrationSpec(
-        patch=TestPatchId.SURFACE,
-        markers=(TestMarkerId.A, TestMarkerId.B, TestMarkerId.C),
+        patch=_PatchId.SURFACE,
+        markers=(_MarkerId.A, _MarkerId.B, _MarkerId.C),
         marker_translations={
-            TestMarkerId.A: BodyFrameTranslation(
+            _MarkerId.A: BodyFrameTranslation(
                 np.array([0.0, 0.0, -0.012])
             ),
-            TestMarkerId.B: BodyFrameTranslation(
+            _MarkerId.B: BodyFrameTranslation(
                 np.array([0.0, 0.0, -0.010])
             ),
-            TestMarkerId.C: BodyFrameTranslation(
+            _MarkerId.C: BodyFrameTranslation(
                 np.array([0.0, 0.0, -0.011])
             ),
         },
@@ -134,9 +134,9 @@ def test_body_frame_marker_translation_supports_cad_offsets() -> None:
     )
     surface_points = calibration.surface_points(
         marker_positions_segment={
-            TestMarkerId.A: np.array([0.0, 0.0, 0.0]),
-            TestMarkerId.B: np.array([1.0, 0.0, 0.0]),
-            TestMarkerId.C: np.array([0.0, 1.0, 0.0]),
+            _MarkerId.A: np.array([0.0, 0.0, 0.0]),
+            _MarkerId.B: np.array([1.0, 0.0, 0.0]),
+            _MarkerId.C: np.array([0.0, 1.0, 0.0]),
         },
         segment=make_segment(calibration),
     )
@@ -155,10 +155,10 @@ def test_body_frame_marker_translation_supports_cad_offsets() -> None:
 def test_marker_translations_must_be_subset_of_markers() -> None:
     with pytest.raises(ValueError, match="not listed in markers"):
         PatchCalibrationSpec(
-            patch=TestPatchId.SURFACE,
-            markers=(TestMarkerId.A, TestMarkerId.B, TestMarkerId.C),
+            patch=_PatchId.SURFACE,
+            markers=(_MarkerId.A, _MarkerId.B, _MarkerId.C),
             marker_translations={
-                TestMarkerId.D: 0.1 * SemanticAxis.UP,
+                _MarkerId.D: 0.1 * SemanticAxis.UP,
             },
             region=RectangularRegion(width=1.0, height=1.0),
         )
@@ -167,8 +167,8 @@ def test_marker_translations_must_be_subset_of_markers() -> None:
 def test_patch_calibration_rejects_too_few_markers() -> None:
     with pytest.raises(ValueError, match="at least three markers"):
         PatchCalibrationSpec(
-            patch=TestPatchId.SURFACE,
-            markers=(TestMarkerId.A, TestMarkerId.B),
+            patch=_PatchId.SURFACE,
+            markers=(_MarkerId.A, _MarkerId.B),
             region=RectangularRegion(width=1.0, height=1.0),
         )
 
@@ -176,7 +176,7 @@ def test_patch_calibration_rejects_too_few_markers() -> None:
 def test_patch_calibration_rejects_duplicate_markers() -> None:
     with pytest.raises(ValueError, match="must be unique"):
         PatchCalibrationSpec(
-            patch=TestPatchId.SURFACE,
-            markers=(TestMarkerId.A, TestMarkerId.A, TestMarkerId.C),
+            patch=_PatchId.SURFACE,
+            markers=(_MarkerId.A, _MarkerId.A, _MarkerId.C),
             region=RectangularRegion(width=1.0, height=1.0),
         )
