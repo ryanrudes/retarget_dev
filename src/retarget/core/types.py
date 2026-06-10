@@ -32,3 +32,39 @@ type Points3 = np.ndarray[
     np.dtype[np.floating[Any]],
 ]
 """A set of 3D points."""
+
+type TimeVec3 = np.ndarray[
+    tuple[int, Literal[3]],
+    np.dtype[np.floating[Any]],
+]
+"""Time-major vector signal with shape ``(T, 3)``."""
+
+type TimeEntityVec3 = np.ndarray[
+    tuple[int, int, Literal[3]],
+    np.dtype[np.floating[Any]],
+]
+"""Time-major multi-entity vector signal with shape ``(T, N, 3)``."""
+
+type TimeMat3 = np.ndarray[
+    tuple[int, Literal[3], Literal[3]],
+    np.dtype[np.floating[Any]],
+]
+"""Time-major rotation matrix signal with shape ``(T, 3, 3)``."""
+
+type TimeQuat = np.ndarray[
+    tuple[int, Literal[4]],
+    np.dtype[np.floating[Any]],
+]
+"""Time-major quaternion signal with shape ``(T, 4)``."""
+
+type TimeBool = np.ndarray[
+    tuple[int],
+    np.dtype[np.bool_],
+]
+"""Time-major boolean signal with shape ``(T,)``."""
+
+type TimeEntityBool = np.ndarray[
+    tuple[int, int],
+    np.dtype[np.bool_],
+]
+"""Time-major multi-entity boolean signal with shape ``(T, N)``."""

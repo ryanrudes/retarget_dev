@@ -62,6 +62,10 @@ class PatchId(NameId):
     """Vocabulary for the contact patches which make up a segment."""
 
 
+class TrackId(NameId):
+    """Base class for user-defined demonstration track identifiers."""
+
+
 class MarkerRole(StrEnum):
     """The role of a marker in the tracking system."""
 
@@ -73,6 +77,24 @@ class MarkerRole(StrEnum):
 
     TRACKING_AND_CALIBRATION = "tracking_and_calibration"
     """A marker used for both tracking and calibration."""
+
+
+class RotationFormat(NameId):
+    """Rotation representation for time-series queries."""
+
+    MATRIX = "matrix"
+    QUATERNION_XYZW = "quaternion_xyzw"
+    QUATERNION_WXYZ = "quaternion_wxyz"
+    ROTVEC = "rotvec"
+
+
+class PoseFormat(NameId):
+    """Pose representation for time-series queries."""
+
+    RIGID_TRANSFORM = "rigid_transform"
+    MATRIX_4X4 = "matrix_4x4"
+    TRANSLATION_QUATERNION_XYZW = "translation_quaternion_xyzw"
+    TRANSLATION_ROTATION_MATRIX = "translation_rotation_matrix"
 
 
 class QuaternionOrder(StrEnum):

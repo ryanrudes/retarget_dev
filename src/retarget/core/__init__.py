@@ -16,7 +16,10 @@ from retarget.core.enums import (
     SegmentId,
     MarkerId,
     PatchId,
+    TrackId,
     MarkerRole,
+    RotationFormat,
+    PoseFormat,
     QuaternionOrder,
 )
 from retarget.core.handles import (
@@ -59,6 +62,12 @@ from retarget.core.types import (
     Mat3,
     Points2,
     Points3,
+    TimeVec3,
+    TimeEntityVec3,
+    TimeMat3,
+    TimeQuat,
+    TimeBool,
+    TimeEntityBool,
 )
 from retarget.core.views import (
     SceneView,
@@ -75,7 +84,10 @@ __all__ = [
     "SegmentId",
     "MarkerId",
     "PatchId",
+    "TrackId",
     "MarkerRole",
+    "RotationFormat",
+    "PoseFormat",
     "QuaternionOrder",
 
     # Axes
@@ -96,6 +108,12 @@ __all__ = [
     "Mat3",
     "Points2",
     "Points3",
+    "TimeVec3",
+    "TimeEntityVec3",
+    "TimeMat3",
+    "TimeQuat",
+    "TimeBool",
+    "TimeEntityBool",
 
     # Transform
     "RigidTransform",
