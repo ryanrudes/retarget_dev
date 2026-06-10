@@ -10,16 +10,21 @@ from mocap_vocab import (
 )
 
 from retarget.core import RotationFormat
+from retarget.demo.mocap import MocapTrack, MocapTrackView
 
-from demo_specs import load_ground_estimation_demo
+from demo_specs import GroundEstimationTrackId, load_ground_estimation_demo
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 demo = load_ground_estimation_demo(UNBAGGED_DIR)
 clip = demo.slice_time(0.0, 1.0)
+mocap_track = clip.track(GroundEstimationTrackId.MOCAP)
+if not isinstance(mocap_track, MocapTrack | MocapTrackView):
+    raise TypeError("MOCAP track is not a mocap track or view")
+mocap = mocap_track
 
-left_shoe = clip.mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
+left_shoe = mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
     LEFT_SHOE_SEGMENT
 )
 
@@ -35,7 +40,7 @@ shoe_quat = left_shoe.rotations(
 sole_point = left_shoe.patch_points(LeftShoePatchId.SOLE)
 sole_normal = left_shoe.patch_normals(LeftShoePatchId.SOLE)
 
-print("Clip timesteps:", len(clip.mocap.timestamps))
+print("Clip timesteps:", len(mocap.timestamps))
 print("Heel observed:", heel_obs)
 print("Heel modeled:", heel_model)
 print("Heel velocity:", heel_vel)

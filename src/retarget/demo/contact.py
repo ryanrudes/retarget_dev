@@ -106,11 +106,11 @@ class ContactTrackView:
         *,
         return_dict: bool,
     ) -> np.ndarray | Mapping[PatchTarget[Any], np.ndarray]:
-        targets, _ = normalize_entity_input(target, PatchTarget)
+        targets, is_many = normalize_entity_input(target, PatchTarget)
         if not self.indices:
             arrays = [np.empty((0,), dtype=mapping[t].dtype) for t in targets]
         else:
             arrays = [mapping[t][list(self.indices)] for t in targets]
-        if len(targets) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return arrays[0]
         return stack_entity_arrays(targets, arrays, return_dict=return_dict)

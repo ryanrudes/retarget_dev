@@ -148,6 +148,19 @@ def test_marker_positions_modeled_and_observed() -> None:
     np.testing.assert_allclose(modeled[:, 0], np.array([0.0, 1.0, 2.0]))
 
 
+def test_single_element_sequence_query_shapes() -> None:
+    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    assert segment.marker_positions(DemoMarkerId.HEEL).shape == (3, 3)
+    assert segment.marker_positions([DemoMarkerId.HEEL]).shape == (3, 1, 3)
+    assert segment.marker_positions([]).shape == (3, 0, 3)
+    assert segment.marker_velocities(DemoMarkerId.HEEL).shape == (3, 3)
+    assert segment.marker_velocities([DemoMarkerId.HEEL]).shape == (3, 1, 3)
+    assert segment.patch_points(DemoPatchId.SOLE).shape == (3, 3)
+    assert segment.patch_points([DemoPatchId.SOLE]).shape == (3, 1, 3)
+    assert segment.patch_normals(DemoPatchId.SOLE).shape == (3, 3)
+    assert segment.patch_normals([DemoPatchId.SOLE]).shape == (3, 1, 3)
+
+
 def test_missing_observed_marker_returns_nan_rows() -> None:
     track = make_mocap_track()
     frames = list(track.marker_frames or ())
@@ -302,8 +315,8 @@ def test_empty_slice_returns_correctly_shaped_arrays() -> None:
     )
     assert segment.patch_points(DemoPatchId.SOLE).shape == (0, 3)
     assert segment.patch_normals(DemoPatchId.SOLE).shape == (0, 3)
-    assert segment.patch_points([DemoPatchId.SOLE]).shape == (0, 3)
-    assert segment.patch_normals([DemoPatchId.SOLE]).shape == (0, 3)
+    assert segment.patch_points([DemoPatchId.SOLE]).shape == (0, 1, 3)
+    assert segment.patch_normals([DemoPatchId.SOLE]).shape == (0, 1, 3)
 
 
 def test_modeled_multi_marker_positions_shape_and_columns() -> None:

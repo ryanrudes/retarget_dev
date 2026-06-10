@@ -5,7 +5,7 @@ import pytest
 
 from retarget.core import PatchHandle, PatchId, SegmentId, SubjectId
 from retarget.core.targets import PatchTarget
-from retarget.demo.contact import ContactTrack
+from retarget.demo.contact import ContactTrack, ContactTrackView
 from conftest import DemoPatchId, DemoSegmentId, DemoSubjectId, make_mocap_track
 
 from retarget.demo.mocap import MocapTrack
@@ -117,6 +117,18 @@ def test_contact_track_rejects_duplicate_timestamps() -> None:
         )
 
 
+def test_single_element_sequence_state_shape() -> None:
+    timestamps = np.array([0.0, 0.1, 0.2])
+    sole = _target(_PatchId.SOLE)
+    track = ContactTrack(
+        timestamps=timestamps,
+        contacts={sole: np.array([True, False, True])},
+    )
+    view = ContactTrackView(source=track, indices=(0, 1, 2))
+    assert view.state(sole).shape == (3,)
+    assert view.state([sole]).shape == (3, 1)
+
+
 def test_contact_state_lookup_and_slice() -> None:
     timestamps = np.array([0.0, 0.1, 0.2, 0.3])
     sole = _target(_PatchId.SOLE)
@@ -157,6 +169,9 @@ def test_mocap_patch_contacts_resolves_patch_target() -> None:
     segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
     values = segment.patch_contacts(DemoPatchId.SOLE)
     np.testing.assert_array_equal(values, np.array([True, False, True]))
+    stacked = segment.patch_contacts([DemoPatchId.SOLE])
+    assert stacked.shape == (3, 1)
+    np.testing.assert_array_equal(stacked[:, 0], values)
 
 
 def test_mocap_rejects_mismatched_contact_timestamp_count() -> None:

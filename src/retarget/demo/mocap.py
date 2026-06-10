@@ -323,13 +323,13 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         modeled: bool = False,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
-        markers, _ = normalize_entity_input(marker, self.segment_view.spec.marker_type)
+        markers, is_many = normalize_entity_input(marker, self.segment_view.spec.marker_type)
         coerced = tuple(self._coerce_marker(m) for m in markers)
         if modeled:
             world = self._modeled_marker_positions_many(coerced)
         else:
             world = self._observed_marker_positions_many(coerced)
-        if len(coerced) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return world[:, 0, :]
         if return_dict:
             return dict(zip(coerced, (world[:, i, :] for i in range(len(coerced))), strict=True))
@@ -342,11 +342,11 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         modeled: bool = False,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
-        markers, _ = normalize_entity_input(marker, self.segment_view.spec.marker_type)
+        markers, is_many = normalize_entity_input(marker, self.segment_view.spec.marker_type)
         coerced = tuple(self._coerce_marker(m) for m in markers)
         positions = self.marker_positions(marker, modeled=modeled, return_dict=False)
         velocities = self._differentiate(positions)
-        if len(coerced) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return velocities
         if return_dict:
             if velocities.ndim == 2:
@@ -372,10 +372,10 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        patches, _ = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
         coerced = tuple(self._coerce_patch(p) for p in patches)
         world = self._patch_points_many(coerced)
-        if len(coerced) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return world[:, 0, :]
         if return_dict:
             return dict(zip(coerced, (world[:, i, :] for i in range(len(coerced))), strict=True))
@@ -387,10 +387,10 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        patches, _ = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
         coerced = tuple(self._coerce_patch(p) for p in patches)
         world = self._patch_normals_many(coerced)
-        if len(coerced) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return world[:, 0, :]
         if return_dict:
             return dict(zip(coerced, (world[:, i, :] for i in range(len(coerced))), strict=True))
@@ -402,17 +402,19 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        coerced = tuple(
-            self._coerce_patch(p)
-            for p in normalize_entity_input(patch, self.segment_view.spec.patch_type)[0]
-        )
-        arrays = [
-            finite_difference_velocity(points, self.timestamps)
-            for points in [self.patch_points(p) for p in coerced]
-        ]
-        if len(coerced) == 1 and not return_dict:
-            return arrays[0]
-        return stack_entity_arrays(coerced, arrays, return_dict=return_dict)
+        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        coerced = tuple(self._coerce_patch(p) for p in patches)
+        positions = self.patch_points(patch, return_dict=False)
+        velocities = self._differentiate(positions)
+        if not is_many and not return_dict:
+            return velocities
+        if return_dict:
+            if velocities.ndim == 2:
+                return {coerced[0]: velocities}
+            return dict(
+                zip(coerced, (velocities[:, i, :] for i in range(len(coerced))), strict=True)
+            )
+        return velocities
 
     def patch_speed(self, patch: P) -> np.ndarray:
         return speed_from_velocity(self.patch_velocities(self._coerce_patch(patch)))
@@ -426,7 +428,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         contact_track = _contact_track(self.mocap)
         if contact_track is None:
             raise ValueError("No contact track is attached to this mocap track")
-        patches, _ = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
         coerced = tuple(self._coerce_patch(p) for p in patches)
         targets = [self._patch_target(p) for p in coerced]
         sliced = _slice_contact_track(contact_track, self.mocap)
@@ -434,7 +436,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             arrays = [np.empty((0,), dtype=np.bool_) for _ in targets]
         else:
             arrays = [sliced.state(target) for target in targets]
-        if len(coerced) == 1 and not return_dict:
+        if not is_many and not return_dict:
             return arrays[0]
         if return_dict:
             return dict(zip(coerced, arrays, strict=True))

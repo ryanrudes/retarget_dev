@@ -4,8 +4,10 @@ from pathlib import Path
 
 import pytest
 
-from demo_specs import load_ground_estimation_demo
+from demo_specs import GroundEstimationTrackId, load_ground_estimation_demo
 from retarget.demo import load_mocap_track
+from retarget.demo.demo import Demonstration
+from retarget.demo.mocap import MocapTrack, MocapTrackView
 from mocap_specs import VICON_SCENE
 from mocap_vocab import LeftShoeMarkerId, LeftShoeSegmentId, ViconSubjectId
 
@@ -13,10 +15,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 
+def _mocap_track(demo_or_clip: Demonstration[GroundEstimationTrackId] | object) -> MocapTrack | MocapTrackView:
+    value = demo_or_clip.track(GroundEstimationTrackId.MOCAP)  # type: ignore[attr-defined]
+    if not isinstance(value, MocapTrack | MocapTrackView):
+        raise TypeError("MOCAP track is not a mocap track or view")
+    return value
+
+
+@pytest.mark.skipif(not UNBAGGED_DIR.is_dir(), reason="ground-estimation bag not present")
+def test_loader_returns_demonstration() -> None:
+    demo = load_ground_estimation_demo(UNBAGGED_DIR)
+    assert isinstance(demo, Demonstration)
+
+
 @pytest.mark.skipif(not UNBAGGED_DIR.is_dir(), reason="ground-estimation bag not present")
 def test_loader_normalizes_timestamps_to_start_at_zero() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
-    timestamps = demo.mocap.timestamps
+    timestamps = _mocap_track(demo).timestamps
     assert timestamps[0] == 0.0
     assert timestamps[-1] > 0.0
 
@@ -25,7 +40,7 @@ def test_loader_normalizes_timestamps_to_start_at_zero() -> None:
 def test_loader_slice_first_second_is_non_empty() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
     clip = demo.slice_time(0.0, 1.0)
-    assert len(clip.mocap.timestamps) > 0
+    assert len(_mocap_track(clip).timestamps) > 0
 
 
 @pytest.mark.skipif(not UNBAGGED_DIR.is_dir(), reason="ground-estimation bag not present")
@@ -39,7 +54,7 @@ def test_load_mocap_track_uses_example_scene_spec() -> None:
 @pytest.mark.skipif(not UNBAGGED_DIR.is_dir(), reason="ground-estimation bag not present")
 def test_loader_accepts_example_vocab_marker_ids() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
-    left_shoe = demo.mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
+    left_shoe = _mocap_track(demo).subject(ViconSubjectId.LEFT_SHOE).segment(
         LeftShoeSegmentId.LEFT_SHOE
     )
     heel = left_shoe.marker_positions(LeftShoeMarkerId.HEEL)

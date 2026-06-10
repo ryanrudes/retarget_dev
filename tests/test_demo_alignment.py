@@ -3,12 +3,13 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from demo_specs import GroundEstimationDemo, GroundEstimationTrackId
+from demo_specs import GroundEstimationTrackId
 from retarget.demo.alignment import (
     EnergySignal,
     TimelineTransform,
     estimate_alignment_from_signals,
 )
+from retarget.demo.demo import Demonstration
 from conftest import make_mocap_track
 
 
@@ -84,10 +85,7 @@ def test_energy_signal_rejects_duplicate_timestamps() -> None:
 
 def test_demo_align_stores_alignment_metadata() -> None:
     mocap = make_mocap_track()
-    demo = GroundEstimationDemo(
-        mocap=mocap,
-        tracks={GroundEstimationTrackId.MOCAP: mocap},
-    )
+    demo = Demonstration(tracks={GroundEstimationTrackId.MOCAP: mocap})
     times = mocap.timestamps
     reference_signal = EnergySignal(
         timestamps=times,
