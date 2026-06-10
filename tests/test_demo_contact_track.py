@@ -123,10 +123,13 @@ def test_single_element_sequence_state_shape() -> None:
     track = ContactTrack(
         timestamps=timestamps,
         contacts={sole: np.array([True, False, True])},
+        confidences={sole: np.array([1.0, 0.0, 0.75])},
     )
     view = ContactTrackView(source=track, indices=(0, 1, 2))
     assert view.state(sole).shape == (3,)
     assert view.state([sole]).shape == (3, 1)
+    assert view.confidence(sole).shape == (3,)
+    assert view.confidence([sole]).shape == (3, 1)
 
 
 def test_contact_state_lookup_and_slice() -> None:

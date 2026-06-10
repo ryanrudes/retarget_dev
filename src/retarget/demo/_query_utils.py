@@ -6,11 +6,8 @@ from collections.abc import Mapping, Sequence
 from typing import TypeVar
 
 import numpy as np
-from scipy.spatial.transform import Rotation
 
-from retarget.core.enums import MarkerId, NameId, PatchId, PoseFormat, RotationFormat
-from retarget.core.transform import RigidTransform
-from retarget.core.types import TimeMat3, TimeQuat, Vec3
+from retarget.core.enums import MarkerId, NameId, PatchId
 
 E = TypeVar("E")
 
@@ -98,59 +95,3 @@ def stack_entity_arrays[T](
         trailing = first.shape[1:] if first.ndim > 1 else ()
         return np.empty((0, len(arrays), *trailing), dtype=first.dtype)
     return np.stack(arrays, axis=1)
-
-
-def rotations_to_format(
-    poses: Sequence[RigidTransform],
-    *,
-    format: RotationFormat,
-) -> TimeMat3 | TimeQuat | np.ndarray:
-    rotations = Rotation.from_matrix(np.stack([pose.rotation for pose in poses], axis=0))
-    if format is RotationFormat.MATRIX:
-        return np.asarray(rotations.as_matrix())
-    if format is RotationFormat.QUATERNION_XYZW:
-        return np.asarray(rotations.as_quat())
-    if format is RotationFormat.QUATERNION_WXYZ:
-        xyzw = rotations.as_quat()
-        return np.concatenate([xyzw[:, 3:4], xyzw[:, :3]], axis=1)
-    if format is RotationFormat.ROTVEC:
-        return np.asarray(rotations.as_rotvec())
-    raise ValueError(f"Unsupported rotation format: {format}")
-
-
-def poses_to_format(
-    poses: Sequence[RigidTransform],
-    *,
-    format: PoseFormat,
-) -> tuple[RigidTransform, ...] | np.ndarray:
-    if not poses:
-        if format is PoseFormat.RIGID_TRANSFORM:
-            return ()
-        if format is PoseFormat.MATRIX_4X4:
-            return np.empty((0, 4, 4), dtype=np.float64)
-        if format is PoseFormat.TRANSLATION_QUATERNION_XYZW:
-            return np.empty((0, 7), dtype=np.float64)
-        if format is PoseFormat.TRANSLATION_ROTATION_MATRIX:
-            return np.empty((0, 12), dtype=np.float64)
-        raise ValueError(f"Unsupported pose format: {format}")
-    if format is PoseFormat.RIGID_TRANSFORM:
-        return tuple(poses)
-    translations = np.stack([pose.translation for pose in poses], axis=0)
-    rotations = Rotation.from_matrix(np.stack([pose.rotation for pose in poses], axis=0))
-    if format is PoseFormat.MATRIX_4X4:
-        matrices = np.zeros((len(poses), 4, 4), dtype=np.float64)
-        matrices[:, :3, :3] = rotations.as_matrix()
-        matrices[:, :3, 3] = translations
-        matrices[:, 3, 3] = 1.0
-        return matrices
-    if format is PoseFormat.TRANSLATION_QUATERNION_XYZW:
-        quats = rotations.as_quat()
-        return np.concatenate([translations, quats], axis=1)
-    if format is PoseFormat.TRANSLATION_ROTATION_MATRIX:
-        flat_rot = rotations.as_matrix().reshape(len(poses), 9)
-        return np.concatenate([translations, flat_rot], axis=1)
-    raise ValueError(f"Unsupported pose format: {format}")
-
-
-def missing_vec3() -> Vec3:
-    return np.array([np.nan, np.nan, np.nan])

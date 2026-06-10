@@ -42,6 +42,6 @@ def load_ground_estimation_demo(
         )
     return Demonstration(
         tracks={
-            GroundEstimationTrackId.MOCAP: mocap
+            GroundEstimationTrackId.MOCAP: mocap,
         }
     )

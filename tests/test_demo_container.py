@@ -85,3 +85,37 @@ def test_resample_to_raises_not_implemented() -> None:
     clip = demo.slice_time(0.0, 0.2)
     with pytest.raises(NotImplementedError, match="alignment-aware"):
         clip.resample_to(GroundEstimationTrackId.MOCAP)
+
+
+def test_demonstration_typed_track_returns_mocap_track() -> None:
+    mocap = make_mocap_track()
+    demo = _make_demo(mocap)
+    result = demo.typed_track(
+        GroundEstimationTrackId.MOCAP,
+        (MocapTrack, MocapTrackView),
+    )
+    assert result is mocap
+
+
+def test_demonstration_view_typed_track_returns_sliced_mocap_view() -> None:
+    demo = _make_demo()
+    clip = demo.slice_time(0.0, 0.2)
+    result = clip.typed_track(
+        GroundEstimationTrackId.MOCAP,
+        (MocapTrack, MocapTrackView),
+    )
+    assert isinstance(result, MocapTrackView)
+    assert len(result.timestamps) == 2
+
+
+def test_demonstration_typed_track_raises_for_wrong_type() -> None:
+    demo = _make_demo()
+    with pytest.raises(TypeError, match="not of expected type"):
+        demo.typed_track(GroundEstimationTrackId.MOCAP, ContactTrack)
+
+
+def test_demonstration_view_typed_track_raises_for_wrong_type() -> None:
+    demo = _make_demo()
+    clip = demo.slice_time(0.0, 0.2)
+    with pytest.raises(TypeError, match="not of expected type"):
+        clip.typed_track(GroundEstimationTrackId.MOCAP, ContactTrack)

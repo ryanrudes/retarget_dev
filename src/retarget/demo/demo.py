@@ -5,12 +5,16 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
+from typing import Any, TypeVar, cast
+
 from retarget.core.enums import TrackId
 from retarget.demo.alignment import (
     EnergySignal,
     TrackAlignment,
     estimate_alignment_from_signals,
 )
+
+T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +29,19 @@ class Demonstration[K: TrackId]:
 
     def track(self, track: K) -> object:
         return self.tracks[track]
+
+    def typed_track[T](
+        self,
+        track: K,
+        expected_type: type[T] | tuple[type[Any], ...],
+    ) -> T:
+        value = self.track(track)
+        if not isinstance(value, expected_type):
+            raise TypeError(
+                f"Track {track!r} is not of expected type {expected_type}; "
+                f"got {type(value).__name__}"
+            )
+        return cast(T, value)
 
     def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
         sliced_tracks: dict[K, object] = {}
@@ -83,6 +100,19 @@ class DemonstrationView[K: TrackId]:
 
     def track(self, track: K) -> object:
         return self.tracks[track]
+
+    def typed_track[T](
+        self,
+        track: K,
+        expected_type: type[T] | tuple[type[Any], ...],
+    ) -> T:
+        value = self.track(track)
+        if not isinstance(value, expected_type):
+            raise TypeError(
+                f"Track {track!r} is not of expected type {expected_type}; "
+                f"got {type(value).__name__}"
+            )
+        return cast(T, value)
 
     def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
         sliced_tracks: dict[K, object] = {}

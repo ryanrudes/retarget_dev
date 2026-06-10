@@ -19,10 +19,10 @@ UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 demo = load_ground_estimation_demo(UNBAGGED_DIR)
 clip = demo.slice_time(0.0, 1.0)
-mocap_track = clip.track(GroundEstimationTrackId.MOCAP)
-if not isinstance(mocap_track, MocapTrack | MocapTrackView):
-    raise TypeError("MOCAP track is not a mocap track or view")
-mocap = mocap_track
+mocap = clip.typed_track(
+    GroundEstimationTrackId.MOCAP,
+    (MocapTrack, MocapTrackView),
+)
 
 left_shoe = mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
     LEFT_SHOE_SEGMENT

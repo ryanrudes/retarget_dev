@@ -105,6 +105,8 @@ class MocapTrack:
         return MocapTrackView(source=self, indices=indices)
 
     def nearest_index(self, time: float) -> int:
+        if len(self.timestamps) == 0:
+            raise IndexError("cannot query nearest_index on an empty mocap track")
         return int(np.argmin(np.abs(self.timestamps - time)))
 
     def segment_translations(self, key: SegmentKey) -> np.ndarray:
@@ -209,6 +211,8 @@ class MocapTrackView:
         return MocapTrackView(source=self.source, indices=remapped)
 
     def nearest_index(self, time: float) -> int:
+        if len(self.timestamps) == 0:
+            raise IndexError("cannot query nearest_index on an empty mocap view")
         return int(np.argmin(np.abs(self.timestamps - time)))
 
 

@@ -17,6 +17,8 @@ from retarget.core import (
     SegmentSpec,
     Z_UP_AXES,
 )
+from retarget.core.targets import PatchTarget
+from retarget.core import PatchHandle
 from conftest import (
     DEMO_SEGMENT_SPEC,
     DemoMarkerId,
@@ -28,6 +30,7 @@ from conftest import (
     make_mocap_track,
 )
 
+from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
 
@@ -120,6 +123,24 @@ def test_mocap_track_slice_time_returns_expected_indices() -> None:
     assert view.indices == (1, 2)
 
 
+def test_nearest_index_on_empty_mocap_track_raises() -> None:
+    template = make_mocap_track()
+    track = MocapTrack(
+        scene_spec=template.scene_spec,
+        state=SceneState(),
+        timestamps=np.array([], dtype=np.float64),
+    )
+    with pytest.raises(IndexError, match="empty mocap track"):
+        track.nearest_index(0.0)
+
+
+def test_nearest_index_on_empty_mocap_view_raises() -> None:
+    track = make_mocap_track()
+    view = track.slice_time(100.0, 101.0)
+    with pytest.raises(IndexError, match="empty mocap view"):
+        view.nearest_index(0.0)
+
+
 def test_segment_lookup_by_segment_id_and_spec() -> None:
     track = make_mocap_track()
     by_id = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
@@ -149,7 +170,23 @@ def test_marker_positions_modeled_and_observed() -> None:
 
 
 def test_single_element_sequence_query_shapes() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    track = make_mocap_track()
+    sole_target = PatchTarget(
+        subject=DemoSubjectId.SUBJECT,
+        handle=PatchHandle(segment=DemoSegmentId.SEGMENT, patch=DemoPatchId.SOLE),
+    )
+    contacts = ContactTrack(
+        timestamps=track.timestamps,
+        contacts={sole_target: np.array([True, False, True])},
+    )
+    track = MocapTrack(
+        scene_spec=track.scene_spec,
+        state=track.state,
+        timestamps=track.timestamps,
+        marker_frames=track.marker_frames,
+        contacts=contacts,
+    )
+    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
     assert segment.marker_positions(DemoMarkerId.HEEL).shape == (3, 3)
     assert segment.marker_positions([DemoMarkerId.HEEL]).shape == (3, 1, 3)
     assert segment.marker_positions([]).shape == (3, 0, 3)
@@ -159,6 +196,8 @@ def test_single_element_sequence_query_shapes() -> None:
     assert segment.patch_points([DemoPatchId.SOLE]).shape == (3, 1, 3)
     assert segment.patch_normals(DemoPatchId.SOLE).shape == (3, 3)
     assert segment.patch_normals([DemoPatchId.SOLE]).shape == (3, 1, 3)
+    assert segment.patch_contacts(DemoPatchId.SOLE).shape == (3,)
+    assert segment.patch_contacts([DemoPatchId.SOLE]).shape == (3, 1)
 
 
 def test_missing_observed_marker_returns_nan_rows() -> None:
