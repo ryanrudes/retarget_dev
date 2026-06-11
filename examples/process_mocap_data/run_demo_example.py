@@ -20,10 +20,8 @@ UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 demo = load_ground_estimation_demo(UNBAGGED_DIR)
 clip = demo.slice_time(0.0, 1.0)
-mocap = clip.typed_track(
-    GroundEstimationTrackId.MOCAP,
-    (mocap_mod.MocapTrack, mocap_mod.MocapTrackView),
-)
+mocap = clip.get_track(GroundEstimationTrackId.MOCAP)
+assert isinstance(mocap, mocap_mod.MocapTrack | mocap_mod.MocapTrackView)
 
 left_shoe = mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
     LEFT_SHOE_SEGMENT

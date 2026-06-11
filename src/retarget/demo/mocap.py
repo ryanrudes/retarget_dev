@@ -33,6 +33,7 @@ from retarget.demo._query_utils import (
     stack_entity_arrays,
 )
 from retarget.demo.contact import ContactTrack, ContactTrackView
+from retarget.demo.tracks import Track, TrackView
 from retarget.io import ViconMarkersFrame
 
 
@@ -44,7 +45,7 @@ def _validate_timestamps(timestamps: np.ndarray) -> None:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapTrack:
+class MocapTrack(Track):
     """Time-indexed mocap track over a scene spec and runtime state."""
 
     scene_spec: SceneSpec
@@ -52,6 +53,7 @@ class MocapTrack:
     timestamps: np.ndarray
     marker_frames: tuple[ViconMarkersFrame, ...] | None = None
     contacts: ContactTrack | None = None
+    nominal_hz_override: float | None = None
     _array_cache: MocapArrayCache = field(
         default_factory=MocapArrayCache,
         init=False,
@@ -100,12 +102,17 @@ class MocapTrack:
             timestamps=timestamps,
             marker_frames=self.marker_frames,
             contacts=self.contacts,
+            nominal_hz_override=self.nominal_hz_override,
         )
 
     def with_rebased_time(self) -> MocapTrack:
         if len(self.timestamps) == 0:
             return self
         return self.with_timestamps(self.timestamps - self.timestamps[0])
+
+    @classmethod
+    def _view_type(cls) -> type[MocapTrackView]:
+        return MocapTrackView
 
     @property
     def scene(self) -> SceneView:
@@ -120,15 +127,6 @@ class MocapTrack:
         segment: SegmentId | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         return self.subject(subject).segment(segment)
-
-    def slice_time(self, start: float, stop: float) -> MocapTrackView:
-        indices = _indices_for_time_range(self.timestamps, start, stop)
-        return MocapTrackView(source=self, indices=indices)
-
-    def nearest_index(self, time: float) -> int:
-        if len(self.timestamps) == 0:
-            raise IndexError("cannot query nearest_index on an empty mocap track")
-        return int(np.argmin(np.abs(self.timestamps - time)))
 
     def segment_translations(self, key: SegmentKey) -> np.ndarray:
         """Return full-track segment translations with shape ``(T, 3)``."""
@@ -199,11 +197,8 @@ class MocapTrack:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapTrackView:
+class MocapTrackView(TrackView[MocapTrack]):
     """Sliced view into a :class:`MocapTrack`."""
-
-    source: MocapTrack
-    indices: tuple[int, ...]
 
     def __len__(self) -> int:
         return len(self.indices)
@@ -225,16 +220,6 @@ class MocapTrackView:
         segment: SegmentId | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         return self.subject(subject).segment(segment)
-
-    def slice_time(self, start: float, stop: float) -> MocapTrackView:
-        sub_indices = _indices_for_time_range(self.timestamps, start, stop)
-        remapped = tuple(self.indices[i] for i in sub_indices)
-        return MocapTrackView(source=self.source, indices=remapped)
-
-    def nearest_index(self, time: float) -> int:
-        if len(self.timestamps) == 0:
-            raise IndexError("cannot query nearest_index on an empty mocap view")
-        return int(np.argmin(np.abs(self.timestamps - time)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -611,15 +596,6 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     def _patch_target(self, patch: P) -> PatchTarget[P]:
         handle: PatchHandle[P] = self.segment_view.spec.patch(patch)
         return PatchTarget(subject=self.segment_view.subject_id, handle=handle)
-
-
-def _indices_for_time_range(
-    timestamps: np.ndarray,
-    start: float,
-    stop: float,
-) -> tuple[int, ...]:
-    mask = (timestamps >= start) & (timestamps < stop)
-    return tuple(int(index) for index in np.nonzero(mask)[0])
 
 
 def _mocap_source(mocap: MocapTrack | MocapTrackView) -> MocapTrack:

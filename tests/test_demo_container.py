@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import cast
-
 import numpy as np
 import pytest
 
@@ -20,15 +18,14 @@ def _make_demo(mocap: MocapTrack | None = None) -> Demonstration[GroundEstimatio
 
 
 def _mocap_track(value: object) -> MocapTrack | MocapTrackView:
-    if not isinstance(value, MocapTrack | MocapTrackView):
-        raise TypeError("expected a mocap track or view")
+    assert isinstance(value, MocapTrack | MocapTrackView)
     return value
 
 
 def test_load_pattern_returns_demonstration() -> None:
     demo = _make_demo()
     assert isinstance(demo, Demonstration)
-    mocap = _mocap_track(demo.track(GroundEstimationTrackId.MOCAP))
+    mocap = _mocap_track(demo.get_track(GroundEstimationTrackId.MOCAP))
     assert isinstance(mocap, MocapTrack)
 
 
@@ -36,18 +33,34 @@ def test_track_lookup_by_enum_id() -> None:
     demo = _make_demo()
     mocap = make_mocap_track()
     demo = Demonstration(tracks={GroundEstimationTrackId.MOCAP: mocap})
-    assert demo.track(GroundEstimationTrackId.MOCAP) is mocap
+    assert demo.get_track(GroundEstimationTrackId.MOCAP) is mocap
 
 
-def test_slice_time_and_with_track() -> None:
+def test_slice_time_returns_demonstration_view() -> None:
     demo = _make_demo()
     clip = demo.slice_time(0.0, 0.2)
     assert isinstance(clip, DemonstrationView)
-    mocap = _mocap_track(clip.track(GroundEstimationTrackId.MOCAP))
+    mocap = _mocap_track(clip.get_track(GroundEstimationTrackId.MOCAP))
+    assert isinstance(mocap, MocapTrackView)
     assert len(mocap.timestamps) == 2
-    extra = object()
-    updated = demo.with_track(GroundEstimationTrackId.VIDEO, extra)
-    assert updated.track(GroundEstimationTrackId.VIDEO) is extra
+
+
+def test_demonstration_view_is_a_demonstration() -> None:
+    demo = _make_demo()
+    clip = demo.slice_time(0.0, 0.2)
+    assert isinstance(clip, Demonstration)
+
+
+def test_demonstration_view_slice_time_preserves_original_source() -> None:
+    demo = _make_demo()
+    clip = demo.slice_time(0.0, 0.3)
+    nested = clip.slice_time(0.1, 0.2)
+    assert nested.source is demo
+
+
+def test_demonstration_rejects_non_track_values() -> None:
+    with pytest.raises(TypeError, match="must be a Track"):
+        Demonstration(tracks={GroundEstimationTrackId.MOCAP: object()})  # type: ignore[dict-item]
 
 
 def test_with_contacts_attaches_contact_track() -> None:
@@ -68,16 +81,19 @@ def test_with_contacts_attaches_contact_track() -> None:
         marker_frames=mocap.marker_frames,
         contacts=contacts,
     )
-    demo_with_contacts = (
-        demo
-        .with_track(GroundEstimationTrackId.MOCAP, mocap_with_contacts)
-        .with_track(GroundEstimationTrackId.CONTACTS, contacts)
+    demo_with_contacts = Demonstration(
+        tracks={
+            GroundEstimationTrackId.MOCAP: mocap_with_contacts,
+            GroundEstimationTrackId.CONTACTS: contacts,
+        }
     )
-    mocap_track = _mocap_track(demo_with_contacts.track(GroundEstimationTrackId.MOCAP))
+    mocap_track = _mocap_track(
+        demo_with_contacts.get_track(GroundEstimationTrackId.MOCAP)
+    )
     assert mocap_track.contacts is contacts
-    assert cast(
-        ContactTrack, demo_with_contacts.track(GroundEstimationTrackId.CONTACTS)
-    ) is contacts
+    contact_track = demo_with_contacts.get_track(GroundEstimationTrackId.CONTACTS)
+    assert isinstance(contact_track, ContactTrack)
+    assert contact_track is contacts
 
 
 def test_resample_to_raises_not_implemented() -> None:
@@ -87,35 +103,17 @@ def test_resample_to_raises_not_implemented() -> None:
         clip.resample_to(GroundEstimationTrackId.MOCAP)
 
 
-def test_demonstration_typed_track_returns_mocap_track() -> None:
+def test_get_track_returns_mocap_track() -> None:
     mocap = make_mocap_track()
     demo = _make_demo(mocap)
-    result = demo.typed_track(
-        GroundEstimationTrackId.MOCAP,
-        (MocapTrack, MocapTrackView),
-    )
+    result = demo.get_track(GroundEstimationTrackId.MOCAP)
+    assert isinstance(result, MocapTrack | MocapTrackView)
     assert result is mocap
 
 
-def test_demonstration_view_typed_track_returns_sliced_mocap_view() -> None:
+def test_get_track_on_view_returns_sliced_mocap_view() -> None:
     demo = _make_demo()
     clip = demo.slice_time(0.0, 0.2)
-    result = clip.typed_track(
-        GroundEstimationTrackId.MOCAP,
-        (MocapTrack, MocapTrackView),
-    )
+    result = clip.get_track(GroundEstimationTrackId.MOCAP)
     assert isinstance(result, MocapTrackView)
     assert len(result.timestamps) == 2
-
-
-def test_demonstration_typed_track_raises_for_wrong_type() -> None:
-    demo = _make_demo()
-    with pytest.raises(TypeError, match="not of expected type"):
-        demo.typed_track(GroundEstimationTrackId.MOCAP, ContactTrack)
-
-
-def test_demonstration_view_typed_track_raises_for_wrong_type() -> None:
-    demo = _make_demo()
-    clip = demo.slice_time(0.0, 0.2)
-    with pytest.raises(TypeError, match="not of expected type"):
-        clip.typed_track(GroundEstimationTrackId.MOCAP, ContactTrack)

@@ -3,124 +3,52 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, cast
 
 from retarget.core.enums import TrackId
-from retarget.demo.alignment import (
-    EnergySignal,
-    TrackAlignment,
-    estimate_alignment_from_signals,
-)
+from retarget.demo.alignment import TrackAlignment
+from retarget.demo.tracks import Track
 
 
 @dataclass(frozen=True, slots=True)
 class Demonstration[K: TrackId]:
     """Multimodal demonstration keyed by typed track identifiers."""
 
-    tracks: Mapping[K, object]
+    tracks: Mapping[K, Track]
     alignments: tuple[TrackAlignment[K], ...] = ()
 
     def __post_init__(self) -> None:
-        object.__setattr__(self, "tracks", MappingProxyType(dict(self.tracks)))
+        object.__setattr__(self, "tracks", _freeze_tracks(self.tracks))
 
-    def track(self, track: K) -> object:
+    def __getitem__(self, track: K) -> Track:
         return self.tracks[track]
 
-    def typed_track[T](
-        self,
-        track: K,
-        expected_type: type[T] | tuple[type[Any], ...],
-    ) -> T:
-        value = self.track(track)
-        if not isinstance(value, expected_type):
-            raise TypeError(
-                f"Track {track!r} is not of expected type {expected_type}; "
-                f"got {type(value).__name__}"
-            )
-        return cast(T, value)
+    def get_track(self, track: K) -> Track:
+        return self[track]
 
     def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
-        sliced_tracks: dict[K, object] = {}
-        for track_id, value in self.tracks.items():
-            sliced_tracks[track_id] = _slice_track(value, start, stop)
         return DemonstrationView(
-            source=self,
-            tracks=sliced_tracks,
+            source=self._view_source(),
+            tracks={
+                track_id: track.slice_time(start, stop)
+                for track_id, track in self.tracks.items()
+            },
             alignments=self.alignments,
         )
 
-    def with_track(self, track: K, value: object) -> Demonstration[K]:
-        updated = dict(self.tracks)
-        updated[track] = value
-        return Demonstration(tracks=updated, alignments=self.alignments)
-
-    def with_alignment(self, alignment: TrackAlignment[K]) -> Demonstration[K]:
-        return Demonstration(
-            tracks=self.tracks,
-            alignments=(*self.alignments, alignment),
-        )
-
-    def align(
-        self,
-        *,
-        reference: K,
-        source: K,
-        reference_signal: EnergySignal,
-        source_signal: EnergySignal,
-        max_lag_seconds: float,
-    ) -> Demonstration[K]:
-        transform, score = estimate_alignment_from_signals(
-            reference=reference_signal,
-            source=source_signal,
-            max_lag_seconds=max_lag_seconds,
-        )
-        alignment = TrackAlignment(
-            source=source,
-            reference=reference,
-            transform=transform,
-            score=score,
-        )
-        return self.with_alignment(alignment)
+    def _view_source(self) -> Demonstration[K]:
+        return self
 
 
-@dataclass(frozen=True, slots=True)
-class DemonstrationView[K: TrackId]:
+@dataclass(frozen=True, slots=True, kw_only=True)
+class DemonstrationView[K: TrackId](Demonstration[K]):
     """Time-sliced view over a demonstration."""
 
     source: Demonstration[K]
-    tracks: Mapping[K, object]
-    alignments: tuple[TrackAlignment[K], ...] = field(default_factory=tuple)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "tracks", MappingProxyType(dict(self.tracks)))
-
-    def track(self, track: K) -> object:
-        return self.tracks[track]
-
-    def typed_track[T](
-        self,
-        track: K,
-        expected_type: type[T] | tuple[type[Any], ...],
-    ) -> T:
-        value = self.track(track)
-        if not isinstance(value, expected_type):
-            raise TypeError(
-                f"Track {track!r} is not of expected type {expected_type}; "
-                f"got {type(value).__name__}"
-            )
-        return cast(T, value)
-
-    def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
-        sliced_tracks: dict[K, object] = {}
-        for track_id, value in self.tracks.items():
-            sliced_tracks[track_id] = _slice_track(value, start, stop)
-        return DemonstrationView(
-            source=self.source,
-            tracks=sliced_tracks,
-            alignments=self.alignments,
-        )
+    def _view_source(self) -> Demonstration[K]:
+        return self.source
 
     def resample_to(self, reference: K) -> DemonstrationView[K]:
         raise NotImplementedError(
@@ -129,7 +57,11 @@ class DemonstrationView[K: TrackId]:
         )
 
 
-def _slice_track(value: object, start: float, stop: float) -> object:
-    if hasattr(value, "slice_time"):
-        return value.slice_time(start, stop)  # type: ignore[attr-defined]
-    return value
+def _freeze_tracks[K: TrackId](tracks: Mapping[K, Track]) -> Mapping[K, Track]:
+    copied = dict(tracks)
+    for key, value in copied.items():
+        if not isinstance(value, Track):
+            raise TypeError(
+                f"Track {key!r} must be a Track; got {type(value).__name__}"
+            )
+    return MappingProxyType(copied)

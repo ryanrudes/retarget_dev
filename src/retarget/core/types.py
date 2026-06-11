@@ -1,11 +1,17 @@
-from typing import Literal, Any
+from typing import Literal, Any, Callable
 
 import numpy.typing as npt
 import numpy as np
 
 
-FloatArray = npt.NDArray[np.float64]
+type FloatArray = npt.NDArray[np.float64]
 """A numpy array of floating-point numbers."""
+
+type FloatArray1D = np.ndarray[tuple[int], np.dtype[np.floating[Any]]]
+"""A 1D numpy array of floating-point numbers."""
+
+type TimeLike = float | FloatArray
+"""A time-like value, either a float or a numpy array of floating-point numbers."""
 
 type Sign = Literal[-1, 1]
 """The sign of a scalar value."""

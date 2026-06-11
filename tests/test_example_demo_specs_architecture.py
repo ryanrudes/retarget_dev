@@ -138,16 +138,14 @@ def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
 
     monkeypatch.setattr(demo_specs, "load_mocap_track", fake_load_mocap_track)
     demo = demo_specs.load_ground_estimation_demo(Path("dummy"))
-    mocap = demo.typed_track(
-        demo_vocab.GroundEstimationTrackId.MOCAP,
-        MocapTrack,
-    )
+    mocap = demo.get_track(demo_vocab.GroundEstimationTrackId.MOCAP)
+    assert isinstance(mocap, MocapTrack)
     np.testing.assert_allclose(mocap.timestamps, track.timestamps)
 
 
-def test_run_demo_example_uses_generic_typed_track_pattern() -> None:
+def test_run_demo_example_uses_generic_get_track_pattern() -> None:
     source = RUN_DEMO_EXAMPLE.read_text()
-    assert ".typed_track(" in source
+    assert ".get_track(" in source
     assert ".mocap" not in source
     assert "GroundEstimationDemo" not in source
     assert "GroundEstimationDemoView" not in source

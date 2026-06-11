@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Any
 
+import numpy as np
 
 from retarget.core.types import FloatArray
 from retarget.utils.sampler import (
@@ -20,6 +22,19 @@ class TrackSyncInfo:
     nominal_hz: float | None = None
 
 
+def indices_for_time_range(
+    timestamps: FloatArray,
+    start: float,
+    stop: float,
+) -> tuple[int, ...]:
+    """Return indices whose timestamps lie in [start, stop)."""
+    if timestamps.ndim != 1:
+        raise ValueError("timestamps must be a 1D array")
+
+    mask = (timestamps >= start) & (timestamps < stop)
+    return tuple(int(index) for index in np.nonzero(mask)[0])
+
+
 class Track(ABC):
     """Base class for time-indexed demonstration tracks.
 
@@ -35,18 +50,6 @@ class Track(ABC):
     @abstractmethod
     def timestamps(self) -> FloatArray:
         """Native timestamps for this track, shape (T,)."""
-
-    @abstractmethod
-    def slice_time(self, start: float, stop: float) -> Track:
-        """Return a cheap time-sliced view over [start, stop)."""
-
-    @abstractmethod
-    def nearest_index(self, time: float) -> int:
-        """Return the nearest native timestep index.
-
-        Raises:
-            IndexError: If the track is empty.
-        """
 
     @property
     def nominal_hz_override(self) -> float | None:
@@ -79,6 +82,48 @@ class Track(ABC):
             nominal_hz=self.nominal_hz,
         )
 
+    def slice_time(self, start: float, stop: float) -> Track:
+        """Return a cheap time-sliced view over [start, stop)."""
+        return self._view_from_indices(
+            indices_for_time_range(self.timestamps, start, stop)
+        )
+
+    def nearest_index(self, time: float) -> int:
+        """Return the nearest native timestep index.
+
+        Raises:
+            IndexError: If the track is empty.
+        """
+        timestamps = self.timestamps
+        if timestamps.size == 0:
+            raise IndexError(
+                f"cannot query nearest_index on an empty {type(self).__name__}"
+            )
+        return int(np.argmin(np.abs(timestamps - time)))
+
+    def resample_to(self, timestamps: FloatArray) -> "Track":
+        """Return this track resampled onto the requested timestamps.
+
+        Concrete track types define their own interpolation semantics. For
+        example, continuous mocap data may use interpolation, while discrete
+        contact data may use nearest-neighbor or step-wise sampling.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement resample_to"
+        )
+
+    @classmethod
+    def _view_type(cls) -> type[TrackView[Any]]:
+        """Return the concrete view class for this owning track type."""
+        raise TypeError(
+            f"{cls.__name__} does not define `_view_type()`; "
+            "override it to return the corresponding TrackView class."
+        )
+
+    def _view_from_indices(self, indices: tuple[int, ...]) -> Track:
+        """Construct a view over this track using indices in this track's time basis."""
+        return self._view_type()(source=self, indices=indices)
+
 
 @dataclass(frozen=True, slots=True)
 class TrackView[SourceTrack: Track](Track):
@@ -95,6 +140,7 @@ class TrackView[SourceTrack: Track](Track):
     """
 
     source: SourceTrack
+    indices: tuple[int, ...]
 
     @property
     def nominal_hz(self) -> float:
@@ -110,3 +156,8 @@ class TrackView[SourceTrack: Track](Track):
             can_be_aligned=source_info.can_be_aligned,
             nominal_hz=self.nominal_hz,
         )
+
+    def _view_from_indices(self, indices: tuple[int, ...]) -> TrackView[SourceTrack]:
+        """Construct a same-type view from indices relative to this view."""
+        source_indices = tuple(self.indices[index] for index in indices)
+        return type(self)(source=self.source, indices=source_indices)

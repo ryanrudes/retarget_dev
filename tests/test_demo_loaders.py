@@ -16,10 +16,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 
-def _mocap_track(demo_or_clip: Demonstration[GroundEstimationTrackId] | object) -> MocapTrack | MocapTrackView:
-    value = demo_or_clip.track(GroundEstimationTrackId.MOCAP)  # type: ignore[attr-defined]
-    if not isinstance(value, MocapTrack | MocapTrackView):
-        raise TypeError("MOCAP track is not a mocap track or view")
+def _mocap_track(demo_or_clip: Demonstration[GroundEstimationTrackId]) -> MocapTrack | MocapTrackView:
+    value = demo_or_clip.get_track(GroundEstimationTrackId.MOCAP)
+    assert isinstance(value, MocapTrack | MocapTrackView)
     return value
 
 

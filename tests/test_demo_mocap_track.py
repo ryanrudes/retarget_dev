@@ -130,14 +130,14 @@ def test_nearest_index_on_empty_mocap_track_raises() -> None:
         state=SceneState(),
         timestamps=np.array([], dtype=np.float64),
     )
-    with pytest.raises(IndexError, match="empty mocap track"):
+    with pytest.raises(IndexError, match="cannot query nearest_index on an empty MocapTrack"):
         track.nearest_index(0.0)
 
 
 def test_nearest_index_on_empty_mocap_view_raises() -> None:
     track = make_mocap_track()
     view = track.slice_time(100.0, 101.0)
-    with pytest.raises(IndexError, match="empty mocap view"):
+    with pytest.raises(IndexError, match="cannot query nearest_index on an empty MocapTrackView"):
         view.nearest_index(0.0)
 
 

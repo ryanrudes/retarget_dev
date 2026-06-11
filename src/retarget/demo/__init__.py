@@ -24,14 +24,21 @@ from retarget.demo.tracks import (
 __all__ = [
     "ContactTrack",
     "ContactTrackView",
+
+    # retarget.demo.demo
     "Demonstration",
     "DemonstrationView",
+
+
     "EnergySignal",
     "load_mocap_track",
-    "MocapSegmentTrackView",
-    "MocapSubjectTrackView",
+
+
+    # retarget.demo.mocap
     "MocapTrack",
     "MocapTrackView",
+    "MocapSegmentTrackView",
+    "MocapSubjectTrackView",
 
     # retarget.demo.tracks
     "TrackSyncInfo",
