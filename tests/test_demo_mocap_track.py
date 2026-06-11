@@ -560,3 +560,63 @@ def test_nan_observed_marker_positions_propagate_to_velocities() -> None:
     assert np.isnan(velocities[0]).all()
     assert np.isnan(velocities[2]).all()
     np.testing.assert_allclose(velocities[1], np.array([10.0, 0.0, 0.0]))
+
+
+def test_mocap_track_with_rebased_time() -> None:
+    track = make_mocap_track()
+    shifted = MocapTrack(
+        scene_spec=track.scene_spec,
+        state=track.state,
+        timestamps=track.timestamps + 100.0,
+        marker_frames=track.marker_frames,
+    )
+    rebased = shifted.with_rebased_time()
+    np.testing.assert_allclose(rebased.timestamps, track.timestamps)
+    assert rebased.scene_spec is shifted.scene_spec
+    assert rebased.state is shifted.state
+    assert rebased.marker_frames is shifted.marker_frames
+
+
+def test_mocap_track_with_timestamps_rejects_attached_contacts_when_timestamps_change() -> (
+    None
+):
+    track = make_mocap_track()
+    target = PatchTarget(
+        subject=DemoSubjectId.SUBJECT,
+        handle=PatchHandle(segment=DemoSegmentId.SEGMENT, patch=DemoPatchId.SOLE),
+    )
+    contacts = ContactTrack(
+        timestamps=track.timestamps,
+        contacts={target: np.array([True, False, True])},
+    )
+    track = MocapTrack(
+        scene_spec=track.scene_spec,
+        state=track.state,
+        timestamps=track.timestamps,
+        marker_frames=track.marker_frames,
+        contacts=contacts,
+    )
+    with pytest.raises(ValueError, match="contacts are attached"):
+        track.with_timestamps(track.timestamps + 100.0)
+
+
+def test_mocap_track_with_timestamps_allows_unchanged_contacts() -> None:
+    track = make_mocap_track()
+    target = PatchTarget(
+        subject=DemoSubjectId.SUBJECT,
+        handle=PatchHandle(segment=DemoSegmentId.SEGMENT, patch=DemoPatchId.SOLE),
+    )
+    contacts = ContactTrack(
+        timestamps=track.timestamps,
+        contacts={target: np.array([True, False, True])},
+    )
+    track = MocapTrack(
+        scene_spec=track.scene_spec,
+        state=track.state,
+        timestamps=track.timestamps,
+        marker_frames=track.marker_frames,
+        contacts=contacts,
+    )
+    updated = track.with_timestamps(track.timestamps.copy())
+    np.testing.assert_allclose(updated.timestamps, track.timestamps)
+    assert updated.contacts is contacts

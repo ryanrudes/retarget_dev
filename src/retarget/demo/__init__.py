@@ -15,7 +15,11 @@ from retarget.demo.mocap import (
     MocapTrack,
     MocapTrackView,
 )
-from retarget.demo.tracks import TimeRange, TimeTrack
+from retarget.demo.tracks import (
+    TrackSyncInfo,
+    Track,
+    TrackView,
+)
 
 __all__ = [
     "ContactTrack",
@@ -28,8 +32,13 @@ __all__ = [
     "MocapSubjectTrackView",
     "MocapTrack",
     "MocapTrackView",
-    "TimeRange",
-    "TimeTrack",
+
+    # retarget.demo.tracks
+    "TrackSyncInfo",
+    "Track",
+    "TrackView",
+
+    # retarget.demo.alignment
     "TimelineTransform",
     "TrackAlignment",
     "estimate_alignment_from_signals",

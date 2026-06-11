@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from demo_specs import GroundEstimationTrackId
+from demo_vocab import GroundEstimationTrackId
 from retarget.demo.alignment import (
     EnergySignal,
     TimelineTransform,

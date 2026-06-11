@@ -86,6 +86,27 @@ class MocapTrack:
     def __len__(self) -> int:
         return len(self.timestamps)
 
+    def with_timestamps(self, timestamps: np.ndarray) -> MocapTrack:
+        if self.contacts is not None and not np.allclose(
+            self.contacts.timestamps, timestamps
+        ):
+            raise ValueError(
+                "Cannot change MocapTrack timestamps while contacts are attached; "
+                "rebase or resample contacts explicitly first."
+            )
+        return MocapTrack(
+            scene_spec=self.scene_spec,
+            state=self.state,
+            timestamps=timestamps,
+            marker_frames=self.marker_frames,
+            contacts=self.contacts,
+        )
+
+    def with_rebased_time(self) -> MocapTrack:
+        if len(self.timestamps) == 0:
+            return self
+        return self.with_timestamps(self.timestamps - self.timestamps[0])
+
     @property
     def scene(self) -> SceneView:
         return SceneView(spec=self.scene_spec, state=self.state)

@@ -1,7 +1,11 @@
 from typing import Literal, Any
 
+import numpy.typing as npt
 import numpy as np
 
+
+FloatArray = npt.NDArray[np.float64]
+"""A numpy array of floating-point numbers."""
 
 type Sign = Literal[-1, 1]
 """The sign of a scalar value."""

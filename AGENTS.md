@@ -78,7 +78,7 @@ Prefer `pytest -q` or `pytest -q tests/test_demo_mocap_track.py` over reimplemen
 
 ### Examples (`examples/process_mocap_data/`)
 
-Example modules (`demo_specs`, `mocap_specs`, `mocap_vocab`) live beside the scripts. Run from that directory with both `src` and the example dir on the path:
+Example modules (`demo_vocab`, `demo_specs`, `mocap_specs`, `mocap_vocab`) live beside the scripts. Run from that directory with both `src` and the example dir on the path:
 
 ```bash
 cd examples/process_mocap_data

@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import TypeVar
 
 import numpy as np
 
 from retarget.core.enums import MarkerId, NameId, PatchId
-
-E = TypeVar("E")
 
 
 def resolve_indices(length: int, indices: tuple[int, ...] | None) -> tuple[int, ...]:

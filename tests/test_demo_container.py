@@ -7,7 +7,7 @@ import pytest
 
 from retarget.core import PatchHandle
 from retarget.core.targets import PatchTarget
-from demo_specs import GroundEstimationTrackId
+from demo_vocab import GroundEstimationTrackId
 from retarget.demo.contact import ContactTrack
 from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.mocap import MocapTrack, MocapTrackView

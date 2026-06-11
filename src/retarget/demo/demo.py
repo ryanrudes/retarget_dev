@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, TypeVar, cast
+from typing import Any, cast
 
 from retarget.core.enums import TrackId
 from retarget.demo.alignment import (
@@ -13,8 +13,6 @@ from retarget.demo.alignment import (
     TrackAlignment,
     estimate_alignment_from_signals,
 )
-
-T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)

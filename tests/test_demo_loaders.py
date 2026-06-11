@@ -4,7 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from demo_specs import GroundEstimationTrackId, load_ground_estimation_demo
+from demo_specs import load_ground_estimation_demo
+from demo_vocab import GroundEstimationTrackId
 from retarget.demo import load_mocap_track
 from retarget.demo.demo import Demonstration
 from retarget.demo.mocap import MocapTrack, MocapTrackView

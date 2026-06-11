@@ -405,6 +405,27 @@ When adding demo/track/alignment/contact/SMPL code, add tests for:
 
 Do not use real video files in tests unless specifically required. Use tiny arrays and fake paths.
 
+## Example demo pattern
+
+Examples must teach the minimal generic demonstration pattern.
+
+For project-specific demos:
+
+- Define a project-specific `TrackId` enum.
+- Write project-specific loader functions.
+- Return `Demonstration[ProjectTrackId]`.
+- Retrieve tracks with `demo.track(...)` or `demo.typed_track(...)`.
+
+Do not define project-specific demo container classes in ordinary examples.
+
+Do not define facade classes such as `GroundEstimationDemo` or `GroundEstimationDemoView` in `process_mocap_data`.
+
+If ergonomic accessors are ever needed, add generic helpers to `retarget.demo` rather than per-example wrapper classes.
+
+Do not duplicate generic container behavior such as `track`, `slice_time`, `with_track`, `align`, or `resample_to` in examples.
+
+Do not move example-specific vocab/specs into `src/retarget`.
+
 ## Anti-goals
 
 Do not:

@@ -10,9 +10,10 @@ from mocap_vocab import (
 )
 
 from retarget.core import RotationFormat
-from retarget.demo.mocap import MocapTrack, MocapTrackView
+from retarget.demo import mocap as mocap_mod
 
-from demo_specs import GroundEstimationTrackId, load_ground_estimation_demo
+from demo_specs import load_ground_estimation_demo
+from demo_vocab import GroundEstimationTrackId
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
@@ -21,7 +22,7 @@ demo = load_ground_estimation_demo(UNBAGGED_DIR)
 clip = demo.slice_time(0.0, 1.0)
 mocap = clip.typed_track(
     GroundEstimationTrackId.MOCAP,
-    (MocapTrack, MocapTrackView),
+    (mocap_mod.MocapTrack, mocap_mod.MocapTrackView),
 )
 
 left_shoe = mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
