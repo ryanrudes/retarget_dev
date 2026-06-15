@@ -1944,7 +1944,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
-    { name = "networkx", specifier = ">=3.6.1" },
+    { name = "networkx", specifier = ">=3.0" },
     { name = "numpy", specifier = ">=2.4.6" },
     { name = "orjson", specifier = ">=3.11.9" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
