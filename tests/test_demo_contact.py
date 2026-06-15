@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from retarget.core.targets import PatchTarget
 from retarget.demo.contact import ContactTrack, ContactTrackView
@@ -79,6 +80,37 @@ def test_contact_track_resample_to_accepts_string_method() -> None:
     )
 
 
+def test_contact_track_resample_to_can_relabel_output_timestamps() -> None:
+    track, target = _contact_track()
+
+    resampled = track.resample_to(
+        np.array([0.1, 1.9], dtype=np.float64),
+        output_timestamps=np.array([10.0, 20.0], dtype=np.float64),
+        method=ResampleMethod.NEAREST,
+    )
+
+    np.testing.assert_array_equal(resampled.timestamps, np.array([10.0, 20.0]))
+    np.testing.assert_array_equal(
+        resampled.state(target),
+        np.array([False, True], dtype=np.bool_),
+    )
+    np.testing.assert_array_equal(
+        resampled.confidence(target),
+        np.array([0.1, 0.3], dtype=np.float64),
+    )
+
+
+def test_contact_track_resample_to_rejects_output_timestamp_length_mismatch() -> None:
+    track, _ = _contact_track()
+
+    with pytest.raises(ValueError, match="same length"):
+        track.resample_to(
+            np.array([0.1, 1.9], dtype=np.float64),
+            output_timestamps=np.array([10.0], dtype=np.float64),
+            method=ResampleMethod.NEAREST,
+        )
+
+
 def test_contact_track_view_resample_uses_visible_time_basis() -> None:
     track, target = _contact_track()
     view = track.slice_time(1.0, 4.0)
@@ -117,4 +149,26 @@ def test_contact_track_view_resample_to_previous_uses_visible_arrays() -> None:
     np.testing.assert_array_equal(
         resampled.confidence(target),
         np.array([0.2, 0.3], dtype=np.float64),
+    )
+
+
+def test_contact_track_view_resample_to_can_relabel_output_timestamps() -> None:
+    track, target = _contact_track()
+    view = track.slice_time(1.0, 4.0)
+
+    assert isinstance(view, ContactTrackView)
+    resampled = view.resample_to(
+        np.array([1.1, 2.6], dtype=np.float64),
+        output_timestamps=np.array([10.0, 20.0], dtype=np.float64),
+        method=ResampleMethod.NEAREST,
+    )
+
+    np.testing.assert_array_equal(resampled.timestamps, np.array([10.0, 20.0]))
+    np.testing.assert_array_equal(
+        resampled.state(target),
+        np.array([True, False], dtype=np.bool_),
+    )
+    np.testing.assert_array_equal(
+        resampled.confidence(target),
+        np.array([0.2, 0.4], dtype=np.float64),
     )

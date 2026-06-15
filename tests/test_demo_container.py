@@ -96,11 +96,13 @@ def test_with_contacts_attaches_contact_track() -> None:
     assert contact_track is contacts
 
 
-def test_resample_to_raises_not_implemented() -> None:
+def test_resample_to_preserves_reference_track_without_resampling() -> None:
     demo = _make_demo()
     clip = demo.slice_time(0.0, 0.2)
-    with pytest.raises(NotImplementedError, match="alignment-aware"):
-        clip.resample_to(GroundEstimationTrackId.MOCAP)
+
+    resampled = clip.resample_to(GroundEstimationTrackId.MOCAP)
+
+    assert resampled[GroundEstimationTrackId.MOCAP] is clip[GroundEstimationTrackId.MOCAP]
 
 
 def test_get_track_returns_mocap_track() -> None:
