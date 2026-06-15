@@ -14,7 +14,7 @@ from retarget.demo.alignment import (
     TrackAlignment,
     estimate_alignment_from_signals,
 )
-from retarget.demo.demo import Demonstration
+from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.tracks import Track
 
 type SignalExtractor = Callable[[Track], EnergySignal]
@@ -147,6 +147,35 @@ def estimate_sync_to_reference[K: TrackId](
     )
 
 
+def estimate_sync_and_resample_to_reference[K: TrackId](
+    demonstration: Demonstration[K],
+    plan: SyncPlan[K],
+    *,
+    start: float,
+    stop: float,
+) -> DemonstrationView[K]:
+    """Estimate sync, slice the demo, and resample onto the plan reference.
+
+    This is a convenience wrapper for the common workflow:
+
+    1. estimate pairwise sync edges from ``plan``;
+    2. compose those alignments into direct transforms to ``plan.reference``;
+    3. slice the demonstration to ``[start, stop)``;
+    4. materialize that slice on the reference track timeline.
+
+    The original ``Demonstration`` remains unchanged. The returned view carries
+    the composed root-reference alignments used for resampling.
+    """
+    alignments = estimate_sync_to_reference(demonstration, plan)
+    sliced = demonstration.slice_time(start, stop)
+    aligned_view = DemonstrationView(
+        source=sliced.source,
+        tracks=sliced.tracks,
+        alignments=alignments,
+    )
+    return aligned_view.resample_to(plan.reference)
+
+
 def compose_alignments_to_reference[K: TrackId](
     *,
     reference: K,
@@ -199,7 +228,7 @@ def _compose_path_to_reference[K: TrackId](
     """Compose transforms along the shortest path from source to reference."""
     path = nx.shortest_path(graph, source=source, target=reference)
     transform = TimelineTransform.identity()
-    for start, stop in zip(path, path[1:], strict=True):
+    for start, stop in zip(path, path[1:]):
         transform = transform.then(_edge_transform(graph, start, stop))
     return transform
 
