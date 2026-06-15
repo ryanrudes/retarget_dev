@@ -101,8 +101,23 @@ class Track(ABC):
             )
         return int(np.argmin(np.abs(timestamps - time)))
 
-    def resample_to(self, timestamps: FloatArray) -> "Track":
-        """Return this track resampled onto the requested timestamps.
+    def resample_to(
+        self,
+        timestamps: FloatArray,
+        *,
+        output_timestamps: FloatArray | None = None,
+    ) -> "Track":
+        """Return this track resampled at requested timestamps.
+
+        ``timestamps`` are expressed in this track's native time basis and
+        define where samples are taken from. ``output_timestamps`` optionally
+        defines the timestamps assigned to the returned track. When omitted,
+        the returned track uses ``timestamps`` as its timestamps.
+
+        The distinction matters for alignment-aware resampling: a track may
+        be sampled at source-time coordinates that correspond to a reference
+        timeline, while the returned track should be labeled with reference
+        timestamps.
 
         Concrete track types define their own interpolation semantics. For
         example, continuous mocap data may use interpolation, while discrete
