@@ -14,8 +14,10 @@ confidence arrays are visible; the mixin implements ``state(...)``,
 ``confidence(...)``, and discrete ``resample_to(...)`` once.
 
 Contact resampling is intentionally discrete. It delegates timestamp/index
-policy to :mod:`retarget.demo.resampling` and returns a new ``ContactTrack``
-on the requested timestamps.
+policy to :mod:`retarget.demo.resampling` and returns a new ``ContactTrack``.
+Sampling timestamps are expressed in the source track's time basis;
+``output_timestamps`` can optionally relabel the returned track onto another
+timeline, such as a synchronization reference.
 """
 
 from __future__ import annotations
@@ -83,17 +85,30 @@ class _ContactQueryMixin:
         self,
         timestamps: np.ndarray,
         *,
+        output_timestamps: np.ndarray | None = None,
         method: ResampleMethod | str = ResampleMethod.NEAREST,
     ) -> ContactTrack:
-        """Return this contact track/view resampled onto requested timestamps."""
-        target_timestamps = validate_resample_timestamps(timestamps)
+        """Return this contact track/view resampled at requested timestamps.
+
+        ``timestamps`` are source-time sample positions. ``output_timestamps``
+        optionally provides the timestamps assigned to the returned track.
+        """
+        sample_timestamps = validate_resample_timestamps(timestamps)
+        if output_timestamps is None:
+            result_timestamps = sample_timestamps
+        else:
+            result_timestamps = validate_resample_timestamps(output_timestamps)
+            if len(result_timestamps) != len(sample_timestamps):
+                raise ValueError(
+                    "output_timestamps must have the same length as timestamps"
+                )
         indices = resample_indices(
             source_timestamps=self.timestamps,
-            target_timestamps=target_timestamps,
+            target_timestamps=sample_timestamps,
             method=method,
         )
         return _resampled_contact_track(
-            timestamps=target_timestamps,
+            timestamps=result_timestamps,
             contacts=self._visible_contacts(),
             confidences=self._visible_confidences(),
             indices=indices,
