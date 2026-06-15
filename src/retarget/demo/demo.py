@@ -48,6 +48,32 @@ class Demonstration[K: TrackId]:
             alignments=self.alignments,
         )
 
+    def resample_with_alignments(
+        self,
+        reference: K,
+        alignments: tuple[TrackAlignment[K], ...],
+    ) -> DemonstrationView[K]:
+        """Compose pairwise alignments to reference, store them, and resample."""
+        import dataclasses
+        from retarget.demo.sync import compose_alignments_to_reference
+
+        composed = compose_alignments_to_reference(
+            reference=reference,
+            alignments=alignments,
+        )
+
+        if isinstance(self, DemonstrationView):
+            source = dataclasses.replace(self.source, alignments=composed)
+            view = dataclasses.replace(self, source=source, alignments=composed)
+        else:
+            view = DemonstrationView(
+                source=self,
+                tracks=self.tracks,
+                alignments=composed,
+            )
+
+        return view.resample_to(reference)
+
     def _view_source(self) -> Demonstration[K]:
         return self
 
