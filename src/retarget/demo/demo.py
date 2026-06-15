@@ -1,4 +1,15 @@
-"""Generic demonstration container and sliced views."""
+"""Generic demonstration containers and sliced/resampled views.
+
+A :class:`Demonstration` owns a mapping of typed track identifiers to concrete
+demo tracks. ``slice_time(...)`` returns a :class:`DemonstrationView`, which is
+a lightweight container over sliced track views while preserving the root demo
+as ``source``.
+
+``DemonstrationView.resample_to(...)`` materializes a new view whose tracks are
+sampled onto a shared reference timeline. Pairwise or composed alignments tell
+the method how to convert reference timestamps into each source track's native
+time basis before delegating interpolation/discrete sampling to each track.
+"""
 
 from __future__ import annotations
 
@@ -51,10 +62,65 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
         return self.source
 
     def resample_to(self, reference: K) -> DemonstrationView[K]:
-        raise NotImplementedError(
-            "DemonstrationView.resample_to requires alignment-aware track resampling; "
-            "this is not implemented yet."
+        """Return a materialized view resampled onto a reference track timeline."""
+        if reference not in self.tracks:
+            raise KeyError(f"Reference track {reference!r} is not in this view")
+
+        reference_track = self[reference]
+        reference_timestamps = reference_track.timestamps
+        alignment_by_source = _alignments_to_reference(
+            reference=reference,
+            alignments=self.alignments,
         )
+
+        resampled_tracks: dict[K, Track] = {}
+        for track_id, track in self.tracks.items():
+            if track_id == reference:
+                resampled_tracks[track_id] = track
+                continue
+
+            try:
+                alignment = alignment_by_source[track_id]
+            except KeyError as exc:
+                raise ValueError(
+                    f"Track {track_id!r} has no alignment to reference {reference!r}"
+                ) from exc
+
+            source_timestamps = alignment.transform.to_source(reference_timestamps)
+            try:
+                resampled_tracks[track_id] = track.resample_to(
+                    source_timestamps,
+                    output_timestamps=reference_timestamps,
+                )
+            except NotImplementedError as exc:
+                raise NotImplementedError(
+                    f"Cannot resample track {track_id!r} onto reference {reference!r}: "
+                    f"{type(track).__name__} does not implement resample_to"
+                ) from exc
+
+        return DemonstrationView(
+            source=self.source,
+            tracks=resampled_tracks,
+            alignments=self.alignments,
+        )
+
+
+def _alignments_to_reference[K: TrackId](
+    *,
+    reference: K,
+    alignments: tuple[TrackAlignment[K], ...],
+) -> Mapping[K, TrackAlignment[K]]:
+    alignment_by_source: dict[K, TrackAlignment[K]] = {}
+    for alignment in alignments:
+        if alignment.reference != reference:
+            continue
+        if alignment.source in alignment_by_source:
+            raise ValueError(
+                f"Multiple alignments from {alignment.source!r} "
+                f"to reference {reference!r}"
+            )
+        alignment_by_source[alignment.source] = alignment
+    return MappingProxyType(alignment_by_source)
 
 
 def _freeze_tracks[K: TrackId](tracks: Mapping[K, Track]) -> Mapping[K, Track]:
