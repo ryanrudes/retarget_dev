@@ -9,28 +9,19 @@ alwaysApply: true
 
 # Retarget architecture rules
 
-This repository uses a layered typed architecture. Do not flatten it. Do not “simplify” it by throwing away the distinctions between specs, state, views, tracks, and IO. That would be simpler in the way a pile of rubble is simpler than a building.
+This repository uses a layered typed architecture. Do not flatten specs, runtime state, views, tracks, and IO. That would be simpler in the way a pile of rubble is simpler than a building.
 
-## Core layers
-
-### Specs
+## Specs
 
 Specs are static definitions.
 
 `SegmentSpec[M, P]` is subject-independent. It must not contain a `SubjectId`.
 
-A segment spec defines:
-
-- segment-local marker vocabulary
-- patch vocabulary
-- axis convention
-- segment-local marker positions
-- patch calibrations
-- built patch specs
+A segment spec defines segment-local marker vocabulary, patch vocabulary, axis convention, segment-local marker positions, patch calibrations, and built patch specs.
 
 Do not add world-frame pose, observations, timestamps, or subject identity to `SegmentSpec`.
 
-### Runtime state
+## Runtime state
 
 Runtime state stores concrete time-varying values.
 
@@ -44,25 +35,13 @@ Do not key runtime segment state by bare `SegmentId`.
 
 Segment IDs are subject-local.
 
-### Views
+## Views
 
 Views combine static specs with runtime state.
 
-`SceneView` must hold:
+`SceneView` must hold both `spec: SceneSpec` and `state: SceneState`.
 
-```python
-spec: SceneSpec
-state: SceneState
-```
-
-`SubjectView` must hold:
-
-```python
-subject_spec: SubjectSpec
-state: SceneState
-```
-
-Do not regress to `SceneView(state)` only.
+`SubjectView` must hold both `subject_spec: SubjectSpec` and `state: SceneState`.
 
 Segment lookup must support both paths:
 
@@ -79,23 +58,13 @@ Do not remove either path.
 
 Concrete project specs should use typed fields with domain names.
 
-Good:
+Avoid concrete fields named `segment`, because that shadows `SubjectSpec.segment(...)`.
+
+Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the full hierarchy is proven safe:
 
 ```python
-@dataclass(frozen=True, slots=True)
-class LeftShoeSubjectSpec(SubjectSpec):
-    left_shoe: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
+SubjectSpec.segment(self.subject_spec, segment)
 ```
-
-Avoid:
-
-```python
-@dataclass(frozen=True, slots=True)
-class LeftShoeSubjectSpec(SubjectSpec):
-    segment: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
-```
-
-A field named `segment` shadows `SubjectSpec.segment(...)`. Do not introduce that shadowing in new code.
 
 ## Handles and targets
 
@@ -117,82 +86,23 @@ IO modules may contain low-level parsing and helper functions. They should hide 
 
 High-level examples should not expose raw Vicon label plumbing.
 
-Good:
-
-```python
-observed = marker_position(
-    marker_frame,
-    segment=left_shoe,
-    marker=LeftShoeMarkerId.HEEL,
-)
-```
-
-Better at the demo layer:
-
-```python
-left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
-```
-
 Low-level IO helpers are allowed. Do not make them the primary demo API.
 
 ## Patch calibration
 
-Preserve the current patch calibration semantics:
+Preserve patch calibration semantics:
 
-1. take segment-local marker positions
-2. apply sparse `marker_translations` before fitting
-3. fit the patch frame
-4. apply `normal_offset` after fitting along the fitted normal
+1. take segment-local marker positions;
+2. apply sparse `marker_translations` before fitting;
+3. fit the patch frame;
+4. apply `normal_offset` after fitting along the fitted normal.
 
-`PatchCalibrationSpec.markers` is required.
-
-Do not infer calibration markers from `marker_translations`.
+`PatchCalibrationSpec.markers` is required. Do not infer calibration markers from `marker_translations`.
 
 ## Type style
 
-Use Python 3.12+ PEP 695 generic syntax. Do not introduce new `typing.TypeVar` aliases when a type parameter works directly.
-
-Prefer:
-
-```python
-class SegmentSpec[M: MarkerId, P: PatchId]:
-    ...
-```
-
-```python
-class TimeTrack[T](Protocol):
-    def slice_time(self, start: float, stop: float) -> T: ...
-```
-
-Avoid:
-
-```python
-T = TypeVar("T")
-
-class TimeTrack(Protocol[T]):
-    ...
-```
+Use Python 3.12+ PEP 695 generic syntax where this repo already uses it. Do not introduce new `typing.TypeVar` aliases when a type parameter works directly.
 
 Use `Mapping` for inputs and freeze stored mappings with `MappingProxyType` when appropriate.
 
 Do not weaken typed IDs to raw strings.
-
-## Testing
-
-Any architecture-sensitive change must include or update tests covering:
-
-- subject-local segment identity
-- typed `SegmentSpec` lookup
-- ergonomic `SegmentId` lookup
-- marker/patch type validation
-- patch calibration behavior
-- IO helpers hiding raw external labels
-- new demo/query behavior when added
-
-Run:
-
-```bash
-python -m compileall -q src/retarget
-python -m compileall -q examples
-pytest -q
-```

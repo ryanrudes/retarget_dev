@@ -1,0 +1,62 @@
+---
+description: Test and validation expectations for repository agents.
+globs:
+  - "src/**/*.py"
+  - "tests/**/*.py"
+  - "examples/**/*.py"
+alwaysApply: true
+---
+
+# Testing rules
+
+Every behavior change needs tests. Revolutionary concept, apparently.
+
+## Narrow checks
+
+Run the narrowest relevant test while iterating:
+
+```bash
+pytest -q tests/test_demo_resampling.py
+pytest -q tests/test_demo_contact.py
+pytest -q tests/test_demo_mocap.py
+pytest -q tests/test_demo.py
+pytest -q tests/test_demo_sync.py
+```
+
+## Full checks
+
+Before considering a task done:
+
+```bash
+python -m compileall -q src/retarget
+python -m compileall -q examples
+pytest -q
+```
+
+If the repo uses type/lint tooling in `pyproject.toml`, run the matching commands too.
+
+## Resampling tests
+
+For resampling behavior, cover:
+
+- input timestamp validation;
+- empty timestamp behavior;
+- nearest/previous index behavior;
+- tie/clamp behavior;
+- full track behavior;
+- view behavior;
+- `output_timestamps` relabeling;
+- source-time sampling vs output-time labeling.
+
+## Sync tests
+
+For sync behavior, cover:
+
+- connected non-star graph;
+- duplicate directed/undirected edge rejection;
+- missing tracks;
+- pairwise alignment estimation;
+- graph composition;
+- reverse-edge inversion;
+- one-shot sync-and-resample workflow.
+

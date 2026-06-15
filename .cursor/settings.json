@@ -1,0 +1,18 @@
+{
+  "rules": {
+    "readBeforeEditing": [
+      "AGENTS.md",
+      ".cursor/rules/retarget-architecture.mdc",
+      ".cursor/rules/demo-pipeline.mdc",
+      ".cursor/rules/demo-tracks-resampling.mdc",
+      ".cursor/rules/sync-alignment.mdc",
+      ".cursor/rules/testing.mdc",
+      ".cursor/rules/python-style.mdc",
+      ".cursor/rules/running-commands.mdc"
+    ]
+  },
+  "recommendedCommands": {
+    "fullChecks": "python3 -m compileall -q src/retarget && python3 -m compileall -q examples && pytest -q",
+    "demoChecks": "pytest -q tests/test_demo_resampling.py tests/test_demo_contact.py tests/test_demo_mocap.py tests/test_demo.py tests/test_demo_container.py tests/test_demo_sync.py"
+  }
+}

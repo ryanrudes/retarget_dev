@@ -1,0 +1,71 @@
+---
+description: Rules for demonstration tracks, views, resampling, contact tracks, and mocap tracks.
+globs:
+  - "src/retarget/demo/**/*.py"
+  - "tests/test_demo*.py"
+alwaysApply: true
+---
+
+# Demo tracks and resampling rules
+
+## Demonstration containers
+
+`Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments, but it should not become a workflow object.
+
+Keep these APIs:
+
+```python
+demo[track_id]
+demo.get_track(track_id)
+demo.slice_time(start, stop)
+```
+
+`slice_time(...)` returns `DemonstrationView[K]` and preserves the root source.
+
+Do not add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested.
+
+## Track protocol
+
+`Track.resample_to(...)` means:
+
+```python
+track.resample_to(
+    timestamps,              # sample positions in this track's time basis
+    output_timestamps=None,  # optional labels for returned track
+)
+```
+
+For alignment-aware resampling, source tracks sample at transformed source times and label the output with reference timestamps.
+
+The reference track in `DemonstrationView.resample_to(reference)` is preserved as-is. Non-reference tracks must implement `resample_to(...)`.
+
+## Contact tracks
+
+Contact tracks are discrete:
+
+- state arrays are boolean;
+- confidence arrays are float;
+- keys are `PatchTarget`;
+- resampling uses `ResampleMethod.NEAREST` or `ResampleMethod.PREVIOUS`.
+
+Do not interpolate contact booleans. Nobody wants 0.43 contact except a bug report.
+
+## Mocap tracks
+
+Current mocap resampling policy:
+
+- translations: linear interpolation;
+- rotations: discrete nearest/previous sampling;
+- attached contacts: delegated to contact resampling;
+- raw marker frames: dropped.
+
+Do not synthesize raw marker frames on resample.
+
+Do not linearly interpolate rotation matrices unless the code explicitly projects/re-normalizes and tests SO(3) behavior. Prefer a future slerp implementation if smooth rotations become necessary.
+
+## Resampling utilities
+
+Generic resampling helpers belong in `retarget.demo.resampling`, not random `utils/` sludge.
+
+Keep error text generic in that module. No `ContactTrack`-specific wording in shared utilities.
+

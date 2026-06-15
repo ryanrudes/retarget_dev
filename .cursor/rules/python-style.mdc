@@ -1,0 +1,34 @@
+---
+description: Python style, typing, and API consistency for retargeting_from_scratch.
+globs:
+  - "src/**/*.py"
+  - "tests/**/*.py"
+  - "examples/**/*.py"
+alwaysApply: true
+---
+
+# Python style rules
+
+- Keep `from __future__ import annotations` in modules that use modern annotations.
+- Prefer dataclasses with `frozen=True, slots=True` for immutable domain values.
+- Prefer `Mapping` for read-only inputs.
+- Use `MappingProxyType` when storing immutable mapping views makes sense.
+- Use Python 3.12 generic syntax where this repo already uses it.
+- Use typed enum IDs for public identifiers.
+- Avoid raw strings in public track/spec/entity APIs except in generic tests.
+- Use clear function names instead of comments that repeat the function name.
+- Keep module docstrings useful and high-level. Do not narrate every line. The code is already there, doing its little performance.
+
+## NumPy style
+
+Canonical layout is time-major:
+
+- `(T,)` for scalar/bool time series;
+- `(T, 3)` for one vector signal;
+- `(T, N, 3)` for multiple vector signals;
+- `(T, 3, 3)` for rotation matrices.
+
+Validate array shapes at construction boundaries.
+
+Prefer `np.testing.assert_array_equal` / `assert_allclose` in tests.
+

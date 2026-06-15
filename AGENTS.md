@@ -1,8 +1,8 @@
 # AGENTS.md
 
-This repository is building a typed, extensible research toolkit for motion retargeting, demonstration loading, synchronization, SMPL/GVHMR integration, and contact reasoning.
+This repository is a typed, extensible research toolkit for motion retargeting, demonstration loading, synchronization, resampling, contact reasoning, and future SMPL/GVHMR/video integrations.
 
-Coding agents must preserve the intended pipeline. Do not flatten the architecture just because Python allows it. Python also allows many crimes against taste.
+Coding agents must preserve the architecture. Do not flatten specs, state, views, tracks, and IO into one blob just because Python permits crimes against taste.
 
 ## Required workflow
 
@@ -10,28 +10,29 @@ Before making changes:
 
 1. Read this file.
 2. Read all files in `.cursor/rules/`.
-3. Identify which layer you are changing:
-   - core primitives
-   - mocap specs/state/views
-   - IO
-   - demonstration tracks
-   - alignment/resampling
-   - contact state/detection
-   - SMPL/GVHMR
-   - examples/tests
-4. Make the smallest coherent change that advances the requested task.
+3. Identify the layer being changed:
+   - core specs, handles, targets, transforms, or state;
+   - IO/parsing;
+   - scene/subject/segment views;
+   - demonstration containers/tracks/views;
+   - resampling;
+   - alignment/sync;
+   - contact tracks/detection;
+   - mocap tracks;
+   - examples/tests.
+4. Make the smallest coherent change.
 5. Add or update tests for changed behavior.
-6. Run the checks in [Running commands](#running-commands).
+6. Run the narrow relevant tests while iterating, then the full checks before calling the task done.
 
-If you cannot run checks, explicitly say so and explain why.
+If checks cannot be run, say exactly what was not run and why.
 
 ## Running commands
 
-Run everything from the **repository root** unless noted otherwise.
+Run from the repository root unless noted otherwise.
 
-On this machine, prefer `python3` (not `python`) when invoking the interpreter directly.
+On macOS/local machines, prefer `python3` when invoking the interpreter directly.
 
-### Default verification (after code changes)
+### Default verification
 
 ```bash
 python3 -m compileall -q src/retarget
@@ -39,50 +40,22 @@ python3 -m compileall -q examples
 pytest -q
 ```
 
-`pytest` picks up `src/` via `[tool.pytest.ini_options] pythonpath` in `pyproject.toml`. Do **not** rely on `PYTHONPATH=src` for tests unless you are debugging path issues.
-
 Equivalent with uv:
 
 ```bash
 uv run pytest -q
 ```
 
-### Ad-hoc Python (`python3 -c`, one-off scripts)
-
-The `retarget` package is under `src/` and is not necessarily installed into the active environment. Set `PYTHONPATH`:
+### Demo/resampling/sync checks
 
 ```bash
-PYTHONPATH=src python3 -c "from retarget.demo.mocap import MocapTrack; ..."
-```
-
-### Test helpers (`tests/conftest.py`)
-
-`tests/conftest.py` is **not** part of the `retarget` package. Pytest loads it automatically from `tests/`.
-
-Do **not** import it from the repo root:
-
-```bash
-# fails: ModuleNotFoundError: No module named 'conftest'
-PYTHONPATH=src python3 -c "from conftest import make_mocap_track"
-```
-
-To reuse conftest helpers outside pytest, either run from `tests/` or add `tests` to the path:
-
-```bash
-cd tests && PYTHONPATH=../src python3 -c "from conftest import make_mocap_track; ..."
-# or
-PYTHONPATH=src:tests python3 -c "from conftest import make_mocap_track; ..."
-```
-
-Prefer `pytest -q` or `pytest -q tests/test_demo_mocap_track.py` over reimplementing setup in `python3 -c`.
-
-### Examples (`examples/process_mocap_data/`)
-
-Example modules (`demo_vocab`, `demo_specs`, `mocap_specs`, `mocap_vocab`) live beside the scripts. Run from that directory with both `src` and the example dir on the path:
-
-```bash
-cd examples/process_mocap_data
-PYTHONPATH=../../src:. python3 run_demo_example.py
+pytest -q \
+  tests/test_demo_resampling.py \
+  tests/test_demo_contact.py \
+  tests/test_demo_mocap.py \
+  tests/test_demo.py \
+  tests/test_demo_container.py \
+  tests/test_demo_sync.py
 ```
 
 ### Optional lint/type checks
@@ -92,36 +65,19 @@ uv run ruff check .
 uv run mypy src/retarget
 ```
 
-Only claim these passed if they actually ran.
+Only claim a command passed if it actually ran.
 
 ## Non-negotiable architecture principles
 
 ### Static specs are reusable definitions
 
-`SegmentSpec[M, P]` is subject-independent.
+`SegmentSpec[M, P]` is subject-independent. It defines segment-local marker vocabulary, patch vocabulary, static marker geometry, axis convention, patch calibrations, and built patch specs.
 
-It defines:
-
-- segment-local marker vocabulary
-- patch vocabulary
-- static marker geometry
-- axis convention
-- patch calibrations
-- built patch specs
-
-Do not add `SubjectId` to:
-
-- `SegmentSpec`
-- `MarkerHandle`
-- `PatchHandle`
-
-A segment spec should be reusable across subjects.
+Do not add `SubjectId` to `SegmentSpec`, `MarkerHandle`, or `PatchHandle`.
 
 ### Runtime identity is subject-scoped
 
-Segment IDs are subject-local.
-
-Runtime state must disambiguate concrete segment instances with:
+Segment IDs are subject-local. Runtime state must disambiguate concrete segment instances with:
 
 ```python
 SegmentKey(subject, segment)
@@ -131,48 +87,22 @@ Do not key `SceneState` by bare `SegmentId`.
 
 ### Views combine static specs with runtime state
 
-`SceneView` must hold both:
+`SceneView` holds both `spec: SceneSpec` and `state: SceneState`.
 
-```python
-spec: SceneSpec
-state: SceneState
-```
-
-`SubjectView` must hold:
-
-```python
-subject_spec: SubjectSpec
-state: SceneState
-```
+`SubjectView` holds both `subject_spec: SubjectSpec` and `state: SceneState`.
 
 Segment lookup must preserve both paths:
 
 ```python
-# Typed path, preserves marker/patch generics.
-scene.subject(subject_id).segment(SEGMENT_SPEC)
-
-# Ergonomic runtime path, returns SegmentView[Any, Any].
-scene.subject(subject_id).segment(segment_id)
+scene.subject(subject_id).segment(SEGMENT_SPEC)  # typed, preserves generics
+scene.subject(subject_id).segment(segment_id)    # ergonomic runtime lookup
 ```
 
 Do not remove either path.
 
 ### Concrete dataclasses are for human-friendly authoring
 
-Use concrete dataclass fields for project-specific specs and demos. Use generic iterators for traversal.
-
-Good:
-
-```python
-@dataclass(frozen=True, slots=True)
-class LeftShoeSubjectSpec(SubjectSpec):
-    left_shoe: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
-
-    def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.left_shoe
-```
-
-Avoid concrete fields named `segment` because they shadow `SubjectSpec.segment(...)`.
+Concrete project specs should use typed fields with domain names and generic traversal methods. Avoid concrete fields named `segment` because they shadow `SubjectSpec.segment(...)`.
 
 Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the full hierarchy is proven safe:
 
@@ -180,32 +110,25 @@ Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the f
 SubjectSpec.segment(self.subject_spec, segment)
 ```
 
-## Demonstration-layer purpose
+## Demonstration containers
 
-The demonstration layer should make complete multimodal demonstrations easy to load, slice, align, resample, and query.
+`Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments. It should not become a workflow object.
 
-Target user-facing feel:
+Keep these APIs:
 
 ```python
-demo = load_ground_estimation_demo(root)
-clip = demo.slice_time(2.0, 5.0)
-
-left_shoe = clip.mocap.subject(ViconSubjectId.LEFT_SHOE).segment(
-    LeftShoeSegmentId.LEFT_SHOE
-)
-
-heel_obs = left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
-heel_model = left_shoe.marker_positions(LeftShoeMarkerId.HEEL, modeled=True)
-sole_contacts = left_shoe.patch_contacts(LeftShoePatchId.SOLE)
+demo[track_id]
+demo.get_track(track_id)
+demo.slice_time(start, stop)
 ```
 
-Do not force users to manually coordinate marker frames, segment views, and free functions in high-level examples.
+`slice_time(...)` returns `DemonstrationView[K]` and preserves the root source.
 
-Low-level free functions are acceptable inside IO/math utilities. They are not the public demonstration API.
+Do **not** add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested. Prefer free functions in `retarget.demo.sync` for workflows.
 
 ## Track IDs
 
-Tracks must be identified with string-enum IDs, not raw strings.
+Tracks must be identified with typed string-enum IDs, not raw strings in public APIs.
 
 Use a base like:
 
@@ -219,223 +142,77 @@ Concrete demo track IDs should look like:
 ```python
 class GroundEstimationTrackId(TrackId):
     MOCAP = "mocap"
-    VIDEO = "video"
-    SMPL = "smpl"
-    CONTACTS = "contacts"
+    CONTACT = "contact"
 ```
 
-Generic lookup may use enum IDs:
+## Track/resampling protocol
+
+`Track.resample_to(...)` means:
 
 ```python
-demo.track(GroundEstimationTrackId.MOCAP)
-```
-
-Concrete demos should also expose idiomatic properties:
-
-```python
-demo.mocap
-demo.video
-demo.smpl
-demo.contacts
-```
-
-Both forms are valuable. Keep both.
-
-## Query methods belong on domain objects
-
-User-facing queries should be methods on the objects users already have.
-
-Prefer:
-
-```python
-left_shoe.marker_positions(marker)
-left_shoe.marker_velocities(marker)
-left_shoe.patch_contacts(patch)
-
-person.root_positions()
-person.joint_positions(joint)
-```
-
-Avoid making high-level users call:
-
-```python
-marker_position(marker_frame, segment=left_shoe, marker=marker)
-```
-
-That kind of helper may remain in `retarget.io`, but it should not drive the demonstration abstraction.
-
-## Boolean options for binary choices
-
-For observed vs modeled marker data, use:
-
-```python
-modeled: bool = False
-```
-
-Default marker queries should return observed data when available:
-
-```python
-left_shoe.marker_positions(marker)                 # observed
-left_shoe.marker_positions(marker, modeled=True)   # modeled
-```
-
-Do not create an enum for a two-source choice unless the source space expands beyond binary.
-
-For collection outputs, use:
-
-```python
-return_dict: bool = False
-```
-
-Default multiple-entity output is time-major AoS:
-
-```python
-left_shoe.marker_positions([m1, m2])
-# shape: (T, N, 3)
-```
-
-Dictionary output preserves typed IDs:
-
-```python
-left_shoe.marker_positions([m1, m2], return_dict=True)
-# Mapping[M, ndarray shape (T, 3)]
-```
-
-Accept single IDs and sequences naturally. Use `isinstance` on typed enum bases where appropriate.
-
-## Internal array layout
-
-Use time-major AoS internally:
-
-- single vector signal: `(T, 3)`
-- many markers/joints/patches: `(T, N, 3)`
-- rotation matrices: `(T, 3, 3)`
-- quaternions: `(T, 4)`
-- contact state: `(T,)`
-- many contact states: `(T, N)`
-
-Time slicing is the dominant operation. Do not make feature-major SoA the internal default.
-
-## Representation options
-
-Use enums for genuinely multi-way representation choices, such as rotation and pose formats.
-
-Example:
-
-```python
-class RotationFormat(NameId):
-    MATRIX = "matrix"
-    QUATERNION_XYZW = "quaternion_xyzw"
-    QUATERNION_WXYZ = "quaternion_wxyz"
-    ROTVEC = "rotvec"
-```
-
-Boolean parameters are not appropriate for multi-format choices.
-
-## Alignment and resampling principles
-
-The demo layer must support generic alignment between arbitrary tracks while providing human-friendly defaults for common cases like mocap/video/SMPL.
-
-Alignment should operate on extracted time-series energy signals, not hard-coded modality pairs.
-
-Required concepts:
-
-- `EnergySignal`: timestamps plus scalar/vector signal values.
-- `TimelineTransform`: maps source-track time to reference-track time.
-- `TrackAlignment`: records source, reference, transform, score, and method metadata.
-- `demo.align(...)`: generic public alignment API.
-- common helpers for mocap-SMPL/video alignment.
-
-Start with offset-only cross-correlation. Leave room for clock scale/drift later.
-
-Resampling is track-specific:
-
-- mocap translations: linear interpolation
-- mocap rotations: SLERP or rotation-aware interpolation
-- observed markers: linear or nearest with missing-data policy
-- video: nearest frame by default
-- SMPL root/joint rotations: rotation-aware interpolation
-- contact labels: nearest or interval-aware logic
-
-Do not impose one universal interpolation strategy across all modalities.
-
-## Contact-state design principles
-
-Contact must be planned as a first-class derived track, even before contact detection is implemented.
-
-Contact state couples to patch definitions. Contact data should be keyed by `PatchTarget[P]`, not raw strings.
-
-User-facing access should feel patch-local:
-
-```python
-left_shoe.patch_contacts(LeftShoePatchId.SOLE)
-```
-
-Internally, this should resolve a `PatchTarget` using the subject ID and patch handle.
-
-Contact-track shapes:
-
-- one patch: `(T,)`, bool or confidence array
-- many patches: `(T, N)`
-- `return_dict=True`: mapping from patch IDs or patch targets to arrays
-
-The future contact detector should produce a contact track from mocap/patch time-series. Do not bolt contact onto marker arrays or stash it in ad-hoc metadata.
-
-## SMPL/GVHMR principles
-
-GVHMR output should become a typed SMPL/body track, not a loose NumPy blob.
-
-Plan for a typed submodule parallel to the existing spec/state/view style:
-
-```text
-src/retarget/smpl/
-    enums.py
-    specs.py
-    state.py
-    track.py
-    views.py
-```
-
-SMPL APIs should mirror mocap query style:
-
-```python
-person = clip.smpl.body(SmplBodyId.PERSON)
-
-root = person.root_positions()
-root_vel = person.root_velocities()
-
-joints = person.joint_positions(SmplJointId.LEFT_ANKLE)
-
-rots = person.joint_rotations(
-    SmplJointId.LEFT_HIP,
-    format=RotationFormat.QUATERNION_XYZW,
+track.resample_to(
+    timestamps,              # sample positions in this track's native time basis
+    output_timestamps=None,  # optional labels for returned track
 )
 ```
 
-## Testing expectations
+For alignment-aware resampling, non-reference tracks sample at transformed source-time coordinates and label the output with reference timestamps.
 
-Every new layer must include tests for:
+`DemonstrationView.resample_to(reference)` preserves the reference track as-is. Non-reference tracks must implement `resample_to(...)`.
 
-- type-preserving and ergonomic lookup paths
-- slicing by time/index
-- single ID vs sequence inputs
-- default AoS arrays and `return_dict=True`
-- observed vs modeled marker outputs when applicable
-- representation conversions when added
-- alignment transforms and simple known-offset recovery
-- contact-track lookup behavior when contact skeleton is added
+Generic resampling helpers belong in `retarget.demo.resampling`, not miscellaneous `utils/` sludge.
 
-Do not rely on real video files in tests. Use fake paths, fake timestamps, and small arrays.
+## Contact tracks
 
-## Things not to do
+`ContactTrack` stores boolean contact state and optional confidence arrays keyed by `PatchTarget[Any]`.
 
-- Do not replace typed IDs with raw strings.
-- Do not flatten specs, states, and views into one object.
-- Do not put subject identity into reusable segment specs.
-- Do not make users call IO free functions in high-level demo examples.
-- Do not use one universal interpolation method for all modalities.
-- Do not implement contact as arbitrary metadata.
-- Do not make SMPL/GVHMR a bag of arrays without typed IDs/specs/views.
-- Do not rewrite working core abstractions while adding demo-layer features.
+Contact resampling is discrete and uses `ResampleMethod.NEAREST` or `ResampleMethod.PREVIOUS`. Do not interpolate contact booleans.
 
-When in doubt, preserve the typed pipeline and add a thin ergonomic layer above it. Do not demolish the basement because you wanted a nicer porch.
+`ContactTrack` and `ContactTrackView` share query/resampling behavior through the private `_ContactQueryMixin`; concrete classes define visible contact/confidence arrays.
+
+## Mocap tracks
+
+Current mocap resampling policy:
+
+- translations: linear interpolation;
+- rotations: discrete nearest/previous sampling;
+- attached contacts: delegated to `ContactTrack.resample_to(...)`;
+- raw marker frames: intentionally dropped on resampled output.
+
+Do not synthesize raw marker frames during resampling.
+
+Do not linearly interpolate rotation matrices unless the code explicitly projects/re-normalizes and tests SO(3) behavior. Prefer a future quaternion/slerp implementation if smooth rotations become necessary.
+
+## Alignment and sync
+
+`EnergySignal` is a named scalar time series. Callers decide how to collapse vector/spatial data into scalar energy.
+
+`TimelineTransform` direction names are:
+
+```python
+to_reference(...)
+to_source(...)
+```
+
+Do not reintroduce `source_to_reference` or `reference_to_source` aliases.
+
+`SyncPlan` is a connected graph rooted at `reference`, not a star-only plan. It should reject self edges, duplicate directed edges, duplicate undirected edges, empty edge lists, and disconnected graphs.
+
+`estimate_sync_and_resample_to_reference(...)` is the one-shot free-function workflow: estimate sync, compose alignments to the root reference, slice, and resample onto reference time. Keep it a free function and do not mutate `Demonstration`.
+
+## Examples
+
+Examples should teach the generic demonstration pattern:
+
+- define a project-specific `TrackId` enum;
+- write project-specific loader functions;
+- return `Demonstration[ProjectTrackId]`;
+- retrieve tracks with `demo[track_id]` or `demo.get_track(track_id)`.
+
+Do not create project-specific demo container classes unless explicitly requested.
+
+## Tests
+
+Any behavior change needs tests. For resampling behavior, cover timestamp validation, nearest/previous behavior, view behavior, `output_timestamps` relabeling, and source-time sampling versus output-time labeling.
+
+For sync behavior, cover graph validation, pairwise alignment estimation, root-reference composition, reverse-edge inversion, missing tracks, and the one-shot sync-and-resample workflow.
