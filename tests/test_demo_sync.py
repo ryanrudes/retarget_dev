@@ -16,6 +16,7 @@ from retarget.demo.sync import (
     SyncPlan,
     compose_alignments_to_reference,
     estimate_sync,
+    estimate_sync_and_resample_to_reference,
     estimate_sync_to_reference,
 )
 from retarget.demo.demo import Demonstration
@@ -29,11 +30,46 @@ class DemoTrackId(TrackId):
     AUX = "aux"
 
 
-@dataclass(frozen=True, slots=True)
 class DummyTrack(Track):
-    timestamps: FloatArray
-    values: FloatArray
-    nominal_hz_override: float | None = None
+    def __init__(
+        self,
+        timestamps: FloatArray,
+        values: FloatArray,
+        nominal_hz_override: float | None = None,
+    ) -> None:
+        self._timestamps = timestamps
+        self._values = values
+        self._nominal_hz_override = nominal_hz_override
+
+    @property
+    def timestamps(self) -> FloatArray:
+        return self._timestamps
+
+    @property
+    def values(self) -> FloatArray:
+        return self._values
+
+    @property
+    def nominal_hz_override(self) -> float | None:
+        return self._nominal_hz_override
+
+    def resample_to(
+        self,
+        timestamps: FloatArray,
+        *,
+        output_timestamps: FloatArray | None = None,
+    ) -> "DummyTrack":
+        sample_timestamps = np.asarray(timestamps, dtype=np.float64)
+        result_timestamps = (
+            sample_timestamps
+            if output_timestamps is None
+            else np.asarray(output_timestamps, dtype=np.float64)
+        )
+        return DummyTrack(
+            timestamps=result_timestamps,
+            values=np.interp(sample_timestamps, self.timestamps, self.values),
+            nominal_hz_override=self.nominal_hz_override,
+        )
 
     @classmethod
     def _view_type(cls) -> type["DummyTrackView"]:
@@ -49,6 +85,24 @@ class DummyTrackView(TrackView[DummyTrack]):
     @property
     def values(self) -> FloatArray:
         return self.source.values[list(self.indices)]
+
+    def resample_to(
+        self,
+        timestamps: FloatArray,
+        *,
+        output_timestamps: FloatArray | None = None,
+    ) -> DummyTrack:
+        sample_timestamps = np.asarray(timestamps, dtype=np.float64)
+        result_timestamps = (
+            sample_timestamps
+            if output_timestamps is None
+            else np.asarray(output_timestamps, dtype=np.float64)
+        )
+        return DummyTrack(
+            timestamps=result_timestamps,
+            values=np.interp(sample_timestamps, self.timestamps, self.values),
+            nominal_hz_override=self.nominal_hz_override,
+        )
 
 
 def _signal(track: Track) -> EnergySignal:
@@ -358,6 +412,45 @@ def test_estimate_sync_to_reference_returns_root_alignments() -> None:
         DemoTrackId.CONTACT,
     }
     assert all(alignment.reference == DemoTrackId.REFERENCE for alignment in alignments)
+
+
+def test_estimate_sync_and_resample_to_reference_returns_reference_time_view() -> None:
+    plan = SyncPlan(
+        reference=DemoTrackId.REFERENCE,
+        edges=(
+            SyncEdge(
+                source=DemoTrackId.MOCAP,
+                reference=DemoTrackId.REFERENCE,
+                source_signal=_signal,
+                reference_signal=_signal,
+                max_lag_seconds=0.5,
+            ),
+        ),
+    )
+    demo = Demonstration(
+        tracks={
+            DemoTrackId.REFERENCE: _dummy_track(shift=0.0),
+            DemoTrackId.MOCAP: _dummy_track(shift=0.1),
+        }
+    )
+
+    resampled = estimate_sync_and_resample_to_reference(
+        demo,
+        plan,
+        start=0.75,
+        stop=1.25,
+    )
+
+    reference_timestamps = resampled[DemoTrackId.REFERENCE].timestamps
+    np.testing.assert_array_equal(
+        resampled[DemoTrackId.MOCAP].timestamps,
+        reference_timestamps,
+    )
+    assert resampled[DemoTrackId.REFERENCE] is not demo[DemoTrackId.REFERENCE]
+    assert len(reference_timestamps) > 0
+    assert len(resampled.alignments) == 1
+    assert resampled.alignments[0].source == DemoTrackId.MOCAP
+    assert resampled.alignments[0].reference == DemoTrackId.REFERENCE
 
 
 def test_sync_plan_rejects_duplicate_undirected_edges() -> None:

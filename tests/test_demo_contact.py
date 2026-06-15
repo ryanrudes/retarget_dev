@@ -10,22 +10,7 @@ from retarget.demo.contact import ContactTrack, ContactTrackView
 from retarget.demo.resampling import ResampleMethod
 
 
-def _target(name: str = "patch") -> PatchTarget[str]:
-    return PatchTarget(subject="subject", handle=name)
-
-
-def _contact_track() -> tuple[ContactTrack, PatchTarget[str]]:
-    target = _target()
-    track = ContactTrack(
-        timestamps=np.array([0.0, 1.0, 2.0, 3.0], dtype=np.float64),
-        contacts={
-            target: np.array([False, True, True, False], dtype=np.bool_),
-        },
-        confidences={
-            target: np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float64),
-        },
-    )
-    return track, target
+from conftest import make_string_patch_target as _target, make_string_contact_track as _contact_track
 
 
 def test_contact_track_resample_to_nearest() -> None:

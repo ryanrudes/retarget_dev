@@ -11,24 +11,7 @@ from conftest import DemoPatchId, DemoSegmentId, DemoSubjectId, make_mocap_track
 from retarget.demo.mocap import MocapTrack
 
 
-class _SubjectId(SubjectId):
-    SUBJECT = "subject"
-
-
-class _SegmentId(SegmentId):
-    SEGMENT = "segment"
-
-
-class _PatchId(PatchId):
-    SOLE = "sole"
-    TOE = "toe"
-
-
-def _target(patch: _PatchId) -> PatchTarget[_PatchId]:
-    return PatchTarget(
-        subject=_SubjectId.SUBJECT,
-        handle=PatchHandle(segment=_SegmentId.SEGMENT, patch=patch),
-    )
+from conftest import DemoPatchId as _PatchId, make_demo_patch_target as _target
 
 
 def test_contact_track_validates_array_lengths() -> None:

@@ -10,9 +10,7 @@ from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.tracks import Track
 
 
-def _target(name: str) -> PatchTarget[str]:
-    return PatchTarget(subject="subject", handle=name)
-
+from conftest import make_string_patch_target as _target, make_string_contact_track
 
 def _contact_track(
     *,
@@ -21,11 +19,13 @@ def _contact_track(
     contacts: list[bool],
     confidences: list[float],
 ) -> ContactTrack:
-    return ContactTrack(
-        timestamps=np.array(timestamps, dtype=np.float64),
-        contacts={target: np.array(contacts, dtype=np.bool_)},
-        confidences={target: np.array(confidences, dtype=np.float64)},
+    track, _ = make_string_contact_track(
+        timestamps=timestamps,
+        target_name=target.handle,
+        contacts=contacts,
+        confidences=confidences,
     )
+    return track
 
 
 class ReferenceOnlyTrack(Track):
@@ -87,6 +87,53 @@ def test_demonstration_view_resample_to_reference_track() -> None:
     )
     assert resampled.source is demo
     assert resampled.alignments == demo.alignments
+
+
+def test_demonstration_view_resample_to_mocap_reference_and_contact_source() -> None:
+    reference_target = _target("reference")
+    source_target = _target("source")
+    reference_track = _contact_track(
+        target=reference_target,
+        timestamps=[10.0, 11.0, 12.0],
+        contacts=[False, True, False],
+        confidences=[0.1, 0.2, 0.3],
+    )
+    source_track = _contact_track(
+        target=source_target,
+        timestamps=[0.0, 1.0, 2.0],
+        contacts=[True, False, True],
+        confidences=[0.4, 0.5, 0.6],
+    )
+    demo = Demonstration(
+        tracks={"mocap": reference_track, "contact": source_track},
+        alignments=(
+            TrackAlignment(
+                source="contact",
+                reference="mocap",
+                transform=TimelineTransform(scale=1.0, offset=10.0),
+            ),
+        ),
+    )
+    view = demo.slice_time(0.0, 13.0)
+
+    resampled = view.resample_to("mocap")
+
+    np.testing.assert_array_equal(
+        resampled["mocap"].timestamps,
+        np.array([10.0, 11.0, 12.0], dtype=np.float64),
+    )
+    np.testing.assert_array_equal(
+        resampled["contact"].timestamps,
+        np.array([10.0, 11.0, 12.0], dtype=np.float64),
+    )
+    np.testing.assert_array_equal(
+        resampled["contact"].state(source_target),
+        np.array([True, False, True], dtype=np.bool_),
+    )
+    np.testing.assert_array_equal(
+        resampled["contact"].confidence(source_target),
+        np.array([0.4, 0.5, 0.6], dtype=np.float64),
+    )
 
 
 def test_demonstration_view_resample_to_does_not_resample_reference_track() -> None:
