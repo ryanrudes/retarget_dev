@@ -1,4 +1,18 @@
-"""Mocap demonstration track and time-series query views."""
+"""Mocap demonstration track and time-series query views.
+
+Mocap resampling is split by data type:
+
+- continuous segment translations can be linearly interpolated;
+- rotations should not be linearly interpolated as raw matrices unless they are
+  projected/re-normalized afterward;
+- observed marker positions can be linearly interpolated only across visible
+  samples, with missing/occluded values preserved as NaN;
+- marker frame objects are raw observations and are not resampled directly;
+- attached contact tracks use discrete contact resampling semantics.
+
+The initial implementation should prefer conservative behavior over pretending
+all mocap data is the same kind of array. Humanity tried that with spreadsheets.
+"""
 
 from __future__ import annotations
 
@@ -12,7 +26,7 @@ from retarget.core.enums import MarkerId, PatchId, PoseFormat, RotationFormat, S
 from retarget.core.keys import SegmentKey
 from retarget.core.handles import PatchHandle
 from retarget.core.specs import SceneSpec, SegmentSpec
-from retarget.core.state import SceneState
+from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import TimeEntityVec3, TimeMat3, TimeQuat, TimeVec3
@@ -33,6 +47,11 @@ from retarget.demo._query_utils import (
     stack_entity_arrays,
 )
 from retarget.demo.contact import ContactTrack, ContactTrackView
+from retarget.demo.resampling import (
+    ResampleMethod,
+    resample_indices,
+    validate_resample_timestamps,
+)
 from retarget.demo.tracks import Track, TrackView
 from retarget.io import ViconMarkersFrame
 
@@ -109,6 +128,28 @@ class MocapTrack(Track):
         if len(self.timestamps) == 0:
             return self
         return self.with_timestamps(self.timestamps - self.timestamps[0])
+
+    def resample_to(
+        self,
+        timestamps: np.ndarray,
+        *,
+        output_timestamps: np.ndarray | None = None,
+        rotation_method: ResampleMethod | str = ResampleMethod.NEAREST,
+        contact_method: ResampleMethod | str = ResampleMethod.NEAREST,
+    ) -> "MocapTrack":
+        """Return this mocap track sampled at requested source-time timestamps.
+
+        Segment translations are linearly interpolated. Segment rotations are
+        sampled discretely using ``rotation_method``. Raw marker frames are not
+        resampled and are intentionally dropped on the returned track.
+        """
+        return _resample_mocap_track(
+            self,
+            timestamps=timestamps,
+            output_timestamps=output_timestamps,
+            rotation_method=rotation_method,
+            contact_method=contact_method,
+        )
 
     @classmethod
     def _view_type(cls) -> type[MocapTrackView]:
@@ -220,6 +261,149 @@ class MocapTrackView(TrackView[MocapTrack]):
         segment: SegmentId | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         return self.subject(subject).segment(segment)
+
+    def resample_to(
+        self,
+        timestamps: np.ndarray,
+        *,
+        output_timestamps: np.ndarray | None = None,
+        rotation_method: ResampleMethod | str = ResampleMethod.NEAREST,
+        contact_method: ResampleMethod | str = ResampleMethod.NEAREST,
+    ) -> MocapTrack:
+        """Return this mocap view sampled at requested view-time timestamps."""
+        return _resample_mocap_track(
+            self,
+            timestamps=timestamps,
+            output_timestamps=output_timestamps,
+            rotation_method=rotation_method,
+            contact_method=contact_method,
+        )
+
+
+def _resample_mocap_track(
+    mocap: MocapTrack | MocapTrackView,
+    *,
+    timestamps: np.ndarray,
+    output_timestamps: np.ndarray | None,
+    rotation_method: ResampleMethod | str,
+    contact_method: ResampleMethod | str,
+) -> MocapTrack:
+    sample_timestamps = validate_resample_timestamps(timestamps)
+    if len(sample_timestamps) == 0:
+        raise ValueError("cannot resample mocap track to empty timestamps")
+
+    if output_timestamps is None:
+        result_timestamps = sample_timestamps
+    else:
+        result_timestamps = validate_resample_timestamps(output_timestamps)
+        if len(result_timestamps) != len(sample_timestamps):
+            raise ValueError(
+                "output_timestamps must have the same length as timestamps"
+            )
+
+    source = _mocap_source(mocap)
+    source_timestamps = _mocap_timestamps(mocap)
+    visible_indices = _mocap_indices(mocap)
+    state = _resample_scene_state(
+        state=source.state,
+        source_timestamps=source_timestamps,
+        visible_indices=visible_indices,
+        sample_timestamps=sample_timestamps,
+        rotation_method=rotation_method,
+    )
+    contacts = _resample_mocap_contacts(
+        mocap,
+        sample_timestamps=sample_timestamps,
+        output_timestamps=result_timestamps,
+        contact_method=contact_method,
+    )
+    return MocapTrack(
+        scene_spec=source.scene_spec,
+        state=state,
+        timestamps=result_timestamps,
+        marker_frames=None,
+        contacts=contacts,
+        nominal_hz_override=source.nominal_hz_override,
+    )
+
+
+def _resample_scene_state(
+    *,
+    state: SceneState,
+    source_timestamps: np.ndarray,
+    visible_indices: tuple[int, ...],
+    sample_timestamps: np.ndarray,
+    rotation_method: ResampleMethod | str,
+) -> SceneState:
+    if len(source_timestamps) == 0:
+        raise ValueError("cannot resample empty mocap source timestamps")
+    visible_index_array = np.array(visible_indices, dtype=np.intp)
+    return SceneState(
+        segment_poses={
+            key: _resample_pose_trajectory(
+                trajectory=trajectory,
+                source_timestamps=source_timestamps,
+                visible_indices=visible_index_array,
+                sample_timestamps=sample_timestamps,
+                rotation_method=rotation_method,
+            )
+            for key, trajectory in state.segment_poses.items()
+        }
+    )
+
+
+def _resample_pose_trajectory(
+    *,
+    trajectory: SegmentPoseTrajectory,
+    source_timestamps: np.ndarray,
+    visible_indices: np.ndarray,
+    sample_timestamps: np.ndarray,
+    rotation_method: ResampleMethod | str,
+) -> SegmentPoseTrajectory:
+    visible_poses = tuple(trajectory.poses[int(index)] for index in visible_indices)
+    translations = np.stack(
+        [pose.translation for pose in visible_poses],
+        axis=0,
+    ).astype(np.float64, copy=False)
+    rotations = tuple(pose.rotation for pose in visible_poses)
+    resampled_translations = np.column_stack(
+        [
+            np.interp(sample_timestamps, source_timestamps, translations[:, axis])
+            for axis in range(3)
+        ]
+    )
+    rotation_indices = resample_indices(
+        source_timestamps=source_timestamps,
+        target_timestamps=sample_timestamps,
+        method=rotation_method,
+    )
+    return SegmentPoseTrajectory(
+        tuple(
+            RigidTransform.from_rotation_translation(
+                rotation=rotations[int(rotation_index)],
+                translation=resampled_translations[timestep],
+            )
+            for timestep, rotation_index in enumerate(rotation_indices)
+        )
+    )
+
+
+def _resample_mocap_contacts(
+    mocap: MocapTrack | MocapTrackView,
+    *,
+    sample_timestamps: np.ndarray,
+    output_timestamps: np.ndarray,
+    contact_method: ResampleMethod | str,
+) -> ContactTrack | None:
+    contact_track = _contact_track(mocap)
+    if contact_track is None:
+        return None
+    sliced = _slice_contact_track(contact_track, mocap)
+    return sliced.resample_to(
+        sample_timestamps,
+        output_timestamps=output_timestamps,
+        method=contact_method,
+    )
 
 
 @dataclass(frozen=True, slots=True)
