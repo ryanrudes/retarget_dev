@@ -1,3 +1,6 @@
 [submodule "vendor/urdf"]
 	path = vendor/urdf
 	url = https://github.com/ryanrudes/urdf
+[submodule "vendor/depend"]
+	path = vendor/depend
+	url = https://github.com/ryanrudes/depend

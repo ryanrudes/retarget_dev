@@ -42,7 +42,10 @@ The preferred public path is the TypedDict authoring layer compiled by `build_sc
 - Use `Patch.label` and `Patch.frame` for display/metadata, not identity.
 - Use `Patch(label=...)` to declare a patch without geometry.
 - Use `Patch.rectangular(...)` to declare a calibrated patch with geometry.
-- `segment.patch_target(...)` works for declared patches; `segment.patch(...)` and `segment.patch_spec(...)` require calibrated geometry.
+- `SegmentSpec.patch(...)` returns a `PatchHandle` for any declared patch.
+- `SegmentSpec.patch_spec(...)` requires calibrated geometry.
+- `SegmentView.patch(...)` returns a geometry-backed `PatchView` and requires calibrated geometry.
+- `SegmentView.patch_target(...)` works for any declared patch.
 - `build_scene(...)` compiles authored field names into runtime specs and private generated IDs.
 
 Manual `SceneSpec` / `SubjectSpec` / `SegmentSpec` construction still exists, but it is a

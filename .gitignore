@@ -32,3 +32,6 @@ vendor/ros2_unbag/ros2_unbag.egg-info/
 
 # Unbagged bags
 bags/**/unbagged/
+
+# Body models
+models/

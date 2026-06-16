@@ -3,6 +3,7 @@
     "readBeforeEditing": [
       "AGENTS.md",
       ".cursor/rules/retarget-architecture.mdc",
+      ".cursor/rules/schema-authoring-and-targets.mdc",
       ".cursor/rules/demo-pipeline.mdc",
       ".cursor/rules/demo-tracks-resampling.mdc",
       ".cursor/rules/sync-alignment.mdc",
@@ -13,6 +14,7 @@
   },
   "recommendedCommands": {
     "fullChecks": "python3 -m compileall -q src/retarget && python3 -m compileall -q examples && pytest -q",
-    "demoChecks": "pytest -q tests/test_demo_resampling.py tests/test_demo_contact.py tests/test_demo_mocap.py tests/test_demo.py tests/test_demo_container.py tests/test_demo_sync.py"
+    "demoChecks": "pytest -q tests/test_demo_resampling.py tests/test_demo_contact.py tests/test_demo_mocap.py tests/test_demo.py tests/test_demo_container.py tests/test_demo_sync.py",
+    "typedSchemaSearch": "rg -n \"class .*Spec|SegmentKey|MarkerHandle|PatchHandle|PatchTarget|SceneSpec|SubjectSpec|SegmentSpec\" src/retarget examples tests"
   }
 }

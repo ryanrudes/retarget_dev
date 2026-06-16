@@ -165,7 +165,7 @@ examples/process_mocap_data/
     mocap_vocab.py
     mocap_specs.py
     demo_specs.py
-    run_demo_example.py
+    run_demo_track_workflow.py
 
 Implement a generic loader helper in src/retarget/demo/loaders.py:
 
@@ -269,7 +269,7 @@ Adapt this to the actual code. The key point is: do not duplicate ground-estimat
 
 Minimum acceptable fix
 
-If moving this is too large for this pass, make run_demo_example.py import the exact same enum classes used by the loader.
+If moving this is too large for this pass, make run_demo_track_workflow.py import the exact same enum classes used by the loader.
 
 But preferred fix is to keep example-specific specs out of src/retarget.
 

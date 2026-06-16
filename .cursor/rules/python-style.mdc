@@ -32,3 +32,11 @@ Validate array shapes at construction boundaries.
 
 Prefer `np.testing.assert_array_equal` / `assert_allclose` in tests.
 
+
+## Packaging and typing
+
+This project should be packaged with `uv` and use Hatch / `hatchling` as the build backend. It supports Python 3.12+ only.
+
+Use modern Python typing throughout. For new generic code, prefer PEP 695 syntax for generic classes, generic functions, and type aliases. Avoid legacy `TypeVar`-heavy patterns unless a current type checker or library limitation requires them.
+
+Do not introduce alternate packaging systems such as Poetry, Pipenv, setuptools-only configuration, or conda environment assumptions.

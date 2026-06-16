@@ -178,6 +178,14 @@ declared patch can produce a `PatchTarget`, while geometry-heavy access such as
 `segment.patch(...)` or `segment.patch_spec(...)` requires calibrated patch
 geometry.
 
+Patch APIs follow this split:
+
+- `SegmentSpec.patch(...)` returns a `PatchHandle` for any declared patch.
+- `SegmentSpec.patch_spec(...)` requires calibrated patch geometry.
+- `SegmentView.patch(...)` returns a geometry-backed `PatchView` and requires
+  calibrated patch geometry.
+- `SegmentView.patch_target(...)` works for any declared patch.
+
 Exact membership is validated against the `SceneSpec` at runtime. For example,
 the type checker may know that `ShoeSegmentId.SHOE` is from the right segment
 vocabulary, but the `SceneSpec` is what confirms that a particular subject

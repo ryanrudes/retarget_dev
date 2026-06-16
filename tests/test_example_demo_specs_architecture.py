@@ -211,6 +211,7 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     source = NEW_API_EXAMPLE.read_text()
     assert "build_scene(subjects)" in source
     assert "Patch.rectangular(" in source
+    assert 'sole_patch_view = shoe.patch("sole")' in source
     assert 'toe_contact=Patch(' in source
     assert 'label="toe_contact_display"' in source
     assert 'shoe.patch_target("toe_contact")' in source

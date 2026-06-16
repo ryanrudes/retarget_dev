@@ -110,6 +110,27 @@ Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the f
 SubjectSpec.segment(self.subject_spec, segment)
 ```
 
+
+## Current architecture direction: typed schema authoring
+
+The next core-spec refactor should move toward a TypedDict-based schema authoring layer that compiles into normalized runtime specs. The goal is to make the user-authored scene hierarchy statically legible without making raw nested dictionaries the runtime model.
+
+Use this split:
+
+```text
+TypedDict schema declarations
+    -> build_scene(...) / compile step
+    -> SceneSpec / SubjectSpec / SegmentSpec
+    -> SceneView / SubjectView / SegmentView
+    -> SegmentTarget / MarkerTarget / PatchTarget
+```
+
+The package should provide generic primitives such as `Marker`, `Patch`, `Markers`, `Patches`, `Segment[MarkersT, PatchesT]`, `Subject[SegmentsT]`, `Subjects`, and `build_scene(...)`.
+
+User/project code should define only the concrete hierarchy, for example `ShoeMarkers`, `ShoePatches`, `ShoeSegments`, and `MocapSubjects`, then instantiate it and compile it with `build_scene(...)`.
+
+Do not make raw `TypedDict` values the long-term runtime API. Runtime code should still use normalized specs/views and stable targets for validation, iteration, serialization, contact-track keys, mocap state keys, and dynamic data loaded from files.
+
 ## Demonstration containers
 
 `Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments. It should not become a workflow object.

@@ -168,7 +168,7 @@ left_shoe = scene.subject("left_shoe")
 shoe = left_shoe.segment("shoe")
 
 heel_marker = shoe.marker("heel")
-sole_patch = shoe.patch("sole")
+sole_patch_view = shoe.patch("sole")
 toe_target = shoe.patch_target("toe_contact")
 
 shoe_target = shoe.segment_target()
