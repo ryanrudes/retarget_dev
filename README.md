@@ -36,8 +36,67 @@ ros2 unbag bags/ground_estimation/ground_estimation_0.db3 \
 
 The preferred public path is the TypedDict authoring layer compiled by `build_scene(...)`.
 
+```python
+from retarget.core import (
+    Marker,
+    Markers,
+    Patch,
+    Patches,
+    RigidTransform,
+    Segment,
+    Segments,
+    Subject,
+    Subjects,
+    build_scene,
+)
+
+class ShoeMarkers(Markers):
+    heel: Marker
+    toe: Marker
+
+class ShoePatches(Patches):
+    sole: Patch
+    toe_contact: Patch
+
+class ShoeSegments(Segments):
+    shoe: Segment[ShoeMarkers, ShoePatches]
+
+class ShoeSubjects(Subjects):
+    left_shoe: Subject[ShoeSegments]
+
+subjects = ShoeSubjects(
+    left_shoe=Subject(
+        segments=ShoeSegments(
+            shoe=Segment(
+                markers=ShoeMarkers(
+                    heel=Marker(vicon_name="left_shoe_heel"),
+                    toe=Marker(vicon_name="left_shoe_toe"),
+                ),
+                patches=ShoePatches(
+                    sole=Patch.rectangular(
+                        label="sole",
+                        transform_segment_patch=RigidTransform.identity(),
+                        width=0.10,
+                        height=0.25,
+                    ),
+                    toe_contact=Patch(label="toe_contact_display"),
+                ),
+            ),
+        ),
+    ),
+)
+
+scene = build_scene(subjects)
+shoe = scene.subject("left_shoe").segment("shoe")
+heel_target = shoe.marker_target("heel")
+sole_target = shoe.patch_target("sole")
+toe_target = shoe.patch_target("toe_contact")
+# shoe.patch("toe_contact") raises because that patch is declaration-only.
+```
+
 - Use `Subjects`, `Segments`, `Markers`, and `Patches` to declare the scene shape.
 - Use `Subject`, `Segment`, `Marker`, and `Patch` to author concrete scene data.
+- Authored field names are the internal canonical IDs.
 - Use `Marker.vicon_name` for external/Vicon lookup metadata.
 - Use `Patch.label` and `Patch.frame` for display/metadata, not identity.
 - Use `Patch(label=...)` to declare a patch without geometry.
