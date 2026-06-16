@@ -53,10 +53,15 @@ class Demonstration[K: TrackId]:
         reference: K,
         alignments: tuple[TrackAlignment[K], ...],
     ) -> DemonstrationView[K]:
-        """Compose pairwise alignments to reference, store them, and resample."""
+        """Compatibility wrapper for pairwise alignments.
+
+        Prefer :func:`retarget.demo.sync.estimate_sync_and_resample_to_reference`
+        for the full sync-and-resample workflow.
+        """
         import dataclasses
         from retarget.demo.sync import compose_alignments_to_reference
 
+        # Keep the legacy pairwise-alignment path alive for existing callers.
         composed = compose_alignments_to_reference(
             reference=reference,
             alignments=alignments,

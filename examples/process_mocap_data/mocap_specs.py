@@ -1,10 +1,11 @@
+"""Backend-oriented Vicon scene-spec construction used by the loader example."""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
-
-import numpy as np
 
 from mocap_vocab import (
     LeftShoeMarkerId,
@@ -23,8 +24,8 @@ from retarget.core import (
     SemanticAxis,
     SubjectSpec,
     Z_UP_AXES,
-    Vec3,
 )
+from retarget.io import read_marker_positions_from_vsk
 
 
 # Define the subject spec for the left shoe Vicon subject
@@ -61,33 +62,10 @@ LEFT_SHOE_MARKERS = MarkerSetSpec(
 )
 
 
-LEFT_SHOE_MARKER_POSITIONS_SEGMENT: dict[LeftShoeMarkerId, Vec3] = {
-    # Toe markers
-    LeftShoeMarkerId.TOE: np.array([0.120, 0.000, 0.040]),
-    LeftShoeMarkerId.TOE_INNER: np.array([0.105, 0.035, 0.035]),
-    LeftShoeMarkerId.TOE_OUTER: np.array([0.105, -0.035, 0.035]),
-    LeftShoeMarkerId.TOE_GRID_1: np.array([0.080, 0.025, 0.035]),
-    LeftShoeMarkerId.TOE_GRID_2: np.array([0.080, -0.025, 0.035]),
-    LeftShoeMarkerId.TOE_GRID_3: np.array([0.050, 0.025, 0.035]),
-    LeftShoeMarkerId.TOE_GRID_4: np.array([0.050, -0.025, 0.035]),
-
-    # Heel markers
-    LeftShoeMarkerId.HEEL: np.array([-0.100, 0.000, 0.045]),
-    LeftShoeMarkerId.HEEL_INNER_1: np.array([-0.085, 0.035, 0.045]),
-    LeftShoeMarkerId.HEEL_INNER_2: np.array([-0.115, 0.035, 0.045]),
-    LeftShoeMarkerId.HEEL_OUTER_1: np.array([-0.085, -0.035, 0.045]),
-    LeftShoeMarkerId.HEEL_OUTER_2: np.array([-0.115, -0.035, 0.045]),
-
-    # Sole side markers
-    LeftShoeMarkerId.SOLE_INNER: np.array([0.000, 0.040, 0.020]),
-    LeftShoeMarkerId.SOLE_OUTER: np.array([0.000, -0.040, 0.020]),
-
-    # Sole plane calibration markers.
-    # These should be replaced with your calibrated segment-frame positions.
-    LeftShoeMarkerId.PLANE_REAR: np.array([-0.090, 0.000, 0.000]),
-    LeftShoeMarkerId.PLANE_INNER: np.array([0.040, 0.045, 0.000]),
-    LeftShoeMarkerId.PLANE_OUTER: np.array([0.040, -0.045, 0.000]),
-}
+LEFT_SHOE_MARKER_POSITIONS_SEGMENT = read_marker_positions_from_vsk(
+    Path("models/Left_Shoe_Improved.vsk"),
+    marker_type=LeftShoeMarkerId,
+)
 
 
 # Offset from the fitted calibration-marker plane to the physical sole contact
@@ -116,7 +94,7 @@ LEFT_SHOE_SOLE_CALIBRATION = PatchCalibrationSpec(
 )
 
 
-# Define the left shoe segment spec for the left shoe segment
+# Low-level backend scene-spec assembly for the left shoe segment.
 LEFT_SHOE_SEGMENT: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId] = (
     SegmentSpec(
         segment=LeftShoeSegmentId.LEFT_SHOE,

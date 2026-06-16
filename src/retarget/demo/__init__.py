@@ -20,6 +20,14 @@ from retarget.demo.tracks import (
     Track,
     TrackView,
 )
+from retarget.demo.sync import (
+    SyncEdge,
+    SyncPlan,
+    compose_alignments_to_reference,
+    estimate_sync,
+    estimate_sync_and_resample_to_reference,
+    estimate_sync_to_reference,
+)
 
 __all__ = [
     "ContactTrack",
@@ -49,4 +57,12 @@ __all__ = [
     "TimelineTransform",
     "TrackAlignment",
     "estimate_alignment_from_signals",
+
+    # retarget.demo.sync
+    "SyncEdge",
+    "SyncPlan",
+    "compose_alignments_to_reference",
+    "estimate_sync",
+    "estimate_sync_and_resample_to_reference",
+    "estimate_sync_to_reference",
 ]

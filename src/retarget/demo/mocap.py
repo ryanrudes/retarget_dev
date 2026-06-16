@@ -229,7 +229,7 @@ class MocapTrack(Track):
                 if obs.occluded:
                     continue
                 try:
-                    marker = segment.marker_type(obs.marker_name)
+                    marker = segment.marker_from_external_name(obs.marker_name)
                 except ValueError:
                     continue
                 arr[timestep, marker.index, :] = obs.position_world

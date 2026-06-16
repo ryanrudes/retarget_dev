@@ -163,6 +163,10 @@ def estimate_sync_and_resample_to_reference[K: TrackId](
     3. slice the demonstration to ``[start, stop)``;
     4. materialize that slice on the reference track timeline.
 
+    Sync is estimated on the full demonstration before slicing. This gives the
+    alignment estimator the largest available signal window, then materializes
+    only the requested slice.
+
     The original ``Demonstration`` remains unchanged. The returned view carries
     the composed root-reference alignments used for resampling.
     """

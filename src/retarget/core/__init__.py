@@ -35,6 +35,7 @@ from retarget.core.keys import SegmentKey
 from retarget.core.specs import (
     MarkerSpec,
     MarkerSetSpec,
+    PatchDeclarationSpec,
     PatchSpec,
     PatchCalibrationSpec,
     SegmentSpec,
@@ -45,7 +46,22 @@ from retarget.core.state import (
     SegmentPoseTrajectory,
     SceneState,
 )
-from retarget.core.targets import PatchTarget
+from retarget.core.schema import (
+    GeneratedIds,
+    Marker,
+    Markers,
+    Patch,
+    Patches,
+    Segment,
+    Segments,
+    Subject,
+    Subjects,
+    build_scene,
+    marker_external_name,
+    marker_from_external_name,
+    marker_from_vicon_name,
+)
+from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import (
     RigidTransform,
 )
@@ -128,9 +144,25 @@ __all__ = [
     "RectangularRegion",
     "PolygonalRegion",
 
+    # Authoring schema
+    "Markers",
+    "Patches",
+    "Segments",
+    "Subjects",
+    "Marker",
+    "Patch",
+    "Segment",
+    "Subject",
+    "build_scene",
+    "GeneratedIds",
+    "marker_external_name",
+    "marker_from_external_name",
+    "marker_from_vicon_name",
+
     # Specs
     "MarkerSpec",
     "MarkerSetSpec",
+    "PatchDeclarationSpec",
     "PatchSpec",
     "PatchCalibrationSpec",
     "SegmentSpec",
@@ -142,6 +174,8 @@ __all__ = [
     "SceneState",
 
     # Targets
+    "SegmentTarget",
+    "MarkerTarget",
     "PatchTarget",
 
     # Translation

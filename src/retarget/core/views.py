@@ -9,6 +9,7 @@ from retarget.core.enums import MarkerId, PatchId, SegmentId, SubjectId
 from retarget.core.handles import MarkerHandle, PatchHandle
 from retarget.core.specs import PatchSpec, SceneSpec, SegmentSpec, SubjectSpec
 from retarget.core.state import SceneState, SegmentPoseTrajectory
+from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import Vec3
 
@@ -126,6 +127,13 @@ class SegmentView[M: MarkerId, P: PatchId]:
         """Return the world-from-segment transform at one timestep."""
         return self.trajectory.at(timestep)
 
+    def segment_target(self) -> SegmentTarget:
+        """Return the scene-level identity of this concrete segment."""
+        return SegmentTarget(
+            subject=self.subject_id,
+            segment=self.segment_id,
+        )
+
     def marker(self, marker: M) -> MarkerView[M, P]:
         """Return a typed runtime view of one marker on this segment."""
         return MarkerView(
@@ -133,10 +141,30 @@ class SegmentView[M: MarkerId, P: PatchId]:
             handle=self.spec.marker(marker),
         )
 
+    def marker_target(self, marker: M) -> MarkerTarget[M]:
+        """Return the scene-level identity of one marker on this segment."""
+        return MarkerTarget(
+            subject=self.subject_id,
+            handle=self.spec.marker(marker),
+        )
+
     def patch(self, patch: P) -> PatchView[M, P]:
         """Return a typed runtime view of one patch on this segment."""
+        handle = self.spec.patch(patch)
+        try:
+            self.spec.patch_spec(patch)
+        except KeyError as exc:
+            message = exc.args[0] if exc.args else str(exc)
+            raise ValueError(message) from exc
         return PatchView(
             segment_view=self,
+            handle=handle,
+        )
+
+    def patch_target(self, patch: P) -> PatchTarget[P]:
+        """Return the scene-level identity of one patch on this segment."""
+        return PatchTarget(
+            subject=self.subject_id,
             handle=self.spec.patch(patch),
         )
 

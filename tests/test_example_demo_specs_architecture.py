@@ -22,12 +22,18 @@ EXAMPLE_DEMO_VOCAB = (
     / "process_mocap_data"
     / "demo_vocab.py"
 )
+NEW_API_EXAMPLE = (
+    Path(__file__).resolve().parents[1]
+    / "examples"
+    / "process_mocap_data"
+    / "new_api_example.py"
+)
 EXAMPLE_DIR = (
     Path(__file__).resolve().parents[1]
     / "examples"
     / "process_mocap_data"
 )
-RUN_DEMO_EXAMPLE = EXAMPLE_DIR / "run_demo_example.py"
+RUN_DEMO_TRACK_WORKFLOW = EXAMPLE_DIR / "run_demo_track_workflow.py"
 
 if str(EXAMPLE_DIR) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_DIR))
@@ -143,8 +149,8 @@ def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
     np.testing.assert_allclose(mocap.timestamps, track.timestamps)
 
 
-def test_run_demo_example_uses_generic_get_track_pattern() -> None:
-    source = RUN_DEMO_EXAMPLE.read_text()
+def test_run_demo_track_workflow_uses_generic_get_track_pattern() -> None:
+    source = RUN_DEMO_TRACK_WORKFLOW.read_text()
     assert ".get_track(" in source
     assert ".mocap" not in source
     assert "GroundEstimationDemo" not in source
@@ -199,3 +205,12 @@ def test_process_mocap_example_does_not_reimplement_demo_container_methods() -> 
             if found:
                 offenders[f"{path.name}:{cls.name}"] = found
     assert offenders == {}
+
+
+def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() -> None:
+    source = NEW_API_EXAMPLE.read_text()
+    assert "build_scene(subjects)" in source
+    assert "Patch.rectangular(" in source
+    assert 'toe_contact=Patch(' in source
+    assert 'label="toe_contact_display"' in source
+    assert 'shoe.patch_target("toe_contact")' in source
