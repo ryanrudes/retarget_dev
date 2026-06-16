@@ -9,10 +9,12 @@ from retarget.core import (
     MarkerSetSpec,
     PatchCalibrationSpec,
     PatchId,
+    PatchSpec,
     RectangularRegion,
     SegmentId,
     SegmentSpec,
     SemanticAxis,
+    RigidTransform,
     Z_UP_AXES,
 )
 
@@ -180,3 +182,26 @@ def test_patch_calibration_rejects_duplicate_markers() -> None:
             markers=(_MarkerId.A, _MarkerId.A, _MarkerId.C),
             region=RectangularRegion(width=1.0, height=1.0),
         )
+
+
+def test_direct_segment_spec_patches_remain_calibrated() -> None:
+    segment = SegmentSpec(
+        segment=_SegmentId.BODY,
+        marker_type=_MarkerId,
+        patch_type=_PatchId,
+        axis_convention=Z_UP_AXES,
+        marker_set=MarkerSetSpec(marker_type=_MarkerId),
+        patches={
+            _PatchId.SURFACE: PatchSpec(
+                patch=_PatchId.SURFACE,
+                transform_segment_patch=RigidTransform.identity(),
+                region=RectangularRegion(width=1.0, height=1.0),
+            ),
+        },
+    )
+    assert segment.patch(_PatchId.SURFACE).patch == _PatchId.SURFACE
+    patch = segment.patch_spec(_PatchId.SURFACE)
+    np.testing.assert_allclose(
+        patch.transform_segment_patch.translation,
+        np.zeros(3, dtype=np.float64),
+    )

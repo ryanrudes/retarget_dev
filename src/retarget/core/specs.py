@@ -28,6 +28,9 @@ class MarkerSpec[M: MarkerId]:
     role: MarkerRole = MarkerRole.TRACKING
     """The role of the marker in the tracking system."""
 
+    vicon_name: str | None = None
+    """Optional external marker label used by IO/importers."""
+
     @property
     def label(self) -> str:
         """The label of the marker in the vocabulary."""
@@ -69,10 +72,11 @@ class MarkerSetSpec[M: MarkerId]:
         self._check_marker(marker)
         return self.roles.get(marker, self.default_role)
 
-    def spec(self, marker: M) -> MarkerSpec[M]:
+    def spec(self, marker: M, *, vicon_name: str | None = None) -> MarkerSpec[M]:
         return MarkerSpec(
             marker=marker,
             role=self.role(marker),
+            vicon_name=vicon_name,
         )
 
     def tracking_markers(self) -> tuple[M, ...]:
@@ -121,6 +125,26 @@ class PatchSpec[P: PatchId]:
 
     region: ContactRegion
     """The contact region of the patch."""
+
+    label: str | None = None
+    """Optional external/display label for the patch."""
+
+    frame: str | None = None
+    """Optional patch-frame metadata from authoring."""
+
+
+@dataclass(frozen=True, slots=True)
+class PatchDeclarationSpec[P: PatchId]:
+    """Persistent declaration for one named patch on a segment."""
+
+    patch: P
+    """The patch identifier."""
+
+    label: str
+    """External/display label for the patch."""
+
+    frame: str | None = None
+    """Optional patch-frame metadata from authoring."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -256,6 +280,9 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
     patch_calibrations: Mapping[P, PatchCalibrationSpec[M, P]] = field(default_factory=dict)
     """Patch calibrations keyed by patch ID."""
 
+    patch_declarations: Mapping[P, PatchDeclarationSpec[P]] = field(default_factory=dict)
+    """Declared patch metadata keyed by patch ID."""
+
     patches: Mapping[P, PatchSpec[P]] = field(default_factory=dict)
     """Built/calibrated patch specs keyed by patch ID."""
 
@@ -267,6 +294,7 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
 
         marker_positions_segment = dict(self.marker_positions_segment)
         patch_calibrations = dict(self.patch_calibrations)
+        patch_declarations = dict(self.patch_declarations)
         patches = dict(self.patches)
 
         for marker in marker_positions_segment:
@@ -274,6 +302,15 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
 
         for patch in patch_calibrations:
             self._check_patch(patch)
+
+        for patch, declaration in patch_declarations.items():
+            self._check_patch(patch)
+            self._check_patch(declaration.patch)
+            if declaration.patch != patch:
+                raise ValueError(
+                    "Patch declaration keys must match declaration.patch; "
+                    f"got key {patch!r} and declaration.patch {declaration.patch!r}"
+                )
 
         for patch in patches:
             self._check_patch(patch)
@@ -288,6 +325,39 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
             for marker in calibration.marker_translations:
                 self._check_marker(marker)
 
+        normalized_patch_declarations: dict[P, PatchDeclarationSpec[P]] = {}
+        for patch, declaration in patch_declarations.items():
+            normalized_patch_declarations[patch] = declaration
+
+        for patch in patch_calibrations:
+            declaration = normalized_patch_declarations.get(patch)
+            if declaration is None:
+                normalized_patch_declarations[patch] = PatchDeclarationSpec(
+                    patch=patch,
+                    label=patch.label,
+                )
+            elif declaration.frame is None:
+                normalized_patch_declarations[patch] = PatchDeclarationSpec(
+                    patch=patch,
+                    label=declaration.label,
+                    frame=declaration.frame,
+                )
+
+        for patch, patch_spec in patches.items():
+            declaration = normalized_patch_declarations.get(patch)
+            if declaration is None:
+                normalized_patch_declarations[patch] = PatchDeclarationSpec(
+                    patch=patch,
+                    label=patch_spec.label or patch.label,
+                    frame=patch_spec.frame,
+                )
+            else:
+                normalized_patch_declarations[patch] = PatchDeclarationSpec(
+                    patch=patch,
+                    label=declaration.label,
+                    frame=patch_spec.frame if declaration.frame is None else declaration.frame,
+                )
+
         object.__setattr__(
             self,
             "marker_positions_segment",
@@ -297,6 +367,11 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
             self,
             "patch_calibrations",
             MappingProxyType(patch_calibrations),
+        )
+        object.__setattr__(
+            self,
+            "patch_declarations",
+            MappingProxyType(normalized_patch_declarations),
         )
         object.__setattr__(
             self,
@@ -317,14 +392,46 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
             marker=marker,
         )
 
+    def marker_spec(self, marker: M) -> MarkerSpec[M]:
+        """Return the marker spec for a marker on this segment."""
+        self._check_marker(marker)
+        return self.marker_set.spec(marker)
+
+    def marker_external_name(self, marker: M) -> str:
+        """Return the external marker label for a marker on this segment."""
+        marker_spec = self.marker_spec(marker)
+        return marker_spec.vicon_name or marker_spec.label
+
+    def marker_from_external_name(self, marker_name: str) -> M:
+        """Resolve an external marker label to the internal marker ID."""
+        return self.marker_type(marker_name)
+
+    def marker_from_vicon_name(self, marker_name: str) -> M:
+        """Backward-compatible alias for marker_from_external_name()."""
+        return self.marker_from_external_name(marker_name)
+
     def patch(self, patch: P) -> PatchHandle[P]:
         """Return a typed handle to a patch on this segment."""
         self._check_patch(patch)
+        if patch not in self.patch_declarations:
+            raise KeyError(
+                f"Segment {self.segment!r} has no patch {patch!r}"
+            )
 
         return PatchHandle(
             segment=self.segment,
             patch=patch,
         )
+
+    def patch_declaration(self, patch: P) -> PatchDeclarationSpec[P]:
+        """Return the segment-local patch declaration."""
+        self._check_patch(patch)
+        try:
+            return self.patch_declarations[patch]
+        except KeyError as exc:
+            raise KeyError(
+                f"Segment {self.segment!r} has no patch {patch!r}"
+            ) from exc
 
     def marker_position(self, marker: M) -> Vec3:
         """Return the segment-frame position of a marker."""
@@ -334,7 +441,25 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
     def patch_spec(self, patch: P) -> PatchSpec[P]:
         """Return the segment-local patch spec."""
         self._check_patch(patch)
-        return self.patches[patch]
+        try:
+            return self.patches[patch]
+        except KeyError as exc:
+            if patch in self.patch_declarations:
+                raise KeyError(
+                    f"Segment {self.segment!r} patch {patch!r} is declared but "
+                    "has no calibrated geometry"
+                ) from exc
+            raise KeyError(
+                f"Segment {self.segment!r} has no patch {patch!r}"
+            ) from exc
+
+    def patch_label(self, patch: P) -> str:
+        """Return the external/display label for a patch."""
+        return self.patch_declaration(patch).label
+
+    def patch_frame(self, patch: P) -> str | None:
+        """Return the patch-frame metadata for a patch."""
+        return self.patch_declaration(patch).frame
 
     def calibration(self, patch: P) -> PatchCalibrationSpec[M, P]:
         """Return the calibration spec for a patch."""
@@ -367,6 +492,7 @@ class SegmentSpec[M: MarkerId, P: PatchId]:
             marker_set=self.marker_set,
             marker_positions_segment=self.marker_positions_segment,
             patch_calibrations=self.patch_calibrations,
+            patch_declarations=self.patch_declarations,
             patches=patches,
         )
 

@@ -292,6 +292,7 @@ def marker_position(
     if isinstance(segment, SegmentView):
         subject_name = segment.subject_id.label
         segment_name = segment.spec.segment.label
+        marker_name = segment.spec.marker_external_name(marker)
     else:
         if subject is None:
             raise TypeError(
@@ -299,12 +300,13 @@ def marker_position(
             )
         subject_name = subject.label
         segment_name = segment.segment.label
+        marker_name = segment.marker_external_name(marker)
     positions = marker_positions_by_name(
         marker_frame,
         subject_name=subject_name,
         segment_name=segment_name,
     )
-    return positions.get(marker.label)
+    return positions.get(marker_name)
 
 
 def _load_json_object(path: Path) -> dict[str, Mapping[str, Any]]:

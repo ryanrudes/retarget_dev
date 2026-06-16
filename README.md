@@ -32,6 +32,22 @@ ros2 unbag bags/ground_estimation/ground_estimation_0.db3 \
   --resample /tf:nearest,0.02
 ```
 
+## Scene authoring
+
+The preferred public path is the TypedDict authoring layer compiled by `build_scene(...)`.
+
+- Use `Subjects`, `Segments`, `Markers`, and `Patches` to declare the scene shape.
+- Use `Subject`, `Segment`, `Marker`, and `Patch` to author concrete scene data.
+- Use `Marker.vicon_name` for external/Vicon lookup metadata.
+- Use `Patch.label` and `Patch.frame` for display/metadata, not identity.
+- Use `Patch(label=...)` to declare a patch without geometry.
+- Use `Patch.rectangular(...)` to declare a calibrated patch with geometry.
+- `segment.patch_target(...)` works for declared patches; `segment.patch(...)` and `segment.patch_spec(...)` require calibrated geometry.
+- `build_scene(...)` compiles authored field names into runtime specs and private generated IDs.
+
+Manual `SceneSpec` / `SubjectSpec` / `SegmentSpec` construction still exists, but it is a
+low-level backend path for loader code and geometry examples.
+
 ## Segment lookup
 
 Segment IDs are subject-local. At runtime, `SceneState` uses `SegmentKey(subject, segment)` to disambiguate concrete segment instances. For segment views, pass a `SegmentSpec` when you want marker/patch generic types preserved. Pass a `SegmentId` when you want ergonomic runtime lookup.
@@ -64,3 +80,7 @@ marker_position(
     marker=LeftShoeMarkerId.HEEL,
 )
 ```
+
+## Example scripts
+
+`new_api_example.py` demonstrates the preferred TypedDict authoring path. `mocap_specs.py` and `run_core_geometry_basics.py` demonstrate low-level backend-oriented scene-spec construction and runtime queries. `run_demo_track_workflow.py` demonstrates the typed demonstration loader and track-query workflow.

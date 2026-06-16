@@ -14,8 +14,10 @@ from retarget.io.unbagged import (
     stamp_to_seconds,
     tf_child_frame_id,
 )
+from retarget.io.vsk import read_marker_positions_from_vsk
 
 __all__ = [
+    # retarget.io.unbagged
     "MarkerObservation",
     "UnbaggedDirectory",
     "ViconMarkersFrame",
@@ -28,4 +30,7 @@ __all__ = [
     "rigid_transform_from_ros_json",
     "stamp_to_seconds",
     "tf_child_frame_id",
+
+    # retarget.io.vsk
+    "read_marker_positions_from_vsk",
 ]

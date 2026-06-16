@@ -79,7 +79,7 @@ class MarkerRole(StrEnum):
     """A marker used for both tracking and calibration."""
 
 
-class RotationFormat(NameId):
+class RotationFormat(StrEnum):
     """Rotation representation for time-series queries."""
 
     MATRIX = "matrix"
@@ -88,7 +88,7 @@ class RotationFormat(NameId):
     ROTVEC = "rotvec"
 
 
-class PoseFormat(NameId):
+class PoseFormat(StrEnum):
     """Pose representation for time-series queries."""
 
     RIGID_TRANSFORM = "rigid_transform"
