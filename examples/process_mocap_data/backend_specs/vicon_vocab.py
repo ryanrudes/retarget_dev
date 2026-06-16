@@ -1,17 +1,17 @@
-from retarget.core import SubjectId, SegmentId, PatchId, MarkerId
+"""Backend/manual Vicon vocabularies for the real calibration scene."""
+
+from __future__ import annotations
+
+from retarget.core import MarkerId, PatchId, SegmentId, SubjectId
 
 
-# Define the subjects that appear in the Vicon scene (there is just one in this example)
-# Use the names from Vicon
 class ViconSubjectId(SubjectId):
-    """Vocabulary for the subjects which make up the scene."""
+    """Vocabulary for the subjects which make up the backend/manual scene."""
 
     LEFT_SHOE = "Left_Shoe_Improved"
     """Symbol representing the left shoe subject."""
 
 
-# Define the segments that make up the left shoe subject
-# Use the names from Vicon
 class LeftShoeSegmentId(SegmentId):
     """Vocabulary for the segments which make up the left shoe subject."""
 
@@ -19,7 +19,6 @@ class LeftShoeSegmentId(SegmentId):
     """Symbol representing the left shoe segment."""
 
 
-# Define the patches that make up the left shoe segment
 class LeftShoePatchId(PatchId):
     """Vocabulary for the contact patches attached to the left shoe segment."""
 
@@ -33,12 +32,10 @@ class LeftShoePatchId(PatchId):
     """The heel patch."""
 
 
-# Define the markers that make up the left shoe segment
-# Use the names from Vicon
 class LeftShoeMarkerId(MarkerId):
     """Vocabulary for the markers which make up the left shoe segment."""
 
-    # Markers affixed to the toe of the shoe
+    # Markers affixed to the toe of the shoe.
     TOE = "toe"
     TOE_INNER = "toe_inner"
     TOE_OUTER = "toe_outer"
@@ -47,18 +44,18 @@ class LeftShoeMarkerId(MarkerId):
     TOE_GRID_3 = "toe_grid_3"
     TOE_GRID_4 = "toe_grid_4"
 
-    # Markers affixed to the heel of the shoe
+    # Markers affixed to the heel of the shoe.
     HEEL = "heel"
     HEEL_INNER_1 = "heel_inner_1"
     HEEL_INNER_2 = "heel_inner_2"
     HEEL_OUTER_1 = "heel_outer_1"
     HEEL_OUTER_2 = "heel_outer_2"
 
-    # Markers affixed to the side of the sole of the shoe
+    # Markers affixed to the side of the sole of the shoe.
     SOLE_INNER = "sole_inner"
     SOLE_OUTER = "sole_outer"
 
-    # Shoe sole plane surface calibration markers
+    # Shoe sole plane surface calibration markers.
     PLANE_REAR = "plane_rear"
     PLANE_INNER = "plane_inner"
     PLANE_OUTER = "plane_outer"

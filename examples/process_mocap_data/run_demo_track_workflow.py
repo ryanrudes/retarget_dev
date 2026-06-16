@@ -1,20 +1,22 @@
+"""This workflow uses backend/manual Vicon scene support.
+
+It loads real VSK-derived marker calibration and bag data. For public scene
+authoring, see new_api_example.py.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 import numpy as np
 
-from demo_specs import load_ground_estimation_demo
-from demo_vocab import GroundEstimationTrackId
-from mocap_specs import LEFT_SHOE_SEGMENT
-from mocap_vocab import (
+from backend_specs.ground_estimation_loader import load_ground_estimation_demo
+from backend_specs.vicon_scene import LEFT_SHOE_SEGMENT
+from backend_specs.vicon_vocab import (
     LeftShoePatchId,
-    LeftShoeSegmentId,
     ViconSubjectId,
 )
-
-from retarget.core import PatchHandle
-from retarget.core.targets import PatchTarget
+from demo_vocab import GroundEstimationTrackId
 
 
 UNBAGGED_DIR = (
@@ -30,14 +32,11 @@ def main() -> None:
     mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
     clip = demo.slice_time(0.0, 1.0)
     mocap_clip = clip.get_track(GroundEstimationTrackId.MOCAP)
-    left_shoe = mocap_clip.subject(ViconSubjectId.LEFT_SHOE).segment(LEFT_SHOE_SEGMENT)
-    sole_target = PatchTarget(
-        subject=ViconSubjectId.LEFT_SHOE,
-        handle=PatchHandle(
-            segment=LeftShoeSegmentId.LEFT_SHOE,
-            patch=LeftShoePatchId.SOLE,
-        ),
+    left_shoe = (
+        mocap_clip.subject(ViconSubjectId.LEFT_SHOE)
+        .segment(LEFT_SHOE_SEGMENT)
     )
+    sole_target = left_shoe.segment_view.patch_target(LeftShoePatchId.SOLE)
     translations = left_shoe.translations()
     rotations = left_shoe.rotations()
     sole_points = left_shoe.patch_points(LeftShoePatchId.SOLE)

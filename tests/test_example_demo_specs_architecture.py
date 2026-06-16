@@ -10,48 +10,42 @@ from conftest import make_mocap_track
 from retarget.demo.demo import Demonstration
 from retarget.demo.mocap import MocapTrack
 
-EXAMPLE_DEMO_SPECS = (
-    Path(__file__).resolve().parents[1]
-    / "examples"
-    / "process_mocap_data"
-    / "demo_specs.py"
-)
-EXAMPLE_DEMO_VOCAB = (
-    Path(__file__).resolve().parents[1]
-    / "examples"
-    / "process_mocap_data"
-    / "demo_vocab.py"
-)
-NEW_API_EXAMPLE = (
-    Path(__file__).resolve().parents[1]
-    / "examples"
-    / "process_mocap_data"
-    / "new_api_example.py"
-)
-EXAMPLE_DIR = (
+EXAMPLE_ROOT = (
     Path(__file__).resolve().parents[1]
     / "examples"
     / "process_mocap_data"
 )
-RUN_DEMO_TRACK_WORKFLOW = EXAMPLE_DIR / "run_demo_track_workflow.py"
+BACKEND_SPECS_DIR = EXAMPLE_ROOT / "backend_specs"
+BACKEND_INIT = BACKEND_SPECS_DIR / "__init__.py"
+BACKEND_VOCAB = BACKEND_SPECS_DIR / "vicon_vocab.py"
+BACKEND_SCENE = BACKEND_SPECS_DIR / "vicon_scene.py"
+BACKEND_LOADER = BACKEND_SPECS_DIR / "ground_estimation_loader.py"
+DEMO_VOCAB = EXAMPLE_ROOT / "demo_vocab.py"
+NEW_API_EXAMPLE = EXAMPLE_ROOT / "new_api_example.py"
+RUN_DEMO_TRACK_WORKFLOW = EXAMPLE_ROOT / "run_demo_track_workflow.py"
+RUN_CORE_GEOMETRY_BASICS = EXAMPLE_ROOT / "run_core_geometry_basics.py"
 
-if str(EXAMPLE_DIR) not in sys.path:
-    sys.path.insert(0, str(EXAMPLE_DIR))
+if str(EXAMPLE_ROOT) not in sys.path:
+    sys.path.insert(0, str(EXAMPLE_ROOT))
 
-import demo_specs  # noqa: E402
+from backend_specs import ground_estimation_loader  # noqa: E402
 import demo_vocab  # noqa: E402
 
 
-def _demo_specs_ast() -> ast.Module:
-    return ast.parse(EXAMPLE_DEMO_SPECS.read_text())
+def _module_ast(path: Path) -> ast.Module:
+    return ast.parse(path.read_text())
 
 
-def _demo_vocab_ast() -> ast.Module:
-    return ast.parse(EXAMPLE_DEMO_VOCAB.read_text())
+def test_backend_specs_package_and_modules_exist() -> None:
+    assert BACKEND_SPECS_DIR.is_dir()
+    assert BACKEND_INIT.is_file()
+    assert BACKEND_VOCAB.is_file()
+    assert BACKEND_SCENE.is_file()
+    assert BACKEND_LOADER.is_file()
 
 
 def test_demo_vocab_defines_only_track_id_class() -> None:
-    tree = _demo_vocab_ast()
+    tree = _module_ast(DEMO_VOCAB)
     class_names = [
         node.name
         for node in tree.body
@@ -60,8 +54,23 @@ def test_demo_vocab_defines_only_track_id_class() -> None:
     assert class_names == ["GroundEstimationTrackId"]
 
 
-def test_demo_specs_defines_no_classes() -> None:
-    tree = _demo_specs_ast()
+def test_backend_vocab_defines_expected_classes() -> None:
+    tree = _module_ast(BACKEND_VOCAB)
+    class_names = [
+        node.name
+        for node in tree.body
+        if isinstance(node, ast.ClassDef)
+    ]
+    assert class_names == [
+        "ViconSubjectId",
+        "LeftShoeSegmentId",
+        "LeftShoePatchId",
+        "LeftShoeMarkerId",
+    ]
+
+
+def test_backend_loader_defines_no_classes() -> None:
+    tree = _module_ast(BACKEND_LOADER)
     class_names = [
         node.name
         for node in tree.body
@@ -70,24 +79,21 @@ def test_demo_specs_defines_no_classes() -> None:
     assert class_names == []
 
 
-def test_demo_specs_does_not_define_custom_demo_facade() -> None:
-    tree = _demo_specs_ast()
-    forbidden = {
-        "GroundEstimationDemo",
-        "GroundEstimationDemoView",
-        "DemoFacade",
-        "GroundEstimationDemoFacade",
-    }
-    class_names = {
-        node.name
-        for node in tree.body
-        if isinstance(node, ast.ClassDef)
-    }
-    assert class_names.isdisjoint(forbidden)
+def test_backend_support_files_are_clearly_backend_manual() -> None:
+    for path in (
+        BACKEND_VOCAB,
+        BACKEND_SCENE,
+        BACKEND_LOADER,
+        RUN_DEMO_TRACK_WORKFLOW,
+        RUN_CORE_GEOMETRY_BASICS,
+    ):
+        source = path.read_text().lower()
+        assert "backend" in source
+        assert "manual" in source
 
 
-def test_demo_specs_loader_returns_generic_demonstration_annotation() -> None:
-    tree = _demo_specs_ast()
+def test_ground_estimation_loader_returns_generic_demonstration_annotation() -> None:
+    tree = _module_ast(BACKEND_LOADER)
     functions = {
         node.name: node
         for node in tree.body
@@ -99,8 +105,8 @@ def test_demo_specs_loader_returns_generic_demonstration_annotation() -> None:
     assert annotation == "Demonstration[GroundEstimationTrackId]"
 
 
-def test_demo_specs_constructs_generic_demonstration() -> None:
-    tree = _demo_specs_ast()
+def test_ground_estimation_loader_constructs_generic_demonstration() -> None:
+    tree = _module_ast(BACKEND_LOADER)
     calls = [
         node
         for node in ast.walk(tree)
@@ -123,11 +129,15 @@ def test_load_ground_estimation_demo_returns_generic_demonstration(monkeypatch) 
     def fake_load_mocap_track(root, scene):
         return track
 
-    monkeypatch.setattr(demo_specs, "load_mocap_track", fake_load_mocap_track)
-    demo = demo_specs.load_ground_estimation_demo(Path("dummy"))
+    monkeypatch.setattr(
+        ground_estimation_loader,
+        "load_mocap_track",
+        fake_load_mocap_track,
+    )
+    demo = ground_estimation_loader.load_ground_estimation_demo(Path("dummy"))
     assert isinstance(demo, Demonstration)
-    assert not hasattr(demo_specs, "GroundEstimationDemo")
-    assert not hasattr(demo_specs, "GroundEstimationDemoView")
+    assert not hasattr(ground_estimation_loader, "GroundEstimationDemo")
+    assert not hasattr(ground_estimation_loader, "GroundEstimationDemoView")
 
 
 def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
@@ -142,8 +152,12 @@ def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
     def fake_load_mocap_track(root, scene):
         return shifted
 
-    monkeypatch.setattr(demo_specs, "load_mocap_track", fake_load_mocap_track)
-    demo = demo_specs.load_ground_estimation_demo(Path("dummy"))
+    monkeypatch.setattr(
+        ground_estimation_loader,
+        "load_mocap_track",
+        fake_load_mocap_track,
+    )
+    demo = ground_estimation_loader.load_ground_estimation_demo(Path("dummy"))
     mocap = demo.get_track(demo_vocab.GroundEstimationTrackId.MOCAP)
     assert isinstance(mocap, MocapTrack)
     np.testing.assert_allclose(mocap.timestamps, track.timestamps)
@@ -165,7 +179,7 @@ def test_process_mocap_example_defines_no_demo_facade_classes() -> None:
         "DemoFacade",
     }
     offenders: dict[Path, list[str]] = {}
-    for path in EXAMPLE_DIR.glob("*.py"):
+    for path in EXAMPLE_ROOT.rglob("*.py"):
         tree = ast.parse(path.read_text())
         class_names = [
             node.name
@@ -189,9 +203,13 @@ def test_process_mocap_example_does_not_reimplement_demo_container_methods() -> 
         "resample_to",
     }
     offenders: dict[str, list[str]] = {}
-    for path in EXAMPLE_DIR.glob("*.py"):
+    for path in EXAMPLE_ROOT.rglob("*.py"):
         tree = ast.parse(path.read_text())
-        for cls in [node for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]:
+        for cls in [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.ClassDef)
+        ]:
             if not any(
                 token in cls.name for token in ("Demo", "Demonstration", "Facade")
             ):
@@ -211,7 +229,9 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     source = NEW_API_EXAMPLE.read_text()
     assert "build_scene(subjects)" in source
     assert "Patch.rectangular(" in source
-    assert 'sole_patch_view = shoe.patch("sole")' in source
     assert 'toe_contact=Patch(' in source
     assert 'label="toe_contact_display"' in source
-    assert 'shoe.patch_target("toe_contact")' in source
+    assert 'sole_handle = shoe_spec.patch("sole")' in source
+    assert 'sole_spec = shoe_spec.patch_spec("sole")' in source
+    assert 'sole_patch_view = shoe.patch("sole")' not in source
+    assert 'shoe_spec.patch_spec("toe_contact")' in source

@@ -164,18 +164,19 @@ scene = build_scene(subjects)
 # Runtime usage
 # ----------------------------
 
-left_shoe = scene.subject("left_shoe")
-shoe = left_shoe.segment("shoe")
+left_shoe_spec = scene.subject("left_shoe")
+shoe_spec = left_shoe_spec.segment("shoe")
 
-heel_marker = shoe.marker("heel")
-sole_patch_view = shoe.patch("sole")
-toe_target = shoe.patch_target("toe_contact")
+heel_handle = shoe_spec.marker("heel")
+sole_handle = shoe_spec.patch("sole")
+sole_spec = shoe_spec.patch_spec("sole")
+toe_target = shoe_spec.patch_target("toe_contact")
 
-shoe_target = shoe.segment_target()
-heel_target = shoe.marker_target("heel")
-sole_target = shoe.patch_target("sole")
+shoe_target = shoe_spec.segment_target()
+heel_target = shoe_spec.marker_target("heel")
+sole_target = shoe_spec.patch_target("sole")
 
-# shoe.patch("toe_contact") would raise clearly because that patch is declaration-only.
+# shoe_spec.patch_spec("toe_contact") would raise clearly because that patch is declaration-only.
 
 
 # These are stable keys for runtime data structures:

@@ -16,11 +16,6 @@ __MACOSX/
 # Virtual environments
 .venv
 
-# ROS workspace
-rosws/build/
-rosws/install/
-rosws/log/
-
 # Vendored ros2_unbag build artifacts
 vendor/ros2_unbag/build/
 vendor/ros2_unbag/ros2_unbag.egg-info/

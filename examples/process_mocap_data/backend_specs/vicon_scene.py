@@ -1,4 +1,4 @@
-"""Backend-oriented Vicon scene-spec construction used by the loader example."""
+"""Backend/manual Vicon scene-spec construction for the real data loader."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from mocap_vocab import (
+from .vicon_vocab import (
     LeftShoeMarkerId,
     LeftShoePatchId,
     LeftShoeSegmentId,
@@ -28,10 +28,9 @@ from retarget.core import (
 from retarget.io import read_marker_positions_from_vsk
 
 
-# Define the subject spec for the left shoe Vicon subject
 @dataclass(frozen=True, slots=True)
 class LeftShoeSubjectSpec(SubjectSpec):
-    """Concrete subject spec for the left shoe Vicon subject."""
+    """Concrete subject spec for the backend/manual left shoe Vicon subject."""
 
     left_shoe: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId]
 
@@ -39,10 +38,9 @@ class LeftShoeSubjectSpec(SubjectSpec):
         yield self.left_shoe
 
 
-# Define the scene spec for the Vicon scene
 @dataclass(frozen=True, slots=True)
 class ViconSceneSpec(SceneSpec):
-    """Concrete scene spec for this mocap example."""
+    """Concrete scene spec for the backend/manual mocap example."""
 
     left_shoe: LeftShoeSubjectSpec
 
@@ -50,7 +48,7 @@ class ViconSceneSpec(SceneSpec):
         yield self.left_shoe
 
 
-# Define the marker set spec for the left shoe segment
+# Backend/manual marker set spec for the left shoe segment.
 LEFT_SHOE_MARKERS = MarkerSetSpec(
     marker_type=LeftShoeMarkerId,
     default_role=MarkerRole.TRACKING,
@@ -62,6 +60,7 @@ LEFT_SHOE_MARKERS = MarkerSetSpec(
 )
 
 
+# Backend/manual VSK-derived marker positions for the left shoe segment.
 LEFT_SHOE_MARKER_POSITIONS_SEGMENT = read_marker_positions_from_vsk(
     Path("models/Left_Shoe_Improved.vsk"),
     marker_type=LeftShoeMarkerId,
@@ -76,7 +75,7 @@ LEFT_SHOE_MARKER_POSITIONS_SEGMENT = read_marker_positions_from_vsk(
 # center to the corresponding contact point on the shoe sole.
 SOLE_PLANE_NORMAL_OFFSET = -0.010
 
-# Define the sole patch calibration spec for the left shoe segment
+# Backend/manual sole patch calibration spec for the left shoe segment.
 LEFT_SHOE_SOLE_CALIBRATION = PatchCalibrationSpec(
     patch=LeftShoePatchId.SOLE,
     markers=(
@@ -94,7 +93,7 @@ LEFT_SHOE_SOLE_CALIBRATION = PatchCalibrationSpec(
 )
 
 
-# Low-level backend scene-spec assembly for the left shoe segment.
+# Low-level backend/manual scene-spec assembly for the left shoe segment.
 LEFT_SHOE_SEGMENT: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId] = (
     SegmentSpec(
         segment=LeftShoeSegmentId.LEFT_SHOE,
@@ -111,12 +110,12 @@ LEFT_SHOE_SEGMENT: SegmentSpec[LeftShoeMarkerId, LeftShoePatchId] = (
 )
 
 
-# Define the left shoe subject spec for the left shoe subject
+# Backend/manual subject assembly for the left shoe subject.
 LEFT_SHOE_SUBJECT = LeftShoeSubjectSpec(
     subject=ViconSubjectId.LEFT_SHOE,
     left_shoe=LEFT_SHOE_SEGMENT,
 )
 
 
-# Define the Vicon scene spec for the Vicon scene
+# Backend/manual scene spec for the Vicon scene.
 VICON_SCENE = ViconSceneSpec(left_shoe=LEFT_SHOE_SUBJECT)

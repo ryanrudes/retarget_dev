@@ -4,13 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from demo_specs import load_ground_estimation_demo
 from demo_vocab import GroundEstimationTrackId
+from backend_specs.ground_estimation_loader import load_ground_estimation_demo
+from backend_specs.vicon_scene import VICON_SCENE
+from backend_specs.vicon_vocab import (
+    LeftShoeMarkerId,
+    LeftShoeSegmentId,
+    ViconSubjectId,
+)
 from retarget.demo import load_mocap_track
 from retarget.demo.demo import Demonstration
 from retarget.demo.mocap import MocapTrack, MocapTrackView
-from mocap_specs import VICON_SCENE
-from mocap_vocab import LeftShoeMarkerId, LeftShoeSegmentId, ViconSubjectId
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"

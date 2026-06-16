@@ -145,4 +145,4 @@ marker_position(
 
 ## Example scripts
 
-`new_api_example.py` demonstrates the preferred TypedDict authoring path. `mocap_specs.py` and `run_core_geometry_basics.py` demonstrate low-level backend-oriented scene-spec construction and runtime queries. `run_demo_track_workflow.py` demonstrates the typed demonstration loader and track-query workflow.
+`new_api_example.py` is the preferred public TypedDict authoring example. `backend_specs/` contains low-level backend/manual support for real VSK-derived calibration and bag-data loading. `run_demo_track_workflow.py` demonstrates the real-data demo loader and uses backend/manual Vicon calibration support. `run_core_geometry_basics.py` is a backend/manual geometry query example.
