@@ -20,7 +20,14 @@ def test_public_exports_are_importable() -> None:
 
 def test_public_exports_include_critical_symbols() -> None:
     expected = {
-        core: {"SceneSpec", "SegmentSpec", "PatchTarget", "build_scene"},
+        core: {
+            "SignedAxis",
+            "QuaternionOrder",
+            "SceneSpec",
+            "SegmentSpec",
+            "PatchTarget",
+            "build_scene",
+        },
         demo: {"Demonstration", "DemonstrationView", "SyncPlan"},
         io: {"MarkerObservation", "marker_position", "read_marker_positions_from_vsk"},
         utils: {"point_in_polygon", "fit_patch_frame", "estimate_nominal_hz"},

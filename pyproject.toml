@@ -17,7 +17,6 @@ dependencies = [
     "scipy>=1.17.1",
     "urdf",
     "depend",
-    "pydantic>=2.13.4",
 ]
 
 [project.optional-dependencies]
