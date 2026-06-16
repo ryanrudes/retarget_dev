@@ -235,3 +235,8 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert 'sole_spec = shoe_spec.patch_spec("sole")' in source
     assert 'sole_patch_view = shoe.patch("sole")' not in source
     assert 'shoe_spec.patch_spec("toe_contact")' in source
+    assert "demo.get_track(GroundEstimationTrackId.MOCAP)" in source
+    assert 'left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)' in source
+    assert 'left_shoe_track.marker_positions("heel")' in source
+    assert 'left_shoe_track.patch_contacts("toe_contact")' in source
+    assert "run_demo_track_workflow.py" in source

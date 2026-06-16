@@ -179,6 +179,22 @@ sole_target = shoe_spec.patch_target("sole")
 # shoe_spec.patch_spec("toe_contact") would raise clearly because that patch is declaration-only.
 
 
+# ----------------------------
+# Demo data handoff
+# ----------------------------
+#
+# The canonical authoring example stops at a compiled scene. When you load real
+# demo data, use the same authored field names to resolve the runtime segment:
+#
+#   demo = load_ground_estimation_demo(UNBAGGED_DIR)
+#   mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
+#   left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)
+#   heel_positions = left_shoe_track.marker_positions("heel")
+#   sole_contacts = left_shoe_track.patch_contacts("toe_contact")
+#
+# The bag-backed loader lives in run_demo_track_workflow.py.
+
+
 # These are stable keys for runtime data structures:
 #
 # contacts: dict[PatchTarget, BoolArray]
