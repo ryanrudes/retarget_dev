@@ -14,8 +14,8 @@ from retarget.core import (
     Subjects,
     build_scene,
 )
-from demo_vocab import GroundEstimationTrackId
-from retarget.demo import Demonstration, load_mocap_track
+from retarget.demo import Tracks, build_demonstration, load_mocap_track
+from retarget.demo.mocap import MocapTrack
 from retarget.io import UnbaggedDirectory
 
 
@@ -60,6 +60,10 @@ class MocapSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
     right_shoe: Subject[ShoeSegments]
     right_hand: Subject[HandSegments]
+
+
+class GroundEstimationTracks(Tracks):
+    mocap: MocapTrack
 
 
 # ----------------------------
@@ -200,8 +204,9 @@ if UNBAGGED_DIR.is_dir():
     loadable_scene = build_scene(loadable_subjects)
     root = UnbaggedDirectory(UNBAGGED_DIR)
     mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
-    demo = Demonstration(tracks={GroundEstimationTrackId.MOCAP: mocap})
-    mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
+    demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
+    # demo.get_track("mocap") remains the dynamic lookup path.
+    mocap = demo.typed_tracks.mocap
     left_shoe_track = mocap.subject("left_shoe").segment("shoe")
     heel_positions = left_shoe_track.marker_positions("heel")
     sole_points = left_shoe_track.patch_points("sole")

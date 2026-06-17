@@ -30,6 +30,37 @@ class _GeneratedTrackIds:
 
 
 @dataclass(frozen=True, slots=True)
+class _TypedTrackAccessor:
+    """Attribute-based view over tracks built from typed authoring."""
+
+    tracks: Mapping[str, Track]
+
+    def __getattr__(self, name: str) -> Track:
+        try:
+            return self.tracks[name]
+        except KeyError as exc:
+            raise AttributeError(name) from exc
+
+    def __getitem__(self, name: str) -> Track:
+        return self.tracks[name]
+
+    def __iter__(self):
+        return iter(self.tracks)
+
+    def __len__(self) -> int:
+        return len(self.tracks)
+
+    def keys(self):
+        return self.tracks.keys()
+
+    def values(self):
+        return self.tracks.values()
+
+    def items(self):
+        return self.tracks.items()
+
+
+@dataclass(frozen=True, slots=True)
 class Demonstration[K: TrackId]:
     """Multimodal demonstration keyed by typed track identifiers."""
 
@@ -47,6 +78,18 @@ class Demonstration[K: TrackId]:
 
     def __getitem__(self, track: K) -> Track:
         return self.tracks[track]
+
+    @property
+    def typed_tracks(self) -> _TypedTrackAccessor:
+        if self._generated_ids is None:
+            raise AttributeError(
+                "Typed track accessors are only available for demos built from "
+                "typed track schemas"
+            )
+        named_tracks = {
+            track_id.label: track for track_id, track in self.tracks.items()
+        }
+        return _TypedTrackAccessor(MappingProxyType(named_tracks))
 
     def get_track(self, track: K | str) -> Track:
         track_id = self._coerce_track_id(track)

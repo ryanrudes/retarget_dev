@@ -175,6 +175,8 @@ def test_typed_demonstration_compiles_track_ids_and_resolves_strings() -> None:
     contacts = demo.get_track("contacts")
     assert isinstance(mocap, MocapTrack)
     assert isinstance(contacts, ContactTrack)
+    assert demo.typed_tracks.mocap is mocap
+    assert demo.typed_tracks.contacts is contacts
     assert demo.get_track(demo._generated_ids.tracks.mocap) is mocap
     assert demo.get_track(GroundEstimationTrackId.MOCAP) is mocap
 
@@ -191,10 +193,12 @@ def test_typed_demonstration_bridge_survives_slice_and_resample() -> None:
     clip = demo.slice_time(0.0, 0.2)
 
     assert isinstance(clip.get_track("mocap"), MocapTrackView)
+    assert clip.typed_tracks.mocap is clip.get_track("mocap")
     assert clip.get_track(GroundEstimationTrackId.MOCAP) is clip.get_track("mocap")
 
     resampled = clip.resample_to("mocap")
     assert isinstance(resampled.get_track("mocap"), MocapTrackView)
+    assert resampled.typed_tracks.mocap is resampled.get_track("mocap")
     assert resampled.get_track(GroundEstimationTrackId.MOCAP) is resampled.get_track(
         "mocap"
     )
