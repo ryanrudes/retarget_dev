@@ -481,10 +481,19 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
 
 @dataclass(frozen=True, slots=True)
 class Subject[SegmentsT: Segments]:
-    """A subject: a typed mapping of named segments."""
+    """A subject: a typed mapping of named segments.
+
+    ``body_model`` is an optional subject-level source of segment-frame marker
+    rest positions keyed by ``Marker.vicon_name`` (e.g. from a VSK). At bind
+    time, any marker without an explicit ``position_segment`` inherits its
+    segment-frame position from this mapping, so callers need not repeat
+    ``position_segment`` on every marker. A per-marker ``position_segment``
+    always overrides the body model.
+    """
 
     segments: SegmentsT
     vicon_name: str | None = None
+    body_model: Mapping[str, Vec3] | None = field(default=None, compare=False)
     _binding: _SubjectBinding | None = field(
         default=None, init=False, compare=False, repr=False
     )
@@ -547,6 +556,7 @@ def _bind_subject(
             segment,
             subject=name,
             segment_name=segment_name,
+            body_model=subject.body_model,
             runtime=(
                 None
                 if runtimes is None
@@ -555,7 +565,11 @@ def _bind_subject(
         )
         for segment_name, segment in subject.segments.items()
     }
-    bound = Subject(segments=cast(Any, bound_segments), vicon_name=subject.vicon_name)
+    bound = Subject(
+        segments=cast(Any, bound_segments),
+        vicon_name=subject.vicon_name,
+        body_model=subject.body_model,
+    )
     object.__setattr__(bound, "_binding", _SubjectBinding(subject=name))
     return bound
 
@@ -565,6 +579,7 @@ def _bind_segment(
     *,
     subject: str,
     segment_name: str,
+    body_model: Mapping[str, Vec3] | None,
     runtime: _SegmentRuntime | None,
 ) -> Segment[Any, Any]:
     bound_markers = {
@@ -573,6 +588,7 @@ def _bind_segment(
             subject=subject,
             segment=segment_name,
             marker_name=marker_name,
+            body_model=body_model,
             runtime=runtime,
         )
         for marker_name, marker in segment.markers.items()
@@ -606,11 +622,15 @@ def _bind_marker(
     subject: str,
     segment: str,
     marker_name: str,
+    body_model: Mapping[str, Vec3] | None,
     runtime: _SegmentRuntime | None,
 ) -> Marker:
+    position_segment = marker.position_segment
+    if position_segment is None and body_model is not None:
+        position_segment = body_model.get(marker.vicon_name)
     bound = Marker(
         vicon_name=marker.vicon_name,
-        position_segment=marker.position_segment,
+        position_segment=position_segment,
     )
     object.__setattr__(
         bound,

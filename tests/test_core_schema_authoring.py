@@ -138,6 +138,48 @@ def test_declaration_only_patch_points_raise_on_loaded_track() -> None:
         shoe.patches["sole"].points()
 
 
+def _body_model_subjects(*, override_heel: bool = False) -> ShoeSubjects:
+    body_model = {
+        "left_shoe_heel": np.array([0.5, 0.0, 0.0]),
+        "left_shoe_toe": np.array([1.0, 0.0, 0.0]),
+    }
+    heel = (
+        Marker(vicon_name="left_shoe_heel", position_segment=np.zeros(3))
+        if override_heel
+        else Marker(vicon_name="left_shoe_heel")
+    )
+    return ShoeSubjects(
+        left_shoe=Subject(
+            vicon_name="Left_Shoe_Improved",
+            body_model=body_model,
+            segments=ShoeSegments(
+                shoe=Segment(
+                    vicon_name="Left_Shoe_Improved",
+                    markers=ShoeMarkers(heel=heel, toe=Marker(vicon_name="left_shoe_toe")),
+                    patches=ShoePatches(sole=Patch(label="sole")),
+                )
+            ),
+        )
+    )
+
+
+def test_body_model_supplies_marker_segment_positions() -> None:
+    shoe = bind_scene(_body_model_subjects())["left_shoe"].segments["shoe"]
+    np.testing.assert_allclose(
+        shoe.markers["heel"].position_segment, np.array([0.5, 0.0, 0.0])
+    )
+    np.testing.assert_allclose(
+        shoe.markers["toe"].position_segment, np.array([1.0, 0.0, 0.0])
+    )
+
+
+def test_explicit_position_segment_overrides_body_model() -> None:
+    shoe = bind_scene(_body_model_subjects(override_heel=True))["left_shoe"].segments[
+        "shoe"
+    ]
+    np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.zeros(3))
+
+
 def test_bind_scene_rejects_duplicate_vicon_name_within_segment() -> None:
     subjects = ShoeSubjects(
         left_shoe=Subject(
