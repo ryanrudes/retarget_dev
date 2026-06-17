@@ -4,6 +4,14 @@ This repository is a typed, extensible research toolkit for motion retargeting, 
 
 Coding agents must preserve the architecture. Do not flatten specs, state, views, tracks, and IO into one blob just because Python permits crimes against taste.
 
+## Python baseline
+
+This repository requires **Python 3.13+**.
+
+Prefer PEP 695 generic classes/functions with default type parameters for new public generic APIs, especially typed demo/mocap mapping views. Python 3.13 makes that syntax practical; use it for readability.
+
+Do **not** claim Python 3.13 solves arbitrary TypedDict schema key projection. Mapping access with variable keys may still hover as broad types even when defaults are present.
+
 ## Required workflow
 
 Before making changes:

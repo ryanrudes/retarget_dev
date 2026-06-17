@@ -101,7 +101,9 @@ Preserve patch calibration semantics:
 
 ## Type style
 
-Use Python 3.12+ PEP 695 generic syntax where this repo already uses it. Do not introduce new `typing.TypeVar` aliases when a type parameter works directly.
+Use Python 3.13+ PEP 695 generic syntax where this repo already uses it, including default type parameters on new public generic APIs when that improves readability. Do not introduce new `typing.TypeVar` aliases when a type parameter works directly.
+
+Default generic parameters do not solve arbitrary TypedDict key-to-view projection; deeper mapping access may still hover as broad types until a documented projection policy exists.
 
 Use `Mapping` for inputs and freeze stored mappings with `MappingProxyType` when appropriate.
 

@@ -81,10 +81,10 @@ def _normalize_stringable_entity_input[E](
 
 
 @dataclass(frozen=True, slots=True)
-class MocapMarkerTrackView[M: MarkerId, P: PatchId]:
+class MocapMarkerTrackView[M: MarkerId = MarkerId, P: PatchId = PatchId]:
     """Time-series query surface for one marker within a mocap segment view."""
 
-    segment_view: "MocapSegmentTrackView[M, P]"
+    segment_view: "MocapSegmentTrackView[Any, Any]"
     marker_id: M
 
     def positions(self, *, modeled: bool = False) -> TimeVec3:
@@ -95,10 +95,10 @@ class MocapMarkerTrackView[M: MarkerId, P: PatchId]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapPatchTrackView[M: MarkerId, P: PatchId]:
+class MocapPatchTrackView[M: MarkerId = MarkerId, P: PatchId = PatchId]:
     """Time-series query surface for one patch within a mocap segment view."""
 
-    segment_view: "MocapSegmentTrackView[M, P]"
+    segment_view: "MocapSegmentTrackView[Any, Any]"
     patch_id: P
 
     def points(self) -> TimeVec3:
@@ -109,12 +109,15 @@ class MocapPatchTrackView[M: MarkerId, P: PatchId]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapMarkerTrackMapping[MarkersT: Markers, P: PatchId]:
+class MocapMarkerTrackMapping[
+    MarkersT: Markers = Markers,
+    PatchesT: Patches = Patches,
+]:
     """Mapping-style marker access for one mocap segment view."""
 
-    segment_view: "MocapSegmentTrackView[MarkersT, P]"
+    segment_view: "MocapSegmentTrackView[MarkersT, PatchesT]"
 
-    def __getitem__(self, key: str) -> MocapMarkerTrackView[Any, P]:
+    def __getitem__(self, key: str) -> MocapMarkerTrackView[Any, Any]:
         marker_id = self.segment_view._coerce_marker(key)
         return MocapMarkerTrackView(
             segment_view=self.segment_view,
@@ -129,12 +132,15 @@ class MocapMarkerTrackMapping[MarkersT: Markers, P: PatchId]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapPatchTrackMapping[PatchesT: Patches, M: MarkerId]:
+class MocapPatchTrackMapping[
+    MarkersT: Markers = Markers,
+    PatchesT: Patches = Patches,
+]:
     """Mapping-style patch access for one mocap segment view."""
 
-    segment_view: "MocapSegmentTrackView[M, PatchesT]"
+    segment_view: "MocapSegmentTrackView[MarkersT, PatchesT]"
 
-    def __getitem__(self, key: str) -> MocapPatchTrackView[M, Any]:
+    def __getitem__(self, key: str) -> MocapPatchTrackView[Any, Any]:
         patch_id = self.segment_view._coerce_patch(key)
         return MocapPatchTrackView(
             segment_view=self.segment_view,
@@ -149,7 +155,7 @@ class MocapPatchTrackMapping[PatchesT: Patches, M: MarkerId]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapSegmentTrackMapping[SegmentsT: Segments]:
+class MocapSegmentTrackMapping[SegmentsT: Segments = Segments]:
     """Mapping-style segment access for one mocap subject view."""
 
     subject_view: "MocapSubjectTrackView[SegmentsT]"
@@ -168,7 +174,7 @@ class MocapSegmentTrackMapping[SegmentsT: Segments]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapSubjectTrackMapping[SubjectsT: Subjects]:
+class MocapSubjectTrackMapping[SubjectsT: Subjects = Subjects]:
     """Mapping-style subject access for a mocap track or sliced view."""
 
     mocap: "MocapTrack[SubjectsT] | MocapTrackView"
@@ -187,7 +193,7 @@ class MocapSubjectTrackMapping[SubjectsT: Subjects]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapTrack[SubjectsT: Subjects](Track):
+class MocapTrack[SubjectsT: Subjects = Subjects](Track):
     """Time-indexed mocap track over a scene spec and runtime state."""
 
     scene_spec: SceneSpec
@@ -549,7 +555,7 @@ def _resample_mocap_contacts(
 
 
 @dataclass(frozen=True, slots=True)
-class MocapSubjectTrackView[SegmentsT: Segments]:
+class MocapSubjectTrackView[SegmentsT: Segments = Segments]:
     """Subject-scoped entry point into a mocap track or sliced view."""
 
     mocap: MocapTrack | MocapTrackView
@@ -564,10 +570,10 @@ class MocapSubjectTrackView[SegmentsT: Segments]:
         return MocapSegmentTrackMapping(subject_view=self)
 
     @overload
-    def _segment[M: MarkerId, P: PatchId](
+    def _segment(
         self,
-        segment: SegmentSpec[M, P] | SegmentId | str,
-    ) -> MocapSegmentTrackView[M, P]: ...
+        segment: SegmentSpec[Any, Any] | SegmentId | str,
+    ) -> MocapSegmentTrackView[Any, Any]: ...
 
     @overload
     def _segment(
@@ -589,11 +595,14 @@ class MocapSubjectTrackView[SegmentsT: Segments]:
 
 
 @dataclass(frozen=True, slots=True)
-class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
+class MocapSegmentTrackView[
+    MarkersT: Markers = Markers,
+    PatchesT: Patches = Patches,
+]:
     """Time-series query surface for one segment within a mocap track."""
 
     mocap: MocapTrack | MocapTrackView
-    segment_view: SegmentView[M, P]
+    segment_view: SegmentView[Any, Any]
     indices: tuple[int, ...]
 
     @property
@@ -601,11 +610,11 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         return _mocap_timestamps(self.mocap)
 
     @property
-    def markers(self) -> MocapMarkerTrackMapping[M, P]:
+    def markers(self) -> MocapMarkerTrackMapping[MarkersT, PatchesT]:
         return MocapMarkerTrackMapping(segment_view=self)
 
     @property
-    def patches(self) -> MocapPatchTrackMapping[P, M]:
+    def patches(self) -> MocapPatchTrackMapping[MarkersT, PatchesT]:
         return MocapPatchTrackMapping(segment_view=self)
 
     def poses(
@@ -645,7 +654,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def _marker_positions(
         self,
-        marker: M | str,
+        marker: MarkerId | str,
         *,
         modeled: bool = False,
     ) -> TimeVec3: ...
@@ -653,7 +662,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def _marker_positions(
         self,
-        marker: Sequence[M | str],
+        marker: Sequence[MarkerId | str],
         *,
         modeled: bool = False,
         return_dict: Literal[False] = False,
@@ -662,19 +671,19 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def _marker_positions(
         self,
-        marker: Sequence[M | str],
+        marker: Sequence[MarkerId | str],
         *,
         modeled: bool = False,
         return_dict: Literal[True],
-    ) -> Mapping[M, TimeVec3]: ...
+    ) -> Mapping[MarkerId, TimeVec3]: ...
 
     def _marker_positions(
         self,
-        marker: M | str | Sequence[M | str],
+        marker: MarkerId | str | Sequence[MarkerId | str],
         *,
         modeled: bool = False,
         return_dict: bool = False,
-    ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
+    ) -> TimeVec3 | TimeEntityVec3 | Mapping[MarkerId, TimeVec3]:
         markers, is_many = _normalize_stringable_entity_input(
             marker,
             self.segment_view.spec.marker_type,
@@ -692,11 +701,11 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _marker_velocities(
         self,
-        marker: M | str | Sequence[M | str],
+        marker: MarkerId | str | Sequence[MarkerId | str],
         *,
         modeled: bool = False,
         return_dict: bool = False,
-    ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
+    ) -> TimeVec3 | TimeEntityVec3 | Mapping[MarkerId, TimeVec3]:
         markers, is_many = _normalize_stringable_entity_input(
             marker,
             self.segment_view.spec.marker_type,
@@ -716,7 +725,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _marker_speed(
         self,
-        marker: M | str,
+        marker: MarkerId | str,
         *,
         modeled: bool = False,
     ) -> np.ndarray:
@@ -726,10 +735,10 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _patch_points(
         self,
-        patch: P | str | Sequence[P | str],
+        patch: PatchId | str | Sequence[PatchId | str],
         *,
         return_dict: bool = False,
-    ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
+    ) -> TimeVec3 | TimeEntityVec3 | Mapping[PatchId, TimeVec3]:
         patches, is_many = _normalize_stringable_entity_input(
             patch,
             self.segment_view.spec.patch_type,
@@ -744,10 +753,10 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _patch_normals(
         self,
-        patch: P | str | Sequence[P | str],
+        patch: PatchId | str | Sequence[PatchId | str],
         *,
         return_dict: bool = False,
-    ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
+    ) -> TimeVec3 | TimeEntityVec3 | Mapping[PatchId, TimeVec3]:
         patches, is_many = _normalize_stringable_entity_input(
             patch,
             self.segment_view.spec.patch_type,
@@ -762,10 +771,10 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _patch_velocities(
         self,
-        patch: P | str | Sequence[P | str],
+        patch: PatchId | str | Sequence[PatchId | str],
         *,
         return_dict: bool = False,
-    ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
+    ) -> TimeVec3 | TimeEntityVec3 | Mapping[PatchId, TimeVec3]:
         patches, is_many = _normalize_stringable_entity_input(
             patch,
             self.segment_view.spec.patch_type,
@@ -783,15 +792,15 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             )
         return velocities
 
-    def _patch_speed(self, patch: P | str) -> np.ndarray:
+    def _patch_speed(self, patch: PatchId | str) -> np.ndarray:
         return speed_from_velocity(self._patch_velocities(self._coerce_patch(patch)))
 
     def _patch_contacts(
         self,
-        patch: P | str | Sequence[P | str],
+        patch: PatchId | str | Sequence[PatchId | str],
         *,
         return_dict: bool = False,
-    ) -> np.ndarray | Mapping[P, np.ndarray]:
+    ) -> np.ndarray | Mapping[PatchId, np.ndarray]:
         contact_track = _contact_track(self.mocap)
         if contact_track is None:
             raise ValueError("No contact track is attached to this mocap track")
@@ -840,7 +849,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             return np.zeros_like(values)
         return np.gradient(values, self.timestamps, axis=0)
 
-    def _coerce_marker(self, marker: MarkerId | str) -> M:
+    def _coerce_marker(self, marker: MarkerId | str) -> MarkerId:
         if isinstance(marker, self.segment_view.spec.marker_type):
             return marker
         if isinstance(marker, str):
@@ -855,7 +864,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             f"or str, got {type(marker).__name__}"
         )
 
-    def _coerce_patch(self, patch: PatchId | str) -> P:
+    def _coerce_patch(self, patch: PatchId | str) -> PatchId:
         if isinstance(patch, self.segment_view.spec.patch_type):
             return patch
         if isinstance(patch, str):
@@ -872,7 +881,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _modeled_marker_positions_many(
         self,
-        markers: Sequence[M],
+        markers: Sequence[MarkerId],
     ) -> TimeEntityVec3:
         num_markers = len(markers)
         if not self.indices:
@@ -898,7 +907,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def _observed_marker_positions_many(
         self,
-        markers: Sequence[M],
+        markers: Sequence[MarkerId],
     ) -> TimeEntityVec3:
         num_markers = len(markers)
         if not self.indices:
@@ -913,17 +922,17 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         marker_indices = [marker.index for marker in markers]
         return full[self._index_array()][:, marker_indices, :]
 
-    def _marker_positions_one(self, marker: M, *, modeled: bool) -> TimeVec3:
+    def _marker_positions_one(self, marker: MarkerId, *, modeled: bool) -> TimeVec3:
         if not self.indices:
             return np.empty((0, 3), dtype=np.float64)
         if modeled:
             return self._modeled_marker_positions_many((marker,))[:, 0, :]
         return self._observed_marker_positions(marker)
 
-    def _observed_marker_positions(self, marker: M) -> TimeVec3:
+    def _observed_marker_positions(self, marker: MarkerId) -> TimeVec3:
         return self._observed_marker_positions_many((marker,))[:, 0, :]
 
-    def _patch_points_segment_many(self, patches: Sequence[P]) -> np.ndarray:
+    def _patch_points_segment_many(self, patches: Sequence[PatchId]) -> np.ndarray:
         if not patches:
             return np.empty((0, 3), dtype=np.float64)
         return np.stack(
@@ -934,7 +943,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             axis=0,
         )
 
-    def _patch_normals_segment_many(self, patches: Sequence[P]) -> np.ndarray:
+    def _patch_normals_segment_many(self, patches: Sequence[PatchId]) -> np.ndarray:
         if not patches:
             return np.empty((0, 3), dtype=np.float64)
         return np.stack(
@@ -945,7 +954,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             axis=0,
         )
 
-    def _patch_points_many(self, patches: Sequence[P]) -> TimeEntityVec3:
+    def _patch_points_many(self, patches: Sequence[PatchId]) -> TimeEntityVec3:
         num_patches = len(patches)
         if not self.indices:
             return np.empty((0, num_patches, 3), dtype=np.float64)
@@ -963,7 +972,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         )
         return world_full[self._index_array(), :, :]
 
-    def _patch_normals_many(self, patches: Sequence[P]) -> TimeEntityVec3:
+    def _patch_normals_many(self, patches: Sequence[PatchId]) -> TimeEntityVec3:
         num_patches = len(patches)
         if not self.indices:
             return np.empty((0, num_patches, 3), dtype=np.float64)
@@ -977,8 +986,8 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
         world_full = np.einsum("tij,nj->tni", rotations, local_normals)
         return world_full[self._index_array(), :, :]
 
-    def _patch_target(self, patch: P) -> PatchTarget[P]:
-        handle: PatchHandle[P] = self.segment_view.spec.patch(patch)
+    def _patch_target(self, patch: PatchId) -> PatchTarget[Any]:
+        handle: PatchHandle[Any] = self.segment_view.spec.patch(patch)
         return PatchTarget(subject=self.segment_view.subject_id, handle=handle)
 
 

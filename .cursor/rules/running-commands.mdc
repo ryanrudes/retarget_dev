@@ -7,6 +7,8 @@ alwaysApply: true
 
 Work from the repository root unless a command says otherwise.
 
+This project requires **Python 3.13+**. Pin the local interpreter with `uv python pin 3.13` if `uv run` complains about `.python-version`.
+
 Use `python3`, not `python`, when calling the interpreter directly on macOS.
 
 ## After code changes

@@ -13,7 +13,7 @@ alwaysApply: true
 - Prefer dataclasses with `frozen=True, slots=True` for immutable domain values.
 - Prefer `Mapping` for read-only inputs.
 - Use `MappingProxyType` when storing immutable mapping views makes sense.
-- Use Python 3.12 generic syntax where this repo already uses it.
+- Use Python 3.13 generic syntax where this repo already uses it, including default type parameters on public generic classes when that improves readability.
 - Use typed enum IDs for public identifiers.
 - Avoid raw strings in public track/spec/entity APIs except in generic tests.
 - Use clear function names instead of comments that repeat the function name.
@@ -35,7 +35,9 @@ Prefer `np.testing.assert_array_equal` / `assert_allclose` in tests.
 
 ## Packaging and typing
 
-This project should be packaged with `uv` and use Hatch / `hatchling` as the build backend. It supports Python 3.12+ only.
+This project should be packaged with `uv` and use Hatch / `hatchling` as the build backend. It supports Python 3.13+ only.
+
+Python 3.13 enables cleaner PEP 695 generics with defaults. That is a syntax/readability upgrade, not a claim that arbitrary TypedDict schema key projection is solved.
 
 Use modern Python typing throughout. For new generic code, prefer PEP 695 syntax for generic classes, generic functions, and type aliases. Avoid legacy `TypeVar`-heavy patterns unless a current type checker or library limitation requires them.
 
