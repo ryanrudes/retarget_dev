@@ -91,6 +91,7 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
 
     markers: MarkersT
     patches: PatchesT
+    vicon_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +99,7 @@ class Subject[SegmentsT: Segments]:
     """Authoring-time subject declaration."""
 
     segments: SegmentsT
+    vicon_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,6 +117,8 @@ class CompiledSegmentSpec[M: MarkerId, P: PatchId](SegmentSpec[M, P]):
     """SegmentSpec compiled from an authored segment declaration."""
 
     subject: SubjectId
+    subject_vicon_name: str | None = None
+    vicon_name: str | None = None
     marker_defs: Mapping[M, Marker]
     patch_defs: Mapping[P, Patch]
     _marker_from_vicon_name: Mapping[str, M] = field(
@@ -168,6 +172,12 @@ class CompiledSegmentSpec[M: MarkerId, P: PatchId](SegmentSpec[M, P]):
     def marker_external_name(self, marker: M) -> str:
         marker_id = self._coerce_marker(marker)
         return self.marker_defs[marker_id].vicon_name
+
+    def segment_external_name(self) -> str:
+        return self.vicon_name or self.segment.label
+
+    def subject_external_name(self) -> str:
+        return self.subject_vicon_name or self.subject.label
 
     def marker_from_external_name(self, marker_name: str) -> M:
         try:
@@ -252,6 +262,7 @@ class CompiledSegmentSpec[M: MarkerId, P: PatchId](SegmentSpec[M, P]):
 class CompiledSubjectSpec(SubjectSpec):
     """SubjectSpec compiled from an authored subject declaration."""
 
+    vicon_name: str | None = None
     segment_type: type[SegmentId]
     segments: Mapping[SegmentId, CompiledSegmentSpec[Any, Any]]
 
@@ -260,6 +271,9 @@ class CompiledSubjectSpec(SubjectSpec):
 
     def iter_segments(self) -> tuple[CompiledSegmentSpec[Any, Any], ...]:
         return tuple(self.segments.values())
+
+    def subject_external_name(self) -> str:
+        return self.vicon_name or self.subject.label
 
     def segment(self, segment: SegmentId | str) -> CompiledSegmentSpec[Any, Any]:
         segment_id = self._coerce_segment(segment)
@@ -416,6 +430,8 @@ def build_scene[SubjectsT: Subjects](
                 )
             compiled_segments[segment_id] = CompiledSegmentSpec(
                 subject=subject_id,
+                subject_vicon_name=subject.vicon_name,
+                vicon_name=segment.vicon_name,
                 segment=segment_id,
                 marker_type=marker_type,
                 patch_type=patch_type,
@@ -431,6 +447,7 @@ def build_scene[SubjectsT: Subjects](
 
         compiled_subjects[subject_id] = CompiledSubjectSpec(
             subject=subject_id,
+            vicon_name=subject.vicon_name,
             segment_type=segment_type,
             segments=compiled_segments,
         )
@@ -476,6 +493,28 @@ def marker_from_external_name(
 def marker_from_vicon_name(segment: SegmentSpec[Any, Any], marker_name: str) -> MarkerId:
     """Backward-compatible alias for marker_from_external_name()."""
     return marker_from_external_name(segment, marker_name)
+
+
+def subject_external_name(subject: SubjectSpec) -> str:
+    """Return the external subject label for a subject spec."""
+    resolver = getattr(subject, "subject_external_name", None)
+    if callable(resolver):
+        return resolver()
+    vicon_name = getattr(subject, "vicon_name", None)
+    if vicon_name is not None:
+        return vicon_name
+    return subject.subject.label
+
+
+def segment_external_name(segment: SegmentSpec[Any, Any]) -> str:
+    """Return the external segment label for a segment spec."""
+    resolver = getattr(segment, "segment_external_name", None)
+    if callable(resolver):
+        return resolver()
+    vicon_name = getattr(segment, "vicon_name", None)
+    if vicon_name is not None:
+        return vicon_name
+    return segment.segment.label
 
 
 def _runtime_id_type[IdT: NameId](

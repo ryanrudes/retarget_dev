@@ -32,6 +32,8 @@ from retarget.core import (
     Patches,
     Segments,
     build_scene,
+    segment_external_name,
+    subject_external_name,
     RigidTransform,
     Z_UP_AXES,
 )
@@ -104,8 +106,10 @@ def _authored_scene(*, with_geometry: bool = True) -> SceneSpec:
     )
     subjects = ShoeSubjects(
         left_shoe=Subject(
+            vicon_name="Left_Shoe_Improved",
             segments=ShoeSegments(
                 shoe=Segment(
+                    vicon_name="Left_Shoe_Improved",
                     markers=ShoeMarkers(
                         heel=Marker(vicon_name="left_shoe_heel"),
                         toe=Marker(vicon_name="left_shoe_toe"),
@@ -164,6 +168,11 @@ def test_build_scene_compiles_generated_ids_and_patch_specs() -> None:
 
     subject = scene.subject("left_shoe")
     segment = subject.segment("shoe")
+    assert subject.vicon_name == "Left_Shoe_Improved"
+    assert subject_external_name(subject) == "Left_Shoe_Improved"
+    assert segment.vicon_name == "Left_Shoe_Improved"
+    assert segment.subject_vicon_name == "Left_Shoe_Improved"
+    assert segment_external_name(segment) == "Left_Shoe_Improved"
     marker_spec = segment.marker_spec(heel_id)
     assert marker_spec.vicon_name == "left_shoe_heel"
     assert segment.marker_external_name(heel_id) == "left_shoe_heel"
@@ -205,13 +214,15 @@ def test_build_scene_uses_vicon_name_for_marker_lookup() -> None:
     segment_id = scene.generated_ids.segments[subject_id].shoe
     marker_id = scene.generated_ids.markers[SegmentKey(subject_id, segment_id)].heel
     segment = scene.subject("left_shoe").segment("shoe")
+    scene_view = SceneView(spec=scene, state=_scene_state(subject_id, segment_id))
+    segment_view = scene_view.subject("left_shoe").segment("shoe")
     frame = ViconMarkersFrame(
         stamp_seconds=0.0,
         markers=(
             MarkerObservation(
                 marker_name="left_shoe_heel",
-                subject_name="left_shoe",
-                segment_name="shoe",
+                subject_name="Left_Shoe_Improved",
+                segment_name="Left_Shoe_Improved",
                 position_world=np.array([1.0, 2.0, 3.0], dtype=np.float64),
                 occluded=False,
             ),
@@ -221,7 +232,7 @@ def test_build_scene_uses_vicon_name_for_marker_lookup() -> None:
     observed = marker_position(
         frame,
         subject=subject_id,
-        segment=segment,
+        segment=segment_view,
         marker=marker_id,
     )
     assert observed is not None
@@ -248,6 +259,7 @@ def test_legacy_marker_lookup_still_falls_back_to_labels() -> None:
         axis_convention=Z_UP_AXES,
         marker_set=MarkerSetSpec(marker_type=LegacyMarkerId),
     )
+    assert segment_external_name(segment) == "shoe"
     frame = ViconMarkersFrame(
         stamp_seconds=0.0,
         markers=(

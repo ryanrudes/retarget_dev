@@ -231,12 +231,20 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert "Patch.rectangular(" in source
     assert 'toe_contact=Patch(' in source
     assert 'label="toe_contact_display"' in source
+    assert source.count('vicon_name="Left_Shoe_Improved"') >= 2
+    assert "left_shoe=Subject(" in source
+    assert "shoe=Segment(" in source
+    assert "load_mocap_track(" in source
+    assert "UnbaggedDirectory(" in source
+    assert "UNBAGGED_DIR.is_dir()" in source
+    assert "Skipping bag-backed demo" in source
+    assert 'left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)' in source
+    assert 'heel_positions = left_shoe_track.marker_positions(shoe_spec.marker_type.heel)' in source
+    assert 'sole_points = left_shoe_track.patch_points(shoe_spec.patch_type.sole)' in source
     assert 'sole_handle = shoe_spec.patch("sole")' in source
-    assert 'sole_spec = shoe_spec.patch_spec("sole")' in source
+    assert 'sole_id = shoe_spec.patch_type.sole' in source
+    assert 'sole_spec = shoe_spec.patch_spec(sole_id)' in source
     assert 'sole_patch_view = shoe.patch("sole")' not in source
     assert 'shoe_spec.patch_spec("toe_contact")' in source
-    assert "demo.get_track(GroundEstimationTrackId.MOCAP)" in source
-    assert 'left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)' in source
-    assert 'left_shoe_track.marker_positions("heel")' in source
-    assert 'left_shoe_track.patch_contacts("toe_contact")' in source
-    assert "run_demo_track_workflow.py" in source
+    assert "load_ground_estimation_demo(" not in source
+    assert "GroundEstimationTrackId" not in source

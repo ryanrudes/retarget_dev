@@ -8,18 +8,27 @@ import numpy as np
 import pytest
 
 from retarget.core import (
+    Marker,
     MarkerId,
     MarkerSetSpec,
+    Markers,
+    Patch,
     PatchId,
+    Patches,
     SceneSpec,
     SceneState,
     SceneView,
     SegmentId,
     SegmentKey,
+    Segment,
     SegmentPoseTrajectory,
     SegmentSpec,
+    Segments,
     SubjectId,
+    Subject,
     SubjectSpec,
+    Subjects,
+    build_scene,
     Z_UP_AXES,
 )
 from retarget.core.transform import RigidTransform
@@ -65,6 +74,43 @@ class _SceneSpec(SceneSpec):
 
     def iter_subjects(self) -> Iterable[SubjectSpec]:
         yield self.subject_spec
+
+
+class _AuthMarkers(Markers):
+    heel: Marker
+
+
+class _AuthPatches(Patches):
+    sole: Patch
+
+
+class _AuthSegments(Segments):
+    shoe: Segment[_AuthMarkers, _AuthPatches]
+
+
+class _AuthSubjects(Subjects):
+    left_shoe: Subject[_AuthSegments]
+
+
+def _authored_scene() -> SceneSpec:
+    return build_scene(
+        _AuthSubjects(
+            left_shoe=Subject(
+                vicon_name="Left_Shoe_Improved",
+                segments=_AuthSegments(
+                    shoe=Segment(
+                        vicon_name="Left_Shoe_Improved",
+                        markers=_AuthMarkers(
+                            heel=Marker(vicon_name="left_shoe_heel"),
+                        ),
+                        patches=_AuthPatches(
+                            sole=Patch(label="sole"),
+                        ),
+                    )
+                ),
+            )
+        )
+    )
 
 
 def test_marker_position_accepts_segment_view() -> None:
@@ -136,3 +182,50 @@ def test_marker_position_requires_subject_for_segment_spec() -> None:
             segment=_SEGMENT_SPEC,
             marker=_MarkerId.HEEL,
         )
+
+
+def test_marker_position_uses_external_subject_segment_names_and_marker_labels() -> None:
+    scene = _authored_scene()
+    subject_id = scene.generated_ids.subjects.left_shoe
+    segment_id = scene.generated_ids.segments[subject_id].shoe
+    marker_id = scene.generated_ids.markers[SegmentKey(subject_id, segment_id)].heel
+
+    state = SceneState(
+        segment_poses={
+            SegmentKey(subject_id, segment_id): SegmentPoseTrajectory(
+                poses=(RigidTransform.identity(),),
+            )
+        }
+    )
+    scene_view = SceneView(spec=scene, state=state)
+    segment_view = scene_view.subject("left_shoe").segment("shoe")
+    segment_spec = scene.subject("left_shoe").segment("shoe")
+    expected = np.array([1.0, 2.0, 3.0])
+    marker_frame = ViconMarkersFrame(
+        stamp_seconds=0.0,
+        markers=(
+            MarkerObservation(
+                marker_name="left_shoe_heel",
+                subject_name="Left_Shoe_Improved",
+                segment_name="Left_Shoe_Improved",
+                position_world=expected,
+                occluded=False,
+            ),
+        ),
+    )
+
+    observed_view = marker_position(
+        marker_frame,
+        segment=segment_view,
+        marker=marker_id,
+    )
+    observed_spec = marker_position(
+        marker_frame,
+        subject=subject_id,
+        segment=segment_spec,
+        marker=marker_id,
+    )
+    assert observed_view is not None
+    assert observed_spec is not None
+    np.testing.assert_allclose(observed_view, expected)
+    np.testing.assert_allclose(observed_spec, expected)

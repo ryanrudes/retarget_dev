@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from retarget.core import (
     Marker,
     Markers,
@@ -12,11 +14,14 @@ from retarget.core import (
     Subjects,
     build_scene,
 )
+from retarget.demo import load_mocap_track
+from retarget.io import UnbaggedDirectory
 
 
 # ----------------------------
 # User-authored typed schema
 # ----------------------------
+
 
 class ShoeMarkers(Markers):
     heel: Marker
@@ -62,8 +67,10 @@ class MocapSubjects(Subjects):
 
 subjects = MocapSubjects(
     left_shoe=Subject(
+        vicon_name="Left_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
+                vicon_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
                     heel=Marker(vicon_name="left_shoe_heel"),
                     toe=Marker(vicon_name="left_shoe_toe"),
@@ -85,16 +92,16 @@ subjects = MocapSubjects(
                         height=0.05,
                         frame="heel_frame",
                     ),
-                    toe_contact=Patch(
-                        label="toe_contact_display",
-                    ),
+                    toe_contact=Patch(label="toe_contact_display"),
                 ),
             )
-        )
+        ),
     ),
     right_shoe=Subject(
+        vicon_name="Right_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
+                vicon_name="Right_Shoe_Improved",
                 markers=ShoeMarkers(
                     heel=Marker(vicon_name="right_shoe_heel"),
                     toe=Marker(vicon_name="right_shoe_toe"),
@@ -116,16 +123,16 @@ subjects = MocapSubjects(
                         height=0.05,
                         frame="heel_frame",
                     ),
-                    toe_contact=Patch(
-                        label="toe_contact_display",
-                    ),
+                    toe_contact=Patch(label="toe_contact_display"),
                 ),
             )
-        )
+        ),
     ),
     right_hand=Subject(
+        vicon_name="Right_Hand_Improved",
         segments=HandSegments(
             hand=Segment(
+                vicon_name="Right_Hand_Improved",
                 markers=HandMarkers(
                     wrist=Marker(vicon_name="right_hand_wrist"),
                     index_tip=Marker(vicon_name="right_index_tip"),
@@ -148,7 +155,7 @@ subjects = MocapSubjects(
                     ),
                 ),
             )
-        )
+        ),
     ),
 )
 
@@ -159,41 +166,58 @@ subjects = MocapSubjects(
 
 scene = build_scene(subjects)
 
-
-# ----------------------------
-# Runtime usage
-# ----------------------------
-
 left_shoe_spec = scene.subject("left_shoe")
 shoe_spec = left_shoe_spec.segment("shoe")
 
 heel_handle = shoe_spec.marker("heel")
 sole_handle = shoe_spec.patch("sole")
-sole_spec = shoe_spec.patch_spec("sole")
+sole_id = shoe_spec.patch_type.sole
+sole_spec = shoe_spec.patch_spec(sole_id)
 toe_target = shoe_spec.patch_target("toe_contact")
+# shoe_spec.patch_spec("toe_contact") would raise because that patch is declaration-only.
 
 shoe_target = shoe_spec.segment_target()
 heel_target = shoe_spec.marker_target("heel")
 sole_target = shoe_spec.patch_target("sole")
 
-# shoe_spec.patch_spec("toe_contact") would raise clearly because that patch is declaration-only.
+print("Runtime handles:", heel_handle, sole_handle)
+print("Runtime patch spec:", sole_spec)
+print("Runtime targets:", shoe_target, heel_target, sole_target, toe_target)
 
 
 # ----------------------------
-# Demo data handoff
+# Real-data handoff
 # ----------------------------
-#
-# The canonical authoring example stops at a compiled scene. When you load real
-# demo data, use the same authored field names to resolve the runtime segment:
-#
-#   demo = load_ground_estimation_demo(UNBAGGED_DIR)
-#   mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
-#   left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)
-#   heel_positions = left_shoe_track.marker_positions("heel")
-#   sole_contacts = left_shoe_track.patch_contacts("toe_contact")
-#
-# The bag-backed loader lives in run_demo_track_workflow.py.
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
+
+if UNBAGGED_DIR.is_dir():
+    # The sample bag only contains the left shoe, so build a loadable subset
+    # from the same authored schema instead of forcing absent subjects through
+    # the loader.
+    loadable_subjects = MocapSubjects(left_shoe=subjects["left_shoe"])
+    loadable_scene = build_scene(loadable_subjects)
+    left_shoe_spec = loadable_scene.subject("left_shoe")
+    shoe_spec = left_shoe_spec.segment("shoe")
+
+    mocap = load_mocap_track(
+        UnbaggedDirectory(UNBAGGED_DIR),
+        loadable_scene,
+    ).with_rebased_time()
+    left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)
+    heel_positions = left_shoe_track.marker_positions(shoe_spec.marker_type.heel)
+    sole_points = left_shoe_track.patch_points(shoe_spec.patch_type.sole)
+    print("Loaded mocap timestamps:", mocap.timestamps[:5])
+    print("Heel positions:", heel_positions[:3])
+    print("Sole points:", sole_points[:3])
+else:
+    print(f"Skipping bag-backed demo; no local bag found at {UNBAGGED_DIR}")
+
+
+# ----------------------------
+# Stable runtime keys
+# ----------------------------
 
 # These are stable keys for runtime data structures:
 #

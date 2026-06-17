@@ -60,6 +60,8 @@ from retarget.core.schema import (
     marker_external_name,
     marker_from_external_name,
     marker_from_vicon_name,
+    segment_external_name,
+    subject_external_name,
 )
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import (
@@ -158,6 +160,8 @@ __all__ = [
     "marker_external_name",
     "marker_from_external_name",
     "marker_from_vicon_name",
+    "segment_external_name",
+    "subject_external_name",
 
     # Specs
     "MarkerSpec",

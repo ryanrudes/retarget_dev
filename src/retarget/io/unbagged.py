@@ -9,7 +9,15 @@ import numpy as np
 import orjson
 from scipy.spatial.transform import Rotation
 
-from retarget.core import MarkerId, SegmentSpec, SegmentView, SubjectId, Vec3
+from retarget.core import (
+    MarkerId,
+    SegmentSpec,
+    SegmentView,
+    SubjectId,
+    Vec3,
+    segment_external_name,
+    subject_external_name,
+)
 from retarget.core.enums import SegmentId
 from retarget.core.keys import SegmentKey
 from retarget.core.specs import SceneSpec
@@ -137,17 +145,30 @@ def load_segment_pose_trajectories(
 ) -> dict[SegmentKey, SegmentPoseTrajectory]:
     """Load world-from-segment pose trajectories for all scene segments."""
     messages = export.load_tf_messages()
+    subjects = tuple(scene.iter_subjects())
     expected_keys = {
         SegmentKey(subject.subject, segment.segment)
-        for subject in scene.iter_subjects()
+        for subject in subjects
         for segment in subject.iter_segments()
     }
     poses_by_key: dict[SegmentKey, list[RigidTransform]] = {
         key: [] for key in expected_keys
     }
-    key_by_label_pair = {
-        (key.subject.label, key.segment.label): key for key in expected_keys
-    }
+    key_by_label_pair: dict[tuple[str, str], SegmentKey] = {}
+    for subject in subjects:
+        subject_name = subject_external_name(subject)
+        for segment in tuple(subject.iter_segments()):
+            key = SegmentKey(subject.subject, segment.segment)
+            label_pair = (subject_name, segment_external_name(segment))
+            previous = key_by_label_pair.get(label_pair)
+            if previous is not None and previous != key:
+                raise ValueError(
+                    "Duplicate external subject/segment names in scene spec: "
+                    f"{label_pair[0]!r}/{label_pair[1]!r} resolves to both "
+                    f"{previous.subject!r}/{previous.segment!r} and "
+                    f"{key.subject!r}/{key.segment!r}"
+                )
+            key_by_label_pair[label_pair] = key
 
     # TODO: Parse timestamp keys into numeric time values before sorting if the
     # export format ever stops using lexicographically sortable keys.
@@ -290,16 +311,24 @@ def marker_position(
         )
     """
     if isinstance(segment, SegmentView):
-        subject_name = segment.subject_id.label
-        segment_name = segment.spec.segment.label
+        subject_resolver = getattr(segment.spec, "subject_external_name", None)
+        if callable(subject_resolver):
+            subject_name = subject_resolver()
+        else:
+            subject_name = segment.subject_id.label
+        segment_name = segment_external_name(segment.spec)
         marker_name = segment.spec.marker_external_name(marker)
     else:
         if subject is None:
             raise TypeError(
                 "subject must be provided when segment is a SegmentSpec"
             )
-        subject_name = subject.label
-        segment_name = segment.segment.label
+        subject_resolver = getattr(segment, "subject_external_name", None)
+        if callable(subject_resolver):
+            subject_name = subject_resolver()
+        else:
+            subject_name = subject.label
+        segment_name = segment_external_name(segment)
         marker_name = segment.marker_external_name(marker)
     positions = marker_positions_by_name(
         marker_frame,

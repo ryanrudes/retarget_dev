@@ -31,6 +31,7 @@ from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import TimeEntityVec3, TimeMat3, TimeQuat, TimeVec3
 from retarget.core.views import SceneView, SegmentView
+from retarget.core import segment_external_name
 from retarget.demo._mocap_arrays import (
     MocapArrayCache,
     pose_arrays_to_format,
@@ -220,11 +221,17 @@ class MocapTrack(Track):
             np.nan,
             dtype=np.float64,
         )
+        subject_resolver = getattr(segment, "subject_external_name", None)
+        if callable(subject_resolver):
+            subject_name = subject_resolver()
+        else:
+            subject_name = subject.label
+        segment_name = segment_external_name(segment)
         for timestep, frame in enumerate(self.marker_frames):
             for obs in frame.markers:
-                if obs.subject_name != subject.label:
+                if obs.subject_name != subject_name:
                     continue
-                if obs.segment_name != segment.segment.label:
+                if obs.segment_name != segment_name:
                     continue
                 if obs.occluded:
                     continue
