@@ -51,12 +51,13 @@ segment.patches["sole"].points()                      # (T, 3) ndarray
 ```python
 from retarget.core import (
     Marker, Markers, Patch, Patches, Segment, Segments, Subject, Subjects,
-    RigidTransform, bind_scene,
+    SemanticAxis, bind_scene,
 )
 
 class ShoeMarkers(Markers):
     heel: Marker
     toe: Marker
+    mid: Marker
 
 class ShoePatches(Patches):
     sole: Patch
@@ -71,19 +72,30 @@ class ShoeSubjects(Subjects):
 subjects = ShoeSubjects(
     left_shoe=Subject(
         mocap_name="Left_Shoe_Improved",
+        # Segment-frame marker rest positions (e.g. from a VSK), keyed by
+        # mocap_name. Markers inherit these instead of repeating position_segment.
+        body_model={
+            "left_shoe_heel": (0.0, 0.0, 0.0),
+            "left_shoe_toe": (0.20, 0.0, 0.0),
+            "left_shoe_mid": (0.10, 0.05, 0.0),
+        },
         segments=ShoeSegments(
             shoe=Segment(
                 mocap_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
                     heel=Marker(mocap_name="left_shoe_heel"),
                     toe=Marker(mocap_name="left_shoe_toe"),
+                    mid=Marker(mocap_name="left_shoe_mid"),
                 ),
                 patches=ShoePatches(
-                    sole=Patch.rectangular(
+                    # Fit at bind time from the markers' body_model positions.
+                    sole=Patch.rectangle(
                         label="sole",
-                        transform_segment_patch=RigidTransform.identity(),
+                        markers=("heel", "toe", "mid"),
                         width=0.10,
                         height=0.25,
+                        outward_axis=SemanticAxis.UP,
+                        forward_axis=SemanticAxis.FORWARD,
                     ),
                     toe_contact=Patch(label="toe_contact_display"),
                 ),
@@ -104,8 +116,12 @@ toe_target = shoe.patch_target("toe_contact")   # declaration-only patch is stil
 - `Marker`/`Patch`/`Segment`/`Subject` are frozen dataclasses for concrete data.
 - Authored field names are the canonical identity; `Marker.mocap_name`,
   `Segment.mocap_name`, and `Subject.mocap_name` are external/Vicon lookup metadata.
-- `Patch(label=...)` declares a patch without geometry; `Patch.rectangular(...)`
-  declares calibrated geometry.
+- `Patch(label=...)` declares a patch without geometry;
+  `Patch.rectangle(markers=...)` fits a rectangular patch frame from calibration
+  markers at bind time. For an already-known frame, pass `transform_segment_patch`
+  and a `RectangularRegion` to the base `Patch(...)` constructor.
+- `Subject(body_model=...)` supplies segment-frame marker rest positions once per
+  subject so markers need not repeat `position_segment`.
 - `bind_scene(...)` path-binds the schema so `*_target(...)` and geometry work,
   and returns the same `SubjectsT` type.
 

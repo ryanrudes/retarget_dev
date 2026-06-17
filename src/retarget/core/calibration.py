@@ -1,9 +1,9 @@
 """Backend helper to calibrate a patch frame from segment-local marker positions.
 
 This produces a ``transform_segment_patch`` suitable for authoring a calibrated
-:class:`~retarget.core.schema.Patch`. It is a low-level backend utility used by
-loaders that derive patch geometry from VSK/measured marker positions; ordinary
-typed authoring sets ``Patch.rectangular(transform_segment_patch=...)`` directly.
+:class:`~retarget.core.schema.Patch`. It is the low-level primitive that
+``Patch.rectangle(markers=...)`` calls at bind time; backend loaders may also
+call it directly when they already hold a marker-position mapping.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ def calibrate_patch_transform(
     marker_translations: Mapping[str, MarkerTranslation] | None = None,
     normal_offset: float = 0.0,
     outward_axis: SemanticAxis = SemanticAxis.UP,
-    x_axis: SemanticAxis = SemanticAxis.FORWARD,
+    forward_axis: SemanticAxis = SemanticAxis.FORWARD,
 ) -> RigidTransform:
     """Fit a segment->patch transform from calibration markers.
 
@@ -62,7 +62,7 @@ def calibrate_patch_transform(
     transform = fit_patch_frame(
         surface_points,
         outward_hint_segment=axis_convention.vector(outward_axis),
-        x_axis_hint_segment=axis_convention.vector(x_axis),
+        x_axis_hint_segment=axis_convention.vector(forward_axis),
     )
     if normal_offset != 0.0:
         normal = transform.rotation[:, 2]

@@ -15,6 +15,7 @@ from retarget.core import (
     Markers,
     Patch,
     Patches,
+    RectangularRegion,
     RigidTransform,
     Segment,
     Segments,
@@ -94,18 +95,16 @@ subjects = MocapSubjects(
                     medial=Marker(mocap_name="left_shoe_medial"),
                 ),
                 patches=ShoePatches(
-                    sole=Patch.rectangular(
+                    sole=Patch(
                         label="sole",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.10,
-                        height=0.25,
+                        region=RectangularRegion(width=0.10, height=0.25),
                         frame="sole_frame",
                     ),
-                    heel_contact=Patch.rectangular(
+                    heel_contact=Patch(
                         label="heel_contact",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.05,
-                        height=0.05,
+                        region=RectangularRegion(width=0.05, height=0.05),
                         frame="heel_frame",
                     ),
                     toe_contact=Patch(label="toe_contact_display"),
@@ -125,18 +124,16 @@ subjects = MocapSubjects(
                     medial=Marker(mocap_name="right_shoe_medial"),
                 ),
                 patches=ShoePatches(
-                    sole=Patch.rectangular(
+                    sole=Patch(
                         label="sole",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.10,
-                        height=0.25,
+                        region=RectangularRegion(width=0.10, height=0.25),
                         frame="sole_frame",
                     ),
-                    heel_contact=Patch.rectangular(
+                    heel_contact=Patch(
                         label="heel_contact",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.05,
-                        height=0.05,
+                        region=RectangularRegion(width=0.05, height=0.05),
                         frame="heel_frame",
                     ),
                     toe_contact=Patch(label="toe_contact_display"),
@@ -155,18 +152,16 @@ subjects = MocapSubjects(
                     thumb_tip=Marker(mocap_name="right_thumb_tip"),
                 ),
                 patches=HandPatches(
-                    palm=Patch.rectangular(
+                    palm=Patch(
                         label="palm",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.08,
-                        height=0.08,
+                        region=RectangularRegion(width=0.08, height=0.08),
                         frame="palm_frame",
                     ),
-                    index_contact=Patch.rectangular(
+                    index_contact=Patch(
                         label="index_contact",
                         transform_segment_patch=RigidTransform.identity(),
-                        width=0.03,
-                        height=0.03,
+                        region=RectangularRegion(width=0.03, height=0.03),
                         frame="index_contact_frame",
                     ),
                 ),

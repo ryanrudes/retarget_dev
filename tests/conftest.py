@@ -20,9 +20,9 @@ from retarget.core import (
     SegmentKey,
     SegmentPoseTrajectory,
     Segments,
+    SemanticAxis,
     Subject,
     Subjects,
-    calibrate_patch_transform,
 )
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
@@ -63,10 +63,6 @@ class DemoSubjects(Subjects):
 
 
 def make_demo_subjects() -> DemoSubjects:
-    sole_transform = calibrate_patch_transform(
-        marker_positions_segment=_MARKER_POSITIONS,
-        markers=("heel", "toe", "mid"),
-    )
     return DemoSubjects(
         subject=Subject(
             segments=DemoSegments(
@@ -77,11 +73,13 @@ def make_demo_subjects() -> DemoSubjects:
                         mid=Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
                     ),
                     patches=DemoPatches(
-                        sole=Patch.rectangular(
+                        sole=Patch.rectangle(
                             label="sole",
-                            transform_segment_patch=sole_transform,
+                            markers=("heel", "toe", "mid"),
                             width=1.0,
                             height=1.0,
+                            outward_axis=SemanticAxis.UP,
+                            forward_axis=SemanticAxis.FORWARD,
                         ),
                         toe=Patch(label="toe"),
                     ),

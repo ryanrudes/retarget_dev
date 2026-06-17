@@ -15,6 +15,7 @@ from retarget.core import (
     Markers,
     Patch,
     Patches,
+    RectangularRegion,
     Segment,
     Segments,
     SemanticAxis,
@@ -70,7 +71,7 @@ _SOLE_TRANSFORM = calibrate_patch_transform(
     markers=("plane_rear", "plane_inner", "plane_outer"),
     normal_offset=SOLE_PLANE_NORMAL_OFFSET,
     outward_axis=SemanticAxis.UP,
-    x_axis=SemanticAxis.FORWARD,
+    forward_axis=SemanticAxis.FORWARD,
 )
 
 
@@ -88,11 +89,10 @@ VICON_SUBJECTS = GroundEstimationSubjects(
                     plane_outer=_marker("plane_outer"),
                 ),
                 patches=ShoePatches(
-                    sole=Patch.rectangular(
+                    sole=Patch(
                         label="sole",
                         transform_segment_patch=_SOLE_TRANSFORM,
-                        width=0.10,
-                        height=0.25,
+                        region=RectangularRegion(width=0.10, height=0.25),
                         frame="sole_frame",
                     ),
                 ),

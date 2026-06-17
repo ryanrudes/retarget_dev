@@ -19,12 +19,14 @@ so the public constructors stay pure authoring (``Marker(mocap_name=...)``).
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, TypedDict, cast
 
 import numpy as np
 
+from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
+from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.contact_region import ContactRegion, RectangularRegion
 from retarget.core.enums import PoseFormat, RotationFormat
 from retarget.core.formats import (
@@ -36,6 +38,7 @@ from retarget.core.formats import (
 from retarget.core.keys import SegmentKey
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import RigidTransform
+from retarget.core.translation import MarkerTranslation
 from retarget.core.types import TimeMat3, TimeQuat, TimeVec3, Vec3
 
 
@@ -193,6 +196,26 @@ class Marker:
 
 
 @dataclass(frozen=True, slots=True)
+class PatchCalibration:
+    """A deferred patch-frame fit from a segment's calibration markers.
+
+    The ``transform_segment_patch`` is computed at bind time from the named
+    markers' segment-frame positions (which may come from the subject
+    ``body_model`` or per-marker ``position_segment``), so the patch frame need
+    not be precomputed during authoring.
+    """
+
+    markers: tuple[str, ...]
+    outward_axis: SemanticAxis
+    forward_axis: SemanticAxis
+    normal_offset: float = 0.0
+    axis_convention: AxisConvention = Z_UP_AXES
+    marker_translations: Mapping[str, MarkerTranslation] | None = field(
+        default=None, compare=False
+    )
+
+
+@dataclass(frozen=True, slots=True)
 class Patch:
     """A contact patch: authoring metadata plus bound time-series queries."""
 
@@ -200,26 +223,48 @@ class Patch:
     transform_segment_patch: RigidTransform | None = field(default=None, compare=False)
     region: ContactRegion | None = field(default=None, compare=False)
     frame: str | None = None
+    calibration: PatchCalibration | None = field(default=None, compare=False)
     _binding: _PatchBinding | None = field(
         default=None, init=False, compare=False, repr=False
     )
 
     @classmethod
-    def rectangular(
+    def rectangle(
         cls,
         label: str,
         *,
-        transform_segment_patch: RigidTransform,
+        markers: Sequence[str],
         width: float,
         height: float,
+        outward_axis: SemanticAxis,
+        forward_axis: SemanticAxis,
+        normal_offset: float = 0.0,
+        axis_convention: AxisConvention = Z_UP_AXES,
+        marker_translations: Mapping[str, MarkerTranslation] | None = None,
         frame: str | None = None,
     ) -> "Patch":
-        """Build a rectangular patch declaration with explicit geometry."""
+        """Build a rectangular patch whose frame is fit from calibration markers.
+
+        ``markers`` names markers on the same segment; their segment-frame
+        positions (from the subject ``body_model`` or per-marker
+        ``position_segment``) are fit into a patch frame at bind time.
+        ``outward_axis`` fixes the normal direction and ``forward_axis`` fixes
+        the in-plane local +X direction. For the rarer case where a frame is
+        already known, construct ``Patch(..., transform_segment_patch=...,
+        region=RectangularRegion(...))`` directly.
+        """
         return cls(
             label=label,
-            transform_segment_patch=transform_segment_patch,
             region=RectangularRegion(width=width, height=height),
             frame=frame,
+            calibration=PatchCalibration(
+                markers=tuple(markers),
+                outward_axis=outward_axis,
+                forward_axis=forward_axis,
+                normal_offset=normal_offset,
+                axis_convention=axis_convention,
+                marker_translations=marker_translations,
+            ),
         )
 
     def points(self) -> TimeVec3:
@@ -593,12 +638,18 @@ def _bind_segment(
         )
         for marker_name, marker in segment.markers.items()
     }
+    marker_positions_segment = {
+        marker_name: marker.position_segment
+        for marker_name, marker in bound_markers.items()
+        if marker.position_segment is not None
+    }
     bound_patches = {
         patch_name: _bind_patch(
             patch,
             subject=subject,
             segment=segment_name,
             patch_name=patch_name,
+            marker_positions_segment=marker_positions_segment,
             runtime=runtime,
         )
         for patch_name, patch in segment.patches.items()
@@ -648,13 +699,24 @@ def _bind_patch(
     subject: str,
     segment: str,
     patch_name: str,
+    marker_positions_segment: Mapping[str, Vec3],
     runtime: _SegmentRuntime | None,
 ) -> Patch:
+    transform = patch.transform_segment_patch
+    if transform is None and patch.calibration is not None:
+        transform = _resolve_patch_calibration(
+            patch.calibration,
+            marker_positions_segment,
+            subject=subject,
+            segment=segment,
+            patch_name=patch_name,
+        )
     bound = Patch(
         label=patch.label,
-        transform_segment_patch=patch.transform_segment_patch,
+        transform_segment_patch=transform,
         region=patch.region,
         frame=patch.frame,
+        calibration=patch.calibration,
     )
     object.__setattr__(
         bound,
@@ -664,6 +726,32 @@ def _bind_patch(
         ),
     )
     return bound
+
+
+def _resolve_patch_calibration(
+    calibration: PatchCalibration,
+    marker_positions_segment: Mapping[str, Vec3],
+    *,
+    subject: str,
+    segment: str,
+    patch_name: str,
+) -> RigidTransform:
+    missing = [m for m in calibration.markers if m not in marker_positions_segment]
+    if missing:
+        raise ValueError(
+            f"Patch {patch_name!r} on {subject!r}/{segment!r} cannot calibrate: "
+            f"no segment-frame positions for markers {missing}. Provide a subject "
+            "body_model or a per-marker position_segment for them."
+        )
+    return calibrate_patch_transform(
+        marker_positions_segment=marker_positions_segment,
+        markers=calibration.markers,
+        axis_convention=calibration.axis_convention,
+        marker_translations=calibration.marker_translations,
+        normal_offset=calibration.normal_offset,
+        outward_axis=calibration.outward_axis,
+        forward_axis=calibration.forward_axis,
+    )
 
 
 def _validate_subjects(subjects: Mapping[str, Any]) -> None:

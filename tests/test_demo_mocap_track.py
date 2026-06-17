@@ -22,9 +22,9 @@ from retarget.core import (
     SegmentKey,
     SegmentPoseTrajectory,
     Segments,
+    SemanticAxis,
     Subject,
     Subjects,
-    calibrate_patch_transform,
 )
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
@@ -57,10 +57,6 @@ class _TwoPatchSubjects(Subjects):
 
 
 def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
-    sole = calibrate_patch_transform(marker_positions_segment=_POSITIONS, markers=("heel", "toe", "mid"))
-    heel_cap = calibrate_patch_transform(
-        marker_positions_segment=_POSITIONS, markers=("heel", "toe", "mid"), normal_offset=0.05
-    )
     subjects = _TwoPatchSubjects(
         subject=Subject(
             segments=_TwoPatchSegments(
@@ -71,8 +67,23 @@ def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
                         mid=Marker(mocap_name="mid", position_segment=_POSITIONS["mid"]),
                     ),
                     patches=_TwoPatchPatches(
-                        sole=Patch.rectangular(label="sole", transform_segment_patch=sole, width=1.0, height=1.0),
-                        heel_cap=Patch.rectangular(label="heel_cap", transform_segment_patch=heel_cap, width=0.5, height=0.5),
+                        sole=Patch.rectangle(
+                            label="sole",
+                            markers=("heel", "toe", "mid"),
+                            width=1.0,
+                            height=1.0,
+                            outward_axis=SemanticAxis.UP,
+                            forward_axis=SemanticAxis.FORWARD,
+                        ),
+                        heel_cap=Patch.rectangle(
+                            label="heel_cap",
+                            markers=("heel", "toe", "mid"),
+                            width=0.5,
+                            height=0.5,
+                            outward_axis=SemanticAxis.UP,
+                            forward_axis=SemanticAxis.FORWARD,
+                            normal_offset=0.05,
+                        ),
                     ),
                 )
             )

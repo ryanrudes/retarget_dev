@@ -10,7 +10,6 @@ from retarget.core import (
     Patch,
     Marker,
     SemanticAxis,
-    calibrate_patch_transform,
 )
 
 from .schema import (
@@ -30,15 +29,6 @@ BODY_MODEL = read_marker_positions_from_vsk(VSK_PATH)
 # Offset from the fitted calibration-marker plane to the physical sole contact
 # plane, applied along the fitted patch normal after plane fitting.
 SOLE_PLANE_NORMAL_OFFSET = -0.010
-
-
-SOLE_TRANSFORM = calibrate_patch_transform(
-    marker_positions_segment=BODY_MODEL,
-    markers=("plane_rear", "plane_inner", "plane_outer"),
-    normal_offset=SOLE_PLANE_NORMAL_OFFSET,
-    outward_axis=SemanticAxis.UP,
-    x_axis=SemanticAxis.FORWARD,
-)
 
 # Marker definitions (e.g. Marker(mocap_name))
 heel = Marker("heel")
@@ -70,12 +60,16 @@ left_shoe_markers = LeftShoeMarkers(
     plane_rear=plane_rear, plane_inner=plane_inner, plane_outer=plane_outer,
 )
 
-# Patch definitions
-sole_patch = Patch.rectangular(
+# Patch definitions. The sole frame is fit at bind time from the three plane
+# calibration markers using their body_model segment-frame positions.
+sole_patch = Patch.rectangle(
     label="sole",
-    transform_segment_patch=SOLE_TRANSFORM,
+    markers=("plane_rear", "plane_inner", "plane_outer"),
     width=0.10,
     height=0.25,
+    outward_axis=SemanticAxis.UP,
+    forward_axis=SemanticAxis.FORWARD,
+    normal_offset=SOLE_PLANE_NORMAL_OFFSET,
     frame="sole_frame",
 )
 

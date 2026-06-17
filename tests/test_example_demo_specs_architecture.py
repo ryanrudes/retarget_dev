@@ -84,7 +84,7 @@ def test_new_api_example_is_typed_first() -> None:
     source = NEW_API_EXAMPLE.read_text()
     required = (
         "bind_scene(subjects)",
-        "Patch.rectangular(",
+        "region=RectangularRegion(",
         "toe_contact=Patch(",
         'label="toe_contact_display"',
         "class GroundEstimationSubjects(Subjects):",
