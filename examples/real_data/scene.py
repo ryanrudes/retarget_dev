@@ -4,6 +4,11 @@ from pathlib import Path
 
 from retarget.io import read_marker_positions_from_vsk
 
+from retarget.demo import (
+    MocapTrack,
+    Demonstration,
+)
+
 from retarget.core import (
     Subject,
     Segment,
@@ -12,7 +17,8 @@ from retarget.core import (
     SemanticAxis,
 )
 
-from .schema import (
+from schema import (
+    ExampleTracks,
     ExampleSubjects,
     LeftFootSegments,
     LeftShoePatches,
@@ -22,6 +28,7 @@ from .schema import (
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 VSK_PATH = REPO_ROOT / "models" / "Left_Shoe_Improved.vsk"
+DEFAULT_UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 # VSK-derived segment-frame marker positions keyed by Vicon marker name.
 BODY_MODEL = read_marker_positions_from_vsk(VSK_PATH)
@@ -30,67 +37,75 @@ BODY_MODEL = read_marker_positions_from_vsk(VSK_PATH)
 # plane, applied along the fitted patch normal after plane fitting.
 SOLE_PLANE_NORMAL_OFFSET = -0.010
 
-# Marker definitions (e.g. Marker(mocap_name))
-heel = Marker("heel")
-toe = Marker("toe")
-heel_inner_1 = Marker("heel_inner_1")
-heel_inner_2 = Marker("heel_inner_2")
-heel_outer_1 = Marker("heel_outer_1")
-heel_outer_2 = Marker("heel_outer_2")
-toe_inner = Marker("toe_inner")
-toe_outer = Marker("toe_outer")
-toe_grid_1 = Marker("toe_grid_1")
-toe_grid_2 = Marker("toe_grid_2")
-toe_grid_3 = Marker("toe_grid_3")
-toe_grid_4 = Marker("toe_grid_4")
-sole_inner = Marker("sole_inner")
-sole_outer = Marker("sole_outer")
-plane_rear = Marker("plane_rear")
-plane_inner = Marker("plane_inner")
-plane_outer = Marker("plane_outer")
 
-left_shoe_markers = LeftShoeMarkers(
-    heel=heel, toe=toe,
-    heel_inner_1=heel_inner_1, heel_inner_2=heel_inner_2,
-    heel_outer_1=heel_outer_1, heel_outer_2=heel_outer_2,
-    toe_inner=toe_inner, toe_outer=toe_outer,
-    toe_grid_1=toe_grid_1, toe_grid_2=toe_grid_2,
-    toe_grid_3=toe_grid_3, toe_grid_4=toe_grid_4,
-    sole_inner=sole_inner, sole_outer=sole_outer,
-    plane_rear=plane_rear, plane_inner=plane_inner, plane_outer=plane_outer,
-)
+def get_left_shoe_markers() -> LeftShoeMarkers:
+    return LeftShoeMarkers(
+        heel=Marker("heel"),
+        toe=Marker("toe"),
+        heel_inner_1=Marker("heel_inner_1"),
+        heel_inner_2=Marker("heel_inner_2"),
+        heel_outer_1=Marker("heel_outer_1"),
+        heel_outer_2=Marker("heel_outer_2"),
+        toe_inner=Marker("toe_inner"),
+        toe_outer=Marker("toe_outer"),
+        toe_grid_1=Marker("toe_grid_1"),
+        toe_grid_2=Marker("toe_grid_2"),
+        toe_grid_3=Marker("toe_grid_3"),
+        toe_grid_4=Marker("toe_grid_4"),
+        sole_inner=Marker("sole_inner"),
+        sole_outer=Marker("sole_outer"),
+        plane_rear=Marker("plane_rear"),
+        plane_inner=Marker("plane_inner"),
+        plane_outer=Marker("plane_outer"),
+    )
+
 
 # Patch definitions. The sole frame is fit at bind time from the three plane
 # calibration markers using their body_model segment-frame positions.
-sole_patch = Patch.rectangle(
-    label="sole",
-    markers=("plane_rear", "plane_inner", "plane_outer"),
-    width=0.10,
-    height=0.25,
-    outward_axis=SemanticAxis.UP,
-    forward_axis=SemanticAxis.FORWARD,
-    normal_offset=SOLE_PLANE_NORMAL_OFFSET,
-    frame="sole_frame",
-)
+def get_left_shoe_patches() -> LeftShoePatches:
+    return LeftShoePatches(
+        sole=Patch.rectangle(
+            label="sole",
+            markers=(
+                "plane_rear",
+                "plane_inner",
+                "plane_outer",
+            ),
+            width=0.10,
+            height=0.25,
+            outward_axis=SemanticAxis.UP,
+            forward_axis=SemanticAxis.FORWARD,
+            normal_offset=SOLE_PLANE_NORMAL_OFFSET,
+            frame="sole_frame",
+        )
+    )
 
-left_shoe_patches = LeftShoePatches(
-    sole=sole_patch,
-)
 
-# Segment definitions
-left_shoe = Segment(
-    markers=left_shoe_markers,
-    patches=left_shoe_patches,
-    mocap_name="Left_Shoe_Improved",
-)
+def get_left_foot_segments() -> LeftFootSegments:
+    return LeftFootSegments(
+        shoe=Segment(
+            markers=get_left_shoe_markers(),
+            patches=get_left_shoe_patches(),
+            mocap_name="Left_Shoe_Improved",
+        )
+    )
 
-left_foot_segments = LeftFootSegments(shoe=left_shoe)
 
-# Subject definitions
-left_foot = Subject(
-    segments=left_foot_segments,
-    body_model=BODY_MODEL,
-    mocap_name="Left_Shoe_Improved",
-)
+def get_subjects() -> ExampleSubjects:
+    left_foot = Subject(
+        segments=get_left_foot_segments(),
+        body_model=BODY_MODEL,
+        mocap_name="Left_Shoe_Improved",
+    )
+    return ExampleSubjects(left_foot=left_foot)
 
-SUBJECTS = ExampleSubjects(left_foot=left_foot)
+
+def get_tracks(unbagged_dir: Path) -> ExampleTracks:
+    subjects = get_subjects()
+    mocap_track = MocapTrack.from_unbagged(unbagged_dir, subjects, rebase_time=True)
+    return ExampleTracks(mocap=mocap_track)
+
+
+def get_demo(unbagged_dir: Path = DEFAULT_UNBAGGED_DIR) -> Demonstration[ExampleTracks]:
+    tracks = get_tracks(unbagged_dir)
+    return Demonstration(tracks)

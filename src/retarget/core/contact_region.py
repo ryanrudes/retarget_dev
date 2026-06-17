@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from retarget.core.types import Vec2
+from retarget.core.types import Points2, Vec2
 from retarget.utils.geometry import point_in_polygon
 
 
@@ -16,6 +16,15 @@ class ContactRegion(ABC):
     @abstractmethod
     def contains(self, xy: Vec2) -> bool:
         """Check if a point is in the contact region."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def boundary(self) -> Points2:
+        """Closed boundary vertices in the local xy plane with shape ``(K, 2)``.
+
+        Vertices are ordered for polygon rendering; the first vertex is not
+        repeated at the end.
+        """
         raise NotImplementedError
 
 
@@ -39,6 +48,18 @@ class RectangularRegion(ContactRegion):
         x, y = xy
         return bool(abs(x) <= self.width / 2 and abs(y) <= self.height / 2)
 
+    def boundary(self) -> Points2:
+        hw, hh = self.width / 2.0, self.height / 2.0
+        return np.array(
+            [
+                [-hw, -hh],
+                [hw, -hh],
+                [hw, hh],
+                [-hw, hh],
+            ],
+            dtype=np.float64,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class PolygonalRegion(ContactRegion):
@@ -57,3 +78,6 @@ class PolygonalRegion(ContactRegion):
 
     def contains(self, xy: Vec2) -> bool:
         return point_in_polygon(xy, self.vertices)
+
+    def boundary(self) -> Points2:
+        return np.asarray(self.vertices, dtype=np.float64)

@@ -15,7 +15,7 @@ from retarget.core.formats import finite_difference_velocity
 from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.translation import MarkerTranslation
-from retarget.core.types import TimeVec3, Vec3
+from retarget.core.types import TimeEntityVec3, TimeMat3, TimeVec3, Vec3
 
 if TYPE_CHECKING:
     from retarget.core.schema.segment import _SegmentRuntime
@@ -54,12 +54,19 @@ class PatchCalibration:
 
 
 @dataclass(frozen=True, slots=True)
-class Patch:
-    """A contact patch: authoring metadata plus bound time-series queries."""
+class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
+    """A contact patch: authoring metadata plus bound time-series queries.
+
+    ``RegionT`` is the static type of ``region``. Authoring a patch without a
+    region (declaration-only) leaves it as ``ContactRegion | None``; constructing
+    via :meth:`rectangle` (or passing a concrete ``region=...``) narrows it, so a
+    schema declaring ``sole: Patch[RectangularRegion]`` types ``sole.region`` as
+    ``RectangularRegion`` with no ``isinstance`` check.
+    """
 
     label: str
     transform_segment_patch: RigidTransform | None = field(default=None, compare=False)
-    region: ContactRegion | None = field(default=None, compare=False)
+    region: RegionT = field(default=cast("RegionT", None), compare=False)
     frame: str | None = None
     calibration: PatchCalibration | None = field(default=None, compare=False)
     _binding: _PatchBinding | None = field(
@@ -80,7 +87,7 @@ class Patch:
         axis_convention: AxisConvention = Z_UP_AXES,
         marker_translations: Mapping[str, MarkerTranslation] | None = None,
         frame: str | None = None,
-    ) -> Patch:
+    ) -> Patch[RectangularRegion]:
         """Build a rectangular patch whose frame is fit from calibration markers.
 
         ``markers`` names markers on the same segment; their segment-frame
@@ -91,7 +98,7 @@ class Patch:
         already known, construct ``Patch(..., transform_segment_patch=...,
         region=RectangularRegion(...))`` directly.
         """
-        return cls(
+        return Patch(
             label=label,
             region=RectangularRegion(width=width, height=height),
             frame=frame,
@@ -117,6 +124,44 @@ class Patch:
         runtime = self._runtime()
         local_normal = np.asarray(self._geometry().rotation[:, 2], dtype=np.float64)
         return cast(TimeVec3, np.einsum("tij,j->ti", runtime.rotations, local_normal))
+
+    def frames(self) -> TimeMat3:
+        """World-frame patch orientation with shape ``(T, 3, 3)``.
+
+        Columns are the patch local +X/+Y/+Z axes expressed in the world frame;
+        the third column matches :meth:`normals`. Together with :meth:`points`
+        this is the full oriented patch frame over time.
+        """
+        runtime = self._runtime()
+        local_rotation = np.asarray(self._geometry().rotation, dtype=np.float64)
+        return cast(
+            TimeMat3, np.einsum("tij,jk->tik", runtime.rotations, local_rotation)
+        )
+
+    def boundary_points(self) -> TimeEntityVec3:
+        """World-frame contact-region boundary polygon with shape ``(T, K, 3)``.
+
+        The region boundary (e.g. the four corners of a ``RectangularRegion``) is
+        expressed in the patch local xy plane, then transported into the world
+        frame at every timestep, ready to draw as an oriented polygon.
+        """
+        region = self.region
+        if region is None:
+            name = self._binding.patch if self._binding is not None else self.label
+            raise ValueError(
+                f"Patch {name!r} has no contact region to take a boundary from"
+            )
+        local_xy = np.asarray(region.boundary(), dtype=np.float64)
+        local_xyz = np.concatenate(
+            [local_xy, np.zeros((local_xy.shape[0], 1), dtype=np.float64)], axis=1
+        )
+        geometry = self._geometry()
+        rotation = np.asarray(geometry.rotation, dtype=np.float64)
+        translation = np.asarray(geometry.translation, dtype=np.float64)
+        boundary_segment = local_xyz @ rotation.T + translation
+        runtime = self._runtime()
+        world = np.einsum("tij,kj->tki", runtime.rotations, boundary_segment)
+        return cast(TimeEntityVec3, world + runtime.translations[:, None, :])
 
     def velocities(self) -> TimeVec3:
         """World-frame patch-point velocities with shape ``(T, 3)``."""

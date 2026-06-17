@@ -1,5 +1,5 @@
-from retarget.core import Patches, Patch
+from retarget.core import Patches, Patch, RectangularRegion
 
 
 class LeftShoePatches(Patches):
-    sole: Patch
+    sole: Patch[RectangularRegion]
