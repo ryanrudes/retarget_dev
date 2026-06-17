@@ -112,7 +112,7 @@ class _SubjectBinding:
 
 
 _UNBOUND_MESSAGE = (
-    "This {what} is not bound to loaded data. Build a scene with build_scene(...) "
+    "This {what} is not bound to loaded data. Bind a scene with bind_scene(...) "
     "for static/geometry access, or query it through a loaded MocapTrack for "
     "time-series access."
 )
@@ -505,7 +505,7 @@ class Subject[SegmentsT: Segments]:
 # ---------------------------------------------------------------------------
 
 
-def build_scene[SubjectsT: Subjects](subjects: SubjectsT) -> SubjectsT:
+def bind_scene[SubjectsT: Subjects](subjects: SubjectsT) -> SubjectsT:
     """Path-bind an authored scene so targets/geometry are available.
 
     Returns a structure of the same ``SubjectsT`` type whose subjects/segments/

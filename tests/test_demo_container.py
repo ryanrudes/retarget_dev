@@ -10,7 +10,6 @@ from retarget.demo import (
     Demonstration,
     DemonstrationView,
     Tracks,
-    build_demonstration,
 )
 from retarget.demo.mocap import MocapTrack
 
@@ -26,12 +25,12 @@ class MocapTracks(Tracks):
 
 def _typed_demo() -> Demonstration[GroundEstimationTracks]:
     contacts, _ = make_string_contact_track(target_name="contact")
-    return build_demonstration(
+    return Demonstration(
         GroundEstimationTracks(mocap=make_mocap_track(), contacts=contacts)
     )
 
 
-def test_build_demonstration_returns_typed_demonstration() -> None:
+def test_demonstration_constructor_returns_typed_demonstration() -> None:
     demo = _typed_demo()
     assert isinstance(demo, Demonstration)
     assert isinstance(demo.tracks["mocap"], MocapTrack)
@@ -50,14 +49,14 @@ def test_tracks_mapping_and_string_getitem_agree() -> None:
 
 
 def test_deep_chain_through_typed_demo() -> None:
-    demo = build_demonstration(MocapTracks(mocap=make_mocap_track()))
+    demo = Demonstration(MocapTracks(mocap=make_mocap_track()))
     shoe = demo.tracks["mocap"].subjects["subject"].segments["segment"]
     assert shoe.markers["heel"].positions().shape == (3, 3)
     assert shoe.patches["sole"].points().shape == (3, 3)
 
 
 def test_slice_time_returns_demonstration_view_with_sliced_tracks() -> None:
-    demo = build_demonstration(MocapTracks(mocap=make_mocap_track()))
+    demo = Demonstration(MocapTracks(mocap=make_mocap_track()))
     clip = demo.slice_time(0.0, 0.2)
     assert isinstance(clip, DemonstrationView)
     assert clip.source is demo
@@ -72,7 +71,7 @@ def test_demonstration_rejects_non_track_values() -> None:
 
 
 def test_resample_to_preserves_reference_track() -> None:
-    demo = build_demonstration(MocapTracks(mocap=make_mocap_track()))
+    demo = Demonstration(MocapTracks(mocap=make_mocap_track()))
     clip = demo.slice_time(0.0, 0.2)
     resampled = clip.resample_to("mocap")
     assert resampled["mocap"] is clip["mocap"]

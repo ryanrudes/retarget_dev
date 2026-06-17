@@ -6,7 +6,7 @@ import pytest
 
 from backend_specs.ground_estimation_loader import load_ground_estimation_demo
 from backend_specs.vicon_scene import VICON_SUBJECTS
-from retarget.demo import Demonstration, load_mocap_track
+from retarget.demo import Demonstration
 from retarget.demo.mocap import MocapTrack
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -36,8 +36,8 @@ def test_loader_slice_first_second_is_non_empty() -> None:
     assert len(clip.timestamps) > 0
 
 
-def test_load_mocap_track_uses_authored_subjects() -> None:
-    mocap = load_mocap_track(UNBAGGED_DIR, VICON_SUBJECTS)
+def test_from_unbagged_uses_authored_subjects() -> None:
+    mocap = MocapTrack.from_unbagged(UNBAGGED_DIR, VICON_SUBJECTS)
     assert isinstance(mocap, MocapTrack)
     assert len(mocap.timestamps) == mocap.state.num_timesteps
     assert mocap.timestamps[0] != 0.0 or len(mocap.timestamps) == 1

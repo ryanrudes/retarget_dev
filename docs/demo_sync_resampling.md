@@ -14,11 +14,11 @@ from retarget.demo.sync import (
 )
 
 plan = SyncPlan(
-    reference=TrackId.MOCAP,
+    reference="mocap",
     edges=(
         SyncEdge(
-            source=TrackId.CONTACT,
-            reference=TrackId.MOCAP,
+            source="contact",
+            reference="mocap",
             source_signal=contact_signal,
             reference_signal=mocap_signal,
             max_lag_seconds=0.5,

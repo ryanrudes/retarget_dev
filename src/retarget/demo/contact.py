@@ -29,11 +29,6 @@ from types import MappingProxyType
 import numpy as np
 
 from retarget.core.targets import PatchTarget
-from retarget.demo._query_utils import (
-    normalize_entity_input,
-    slice_timestamps,
-    stack_entity_arrays,
-)
 from retarget.demo.resampling import (
     ResampleMethod,
     resample_indices,
@@ -41,6 +36,42 @@ from retarget.demo.resampling import (
     validate_strictly_increasing_timestamps,
 )
 from retarget.demo.tracks import Track, TrackView
+
+
+def _slice_timestamps(timestamps: np.ndarray, indices: tuple[int, ...]) -> np.ndarray:
+    return timestamps[list(indices)]
+
+
+def _normalize_targets(
+    target: PatchTarget | Sequence[PatchTarget],
+) -> tuple[tuple[PatchTarget, ...], bool]:
+    """Return (targets, is_many) for a single target or a sequence of targets."""
+    if isinstance(target, PatchTarget):
+        return (target,), False
+    targets = tuple(target)
+    for item in targets:
+        if not isinstance(item, PatchTarget):
+            raise TypeError(
+                f"Expected all items to be PatchTarget; got {type(item).__name__}"
+            )
+    return targets, True
+
+
+def _stack_target_arrays(
+    targets: Sequence[PatchTarget],
+    arrays: Sequence[np.ndarray],
+    *,
+    return_dict: bool,
+) -> np.ndarray | Mapping[PatchTarget, np.ndarray]:
+    if return_dict:
+        return dict(zip(targets, arrays, strict=True))
+    if not arrays:
+        return np.empty((0, 0))
+    first = arrays[0]
+    if first.shape[0] == 0:
+        trailing = first.shape[1:] if first.ndim > 1 else ()
+        return np.empty((0, len(arrays), *trailing), dtype=first.dtype)
+    return np.stack(arrays, axis=1)
 
 
 class _ContactQueryMixin:
@@ -180,7 +211,7 @@ class ContactTrackView(_ContactQueryMixin, TrackView[ContactTrack]):
 
     @property
     def timestamps(self) -> np.ndarray:
-        return slice_timestamps(self.source.timestamps, self.indices)
+        return _slice_timestamps(self.source.timestamps, self.indices)
 
     def _visible_contacts(self) -> Mapping[PatchTarget, np.ndarray]:
         return _slice_contact_mapping(self.source.contacts, self.indices)
@@ -219,8 +250,8 @@ def _query_contact_mapping(
     *,
     return_dict: bool,
 ) -> np.ndarray | Mapping[PatchTarget, np.ndarray]:
-    targets, is_many = normalize_entity_input(target, PatchTarget)
+    targets, is_many = _normalize_targets(target)
     arrays = [mapping[t] for t in targets]
     if not is_many and not return_dict:
         return arrays[0]
-    return stack_entity_arrays(targets, arrays, return_dict=return_dict)
+    return _stack_target_arrays(targets, arrays, return_dict=return_dict)

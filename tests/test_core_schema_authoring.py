@@ -19,7 +19,7 @@ from retarget.core import (
     Segments,
     Subject,
     Subjects,
-    build_scene,
+    bind_scene,
 )
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
@@ -99,8 +99,8 @@ def _track(*, with_geometry: bool = True) -> MocapTrack[ShoeSubjects]:
     )
 
 
-def test_build_scene_exposes_targets_and_external_names() -> None:
-    scene = build_scene(_subjects())
+def test_bind_scene_exposes_targets_and_external_names() -> None:
+    scene = bind_scene(_subjects())
     subject = scene["left_shoe"]
     shoe = subject.segments["shoe"]
     assert subject.external_name == "Left_Shoe_Improved"
@@ -111,14 +111,14 @@ def test_build_scene_exposes_targets_and_external_names() -> None:
     assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
 
 
-def test_build_scene_unknown_marker_target_raises() -> None:
-    shoe = build_scene(_subjects())["left_shoe"].segments["shoe"]
+def test_bind_scene_unknown_marker_target_raises() -> None:
+    shoe = bind_scene(_subjects())["left_shoe"].segments["shoe"]
     with pytest.raises(KeyError, match="has no marker 'missing'"):
         shoe.marker_target("missing")
 
 
 def test_declaration_only_patch_is_targetable_without_geometry() -> None:
-    shoe = build_scene(_subjects(with_geometry=False))["left_shoe"].segments["shoe"]
+    shoe = bind_scene(_subjects(with_geometry=False))["left_shoe"].segments["shoe"]
     assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
     assert shoe.patches["sole"].has_geometry() is False
 
@@ -138,7 +138,7 @@ def test_declaration_only_patch_points_raise_on_loaded_track() -> None:
         shoe.patches["sole"].points()
 
 
-def test_build_scene_rejects_duplicate_vicon_name_within_segment() -> None:
+def test_bind_scene_rejects_duplicate_vicon_name_within_segment() -> None:
     subjects = ShoeSubjects(
         left_shoe=Subject(
             segments=ShoeSegments(
@@ -153,4 +153,4 @@ def test_build_scene_rejects_duplicate_vicon_name_within_segment() -> None:
         )
     )
     with pytest.raises(ValueError, match="Duplicate Marker.vicon_name"):
-        build_scene(subjects)
+        bind_scene(subjects)

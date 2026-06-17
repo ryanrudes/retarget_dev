@@ -26,7 +26,7 @@ class Demonstration[TracksT: Tracks = Tracks]:
 Canonical public API:
 
 ```python
-demo = build_demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
+demo = Demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
 demo.tracks["mocap"]          # statically typed from TracksT
 demo["mocap"]                 # secondary, string-keyed Track access
 demo.track_ids()              # ("mocap", "contacts")
@@ -103,7 +103,7 @@ free-function workflow; do not mutate `Demonstration`.
 ## Examples
 
 Examples teach the typed pattern: declare `Subjects`/`Tracks`, compile with
-`build_scene`/`build_demonstration`, query via `demo.tracks["mocap"]` and the
+`bind_scene`/`Demonstration`, query via `demo.tracks["mocap"]` and the
 `mocap.subjects[...].segments[...]` chain. Backend/manual loaders author the same
 typed schema (deriving geometry from VSK) and return typed
 `Demonstration[TracksT]`.

@@ -14,8 +14,8 @@ The model is one layer, not three:
 ```text
 TypedDict schema declarations (Markers/Patches/Segments/Subjects/Tracks)
   + frozen dataclasses (Marker/Patch/Segment/Subject)
- -> build_scene(...) path-binds          (targets + geometry)
- -> load_mocap_track(...) data-binds     (MocapTrack[SubjectsT])
+ -> bind_scene(...) path-binds          (targets + geometry)
+ -> MocapTrack.from_unbagged(...) data-binds     (MocapTrack[SubjectsT])
  -> demo.tracks[...] / mocap.subjects[...].segments[...].markers[...]
  -> MarkerTarget / PatchTarget / SegmentTarget   (stable string keys)
 ```
@@ -90,7 +90,7 @@ calibrated. Backends may compute the transform with
 ## Runtime traversal and queries
 
 ```python
-scene = build_scene(subjects)                    # path-bound, dataless
+scene = bind_scene(subjects)                    # path-bound, dataless
 shoe = scene["left_shoe"].segments["shoe"]
 heel_target = shoe.marker_target("heel")
 sole_target = shoe.patch_target("sole")

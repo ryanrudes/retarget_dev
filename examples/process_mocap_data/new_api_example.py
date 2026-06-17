@@ -20,9 +20,9 @@ from retarget.core import (
     Segments,
     Subject,
     Subjects,
-    build_scene,
+    bind_scene,
 )
-from retarget.demo import MocapTrack, Tracks, build_demonstration, load_mocap_track
+from retarget.demo import Demonstration, MocapTrack, Tracks
 from retarget.io import UnbaggedDirectory
 
 
@@ -180,7 +180,7 @@ subjects = MocapSubjects(
 # Build (path-bind) the scene for static target/geometry access
 # ----------------------------
 
-scene = build_scene(subjects)
+scene = bind_scene(subjects)
 
 shoe_spec = scene["left_shoe"].segments["shoe"]
 heel_target = shoe_spec.marker_target("heel")
@@ -203,8 +203,8 @@ if UNBAGGED_DIR.is_dir():
     # same authored schema.
     loadable_subjects = GroundEstimationSubjects(left_shoe=subjects["left_shoe"])
     root = UnbaggedDirectory(UNBAGGED_DIR)
-    mocap_track = load_mocap_track(root, loadable_subjects).with_rebased_time()
-    demo = build_demonstration(GroundEstimationTracks(mocap=mocap_track))
+    mocap_track = MocapTrack.from_unbagged(root, loadable_subjects).with_rebased_time()
+    demo = Demonstration(GroundEstimationTracks(mocap=mocap_track))
 
     mocap = demo.tracks["mocap"]
     left_shoe = mocap.subjects["left_shoe"]

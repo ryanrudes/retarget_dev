@@ -51,7 +51,7 @@ segment.patches["sole"].points()                      # (T, 3) ndarray
 ```python
 from retarget.core import (
     Marker, Markers, Patch, Patches, Segment, Segments, Subject, Subjects,
-    RigidTransform, build_scene,
+    RigidTransform, bind_scene,
 )
 
 class ShoeMarkers(Markers):
@@ -92,7 +92,7 @@ subjects = ShoeSubjects(
     ),
 )
 
-scene = build_scene(subjects)
+scene = bind_scene(subjects)
 shoe = scene["left_shoe"].segments["shoe"]
 heel_target = shoe.marker_target("heel")
 sole_target = shoe.patch_target("sole")
@@ -106,7 +106,7 @@ toe_target = shoe.patch_target("toe_contact")   # declaration-only patch is stil
   `Segment.vicon_name`, and `Subject.vicon_name` are external/Vicon lookup metadata.
 - `Patch(label=...)` declares a patch without geometry; `Patch.rectangular(...)`
   declares calibrated geometry.
-- `build_scene(...)` path-binds the schema so `*_target(...)` and geometry work,
+- `bind_scene(...)` path-binds the schema so `*_target(...)` and geometry work,
   and returns the same `SubjectsT` type.
 
 ## Stable runtime keys
@@ -124,14 +124,14 @@ Contact tracks are keyed by `PatchTarget`; scene pose state by `SegmentKey`.
 ## Loading and querying demonstrations
 
 ```python
-from retarget.demo import MocapTrack, Tracks, build_demonstration, load_mocap_track
+from retarget.demo import MocapTrack, Tracks, Demonstration, MocapTrack.from_unbagged
 from retarget.io import UnbaggedDirectory
 
 class GroundEstimationTracks(Tracks):
     mocap: MocapTrack[ShoeSubjects]
 
-mocap = load_mocap_track(UnbaggedDirectory("bags/.../unbagged"), subjects).with_rebased_time()
-demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
+mocap = MocapTrack.from_unbagged(UnbaggedDirectory("bags/.../unbagged"), subjects).with_rebased_time()
+demo = Demonstration(GroundEstimationTracks(mocap=mocap))
 
 mocap = demo.tracks["mocap"]
 shoe = mocap.subjects["left_shoe"].segments["shoe"]
@@ -151,7 +151,7 @@ clip = mocap.slice_time(0.0, 1.0)
 ## Example scripts
 
 `examples/process_mocap_data/new_api_example.py` is the canonical typed example:
-authoring, `build_scene`, then the `demo.tracks["mocap"]` deep chain with a
+authoring, `bind_scene`, then the `demo.tracks["mocap"]` deep chain with a
 bag-backed handoff when `bags/ground_estimation/unbagged/` exists.
 
 `backend_specs/` holds backend/manual loader support that authors the same typed

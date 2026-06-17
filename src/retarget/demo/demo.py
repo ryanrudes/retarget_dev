@@ -26,16 +26,22 @@ class Tracks(TypedDict):
     """Base class for typed demonstration track-schema declarations."""
 
 
-@dataclass(frozen=True, slots=True)
-class Demonstration[TracksT: Tracks = Tracks]:
-    """Multimodal demonstration keyed by authored track names."""
+class _TrackMapping:
+    """Shared read/slice surface for demonstrations and their views.
 
-    tracks: TracksT
-    alignments: tuple[TrackAlignment, ...] = ()
+    Subclasses provide ``_track_map()`` (the visible track mapping) and
+    ``_root()`` (the originating root demonstration for sliced views).
+    """
 
-    def __post_init__(self) -> None:
-        frozen = _freeze_tracks(cast(Mapping[str, Track], self.tracks))
-        object.__setattr__(self, "tracks", cast(TracksT, frozen))
+    __slots__ = ()
+
+    alignments: tuple[TrackAlignment, ...]
+
+    def _track_map(self) -> Mapping[str, Track]:
+        raise NotImplementedError
+
+    def _root(self) -> Demonstration[Any]:
+        raise NotImplementedError
 
     def __getitem__(self, track: str) -> Track:
         return self._track_map()[track]
@@ -47,12 +53,12 @@ class Demonstration[TracksT: Tracks = Tracks]:
         return iter(self._track_map())
 
     def track_ids(self) -> tuple[str, ...]:
-        """Return the demonstration's track names in insertion order."""
+        """Return the track names in insertion order."""
         return tuple(self._track_map())
 
     def slice_time(self, start: float, stop: float) -> DemonstrationView:
         return DemonstrationView(
-            source=self,
+            source=self._root(),
             tracks={
                 name: track.slice_time(start, stop)
                 for name, track in self._track_map().items()
@@ -60,12 +66,27 @@ class Demonstration[TracksT: Tracks = Tracks]:
             alignments=self.alignments,
         )
 
+
+@dataclass(frozen=True, slots=True)
+class Demonstration[TracksT: Tracks = Tracks](_TrackMapping):
+    """Multimodal demonstration keyed by authored track names."""
+
+    tracks: TracksT
+    alignments: tuple[TrackAlignment, ...] = ()
+
+    def __post_init__(self) -> None:
+        frozen = _freeze_tracks(cast(Mapping[str, Track], self.tracks))
+        object.__setattr__(self, "tracks", cast(TracksT, frozen))
+
     def _track_map(self) -> Mapping[str, Track]:
         return cast(Mapping[str, Track], self.tracks)
 
+    def _root(self) -> Demonstration[Any]:
+        return self
+
 
 @dataclass(frozen=True, slots=True)
-class DemonstrationView:
+class DemonstrationView(_TrackMapping):
     """Time-sliced / resampled view over a demonstration."""
 
     source: Demonstration[Any]
@@ -75,27 +96,11 @@ class DemonstrationView:
     def __post_init__(self) -> None:
         object.__setattr__(self, "tracks", MappingProxyType(dict(self.tracks)))
 
-    def __getitem__(self, track: str) -> Track:
-        return self.tracks[track]
+    def _track_map(self) -> Mapping[str, Track]:
+        return self.tracks
 
-    def __contains__(self, track: object) -> bool:
-        return track in self.tracks
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.tracks)
-
-    def track_ids(self) -> tuple[str, ...]:
-        return tuple(self.tracks)
-
-    def slice_time(self, start: float, stop: float) -> DemonstrationView:
-        return DemonstrationView(
-            source=self.source,
-            tracks={
-                name: track.slice_time(start, stop)
-                for name, track in self.tracks.items()
-            },
-            alignments=self.alignments,
-        )
+    def _root(self) -> Demonstration[Any]:
+        return self.source
 
     def resample_to(self, reference: str) -> DemonstrationView:
         """Return a materialized view resampled onto a reference track timeline."""
@@ -138,15 +143,6 @@ class DemonstrationView:
             tracks=resampled_tracks,
             alignments=self.alignments,
         )
-
-
-def build_demonstration[TracksT: Tracks](
-    tracks: TracksT,
-    *,
-    alignments: tuple[TrackAlignment, ...] = (),
-) -> Demonstration[TracksT]:
-    """Build a typed demonstration from an authored ``Tracks`` mapping."""
-    return Demonstration(tracks=tracks, alignments=alignments)
 
 
 def _alignments_to_reference(

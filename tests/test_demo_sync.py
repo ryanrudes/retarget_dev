@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from retarget.core.types import FloatArray
-from retarget.demo import Tracks, build_demonstration
+from retarget.demo import Tracks
 from retarget.demo.alignment import EnergySignal, TimelineTransform, TrackAlignment
 from retarget.demo.demo import Demonstration
 from retarget.demo.sync import (
@@ -250,7 +250,7 @@ def test_estimate_sync_and_resample_to_reference_returns_reference_time_view() -
 
 
 def test_estimate_sync_and_resample_to_reference_on_typed_demo() -> None:
-    demo = build_demonstration(
+    demo = Demonstration(
         TypedSyncTracks(reference=_dummy_track(0.0), mocap=_dummy_track(0.1))
     )
     plan = SyncPlan(reference=REFERENCE, edges=(_edge(MOCAP, REFERENCE, 0.5),))

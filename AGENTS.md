@@ -85,9 +85,9 @@ class MocapSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
 ```
 
-`build_scene(subjects)` path-binds the authored schema (so `*_target(...)` and
+`bind_scene(subjects)` path-binds the authored schema (so `*_target(...)` and
 geometry inspection work) and returns the same `SubjectsT` type. Loading data
-(`load_mocap_track(root, subjects)`) returns a `MocapTrack[SubjectsT]` whose
+(`MocapTrack.from_unbagged(root, subjects)`) returns a `MocapTrack[SubjectsT]` whose
 `.subjects` answers time-series queries.
 
 `Marker`/`Patch`/`Segment`/`Subject` carry a private, non-init `_binding` that
@@ -120,7 +120,7 @@ class GroundEstimationTracks(Tracks):
     mocap: MocapTrack[GroundEstimationSubjects]
     contacts: ContactTrack
 
-demo = build_demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
+demo = Demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
 demo.tracks["mocap"]      # statically typed
 demo["mocap"]             # secondary, string-keyed Track access
 demo.track_ids()          # ("mocap", "contacts")

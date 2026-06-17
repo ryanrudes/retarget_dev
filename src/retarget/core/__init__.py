@@ -35,7 +35,7 @@ from retarget.core.schema import (
     Segments,
     Subject,
     Subjects,
-    build_scene,
+    bind_scene,
 )
 from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
@@ -115,7 +115,7 @@ __all__ = [
     "Patch",
     "Segment",
     "Subject",
-    "build_scene",
+    "bind_scene",
 
     # Calibration (backend helper)
     "calibrate_patch_transform",

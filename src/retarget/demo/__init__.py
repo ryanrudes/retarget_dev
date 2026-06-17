@@ -11,9 +11,7 @@ from retarget.demo.demo import (
     Demonstration,
     DemonstrationView,
     Tracks,
-    build_demonstration,
 )
-from retarget.demo.loaders import load_mocap_track
 from retarget.demo.mocap import MocapTrack
 from retarget.demo.tracks import (
     Track,
@@ -34,7 +32,6 @@ __all__ = [
     "Demonstration",
     "DemonstrationView",
     "Tracks",
-    "build_demonstration",
 
     # Tracks
     "MocapTrack",
@@ -43,7 +40,6 @@ __all__ = [
     "Track",
     "TrackView",
     "TrackSyncInfo",
-    "load_mocap_track",
 
     # Alignment
     "EnergySignal",

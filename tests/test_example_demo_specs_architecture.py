@@ -57,11 +57,13 @@ def test_loader_returns_typed_demonstration_annotation() -> None:
 def test_load_ground_estimation_demo_builds_typed_demonstration(monkeypatch) -> None:
     track = make_mocap_track()
 
-    def fake_load_mocap_track(root, subjects, **kwargs):
+    def fake_from_unbagged(cls, root, subjects, **kwargs):
         return track
 
     monkeypatch.setattr(
-        ground_estimation_loader, "load_mocap_track", fake_load_mocap_track
+        ground_estimation_loader.MocapTrack,
+        "from_unbagged",
+        classmethod(fake_from_unbagged),
     )
     demo = ground_estimation_loader.load_ground_estimation_demo(Path("dummy"))
     assert isinstance(demo, Demonstration)
@@ -81,13 +83,13 @@ def test_examples_are_free_of_transitional_names() -> None:
 def test_new_api_example_is_typed_first() -> None:
     source = NEW_API_EXAMPLE.read_text()
     required = (
-        "build_scene(subjects)",
+        "bind_scene(subjects)",
         "Patch.rectangular(",
         "toe_contact=Patch(",
         'label="toe_contact_display"',
         "class GroundEstimationSubjects(Subjects):",
         "class GroundEstimationTracks(Tracks):",
-        "build_demonstration(GroundEstimationTracks(mocap=",
+        "Demonstration(GroundEstimationTracks(mocap=",
         'demo.tracks["mocap"]',
         'mocap.subjects["left_shoe"]',
         'left_shoe.segments["shoe"]',
@@ -95,7 +97,7 @@ def test_new_api_example_is_typed_first() -> None:
         'shoe.patches["sole"]',
         ".positions()",
         ".points()",
-        "load_mocap_track(",
+        "MocapTrack.from_unbagged(",
         "UnbaggedDirectory(",
         "UNBAGGED_DIR.is_dir()",
         "Skipping bag-backed demo",

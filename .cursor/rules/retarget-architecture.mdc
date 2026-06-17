@@ -59,10 +59,10 @@ pose store; `SegmentPoseTrajectory` may be empty (materialized empty slices).
 
 Do not reintroduce `MarkerHandle`/`PatchHandle` or enum-typed identity.
 
-## build_scene and loading
+## bind_scene and loading
 
-`build_scene(subjects)` path-binds the authored schema (targets + geometry
-available, no time-series) and returns the same `SubjectsT`. `load_mocap_track`
+`bind_scene(subjects)` path-binds the authored schema (targets + geometry
+available, no time-series) and returns the same `SubjectsT`. `MocapTrack.from_unbagged`
 returns a `MocapTrack[SubjectsT]` whose `.subjects` answers time-series queries.
 `calibrate_patch_transform(...)` is the backend helper that fits a patch frame
 from segment-frame marker positions (apply `marker_translations` before fitting,
@@ -71,7 +71,7 @@ from segment-frame marker positions (apply `marker_translations` before fitting,
 ## IO
 
 IO parses raw JSON/VSK and exposes typed values. `load_scene_state`,
-`load_mocap_track`, and `marker_position` take authored string names; do not
+`MocapTrack.from_unbagged`, and `marker_position` take authored string names; do not
 reintroduce enum/spec-typed IO signatures.
 
 ## Type style

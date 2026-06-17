@@ -26,7 +26,7 @@ from retarget.core import (
     Subjects,
 )
 from retarget.core.types import TimeVec3
-from retarget.demo import MocapTrack, Tracks, build_demonstration
+from retarget.demo import Demonstration, MocapTrack, Tracks
 
 
 class ShoeMarkers(Markers):
@@ -75,7 +75,7 @@ def _track() -> MocapTrack[MySubjects]:
 
 
 def test_deep_chain_static_and_runtime_types() -> None:
-    demo = build_demonstration(GroundEstimationTracks(mocap=_track()))
+    demo = Demonstration(GroundEstimationTracks(mocap=_track()))
 
     mocap = demo.tracks["mocap"]
     assert_type(mocap, MocapTrack[MySubjects])
