@@ -7,7 +7,6 @@ from typing import Callable
 
 import numpy as np
 
-from retarget.core.enums import TrackId
 from retarget.core.types import FloatArray1D, TimeLike
 from retarget.demo.tracks import Track
 
@@ -133,11 +132,14 @@ class TimelineTransform:
 
 
 @dataclass(frozen=True, slots=True)
-class TrackAlignment[K: TrackId]:
-    """Recorded alignment from one track timeline into another."""
+class TrackAlignment:
+    """Recorded alignment from one track timeline into another.
 
-    source: K
-    reference: K
+    ``source`` and ``reference`` are authored track names (strings).
+    """
+
+    source: str
+    reference: str
     transform: TimelineTransform
     score: float | None = None
 

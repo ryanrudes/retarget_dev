@@ -1,34 +1,29 @@
-"""Shared pytest fixtures and helpers for demonstration-layer tests."""
+"""Shared pytest fixtures and helpers for the typed demonstration layer."""
 
 from __future__ import annotations
 
 import sys
-from collections.abc import Iterable
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from retarget.core import (
-    MarkerId,
-    MarkerSetSpec,
-    PatchCalibrationSpec,
-    PatchHandle,
-    PatchId,
-    RectangularRegion,
+    Marker,
+    Markers,
+    Patch,
+    Patches,
+    PatchTarget,
     RigidTransform,
-    SceneSpec,
     SceneState,
-    SegmentId,
+    Segment,
     SegmentKey,
     SegmentPoseTrajectory,
-    SegmentSpec,
-    SubjectId,
-    SubjectSpec,
-    Z_UP_AXES,
+    Segments,
+    Subject,
+    Subjects,
+    calibrate_patch_transform,
 )
-from retarget.core.targets import PatchTarget
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
@@ -37,85 +32,77 @@ EXAMPLE_DIR = Path(__file__).resolve().parents[1] / "examples" / "process_mocap_
 if str(EXAMPLE_DIR) not in sys.path:
     sys.path.insert(0, str(EXAMPLE_DIR))
 
+# Stable authored names used throughout the demo-layer tests.
+SUBJECT = "subject"
+SEGMENT = "segment"
 
-class DemoSubjectId(SubjectId):
-    SUBJECT = "subject"
-
-
-class DemoSegmentId(SegmentId):
-    SEGMENT = "segment"
-
-
-class DemoMarkerId(MarkerId):
-    HEEL = "heel"
-    TOE = "toe"
-    MID = "mid"
+_MARKER_POSITIONS = {
+    "heel": np.array([0.0, 0.0, 0.0]),
+    "toe": np.array([1.0, 0.0, 0.0]),
+    "mid": np.array([0.0, 1.0, 0.0]),
+}
 
 
-class DemoPatchId(PatchId):
-    SOLE = "sole"
-    TOE = "toe"
+class DemoMarkers(Markers):
+    heel: Marker
+    toe: Marker
+    mid: Marker
 
 
-DEMO_SEGMENT_SPEC = (
-    SegmentSpec(
-        segment=DemoSegmentId.SEGMENT,
-        marker_type=DemoMarkerId,
-        patch_type=DemoPatchId,
-        axis_convention=Z_UP_AXES,
-        marker_set=MarkerSetSpec(marker_type=DemoMarkerId),
-        marker_positions_segment={
-            DemoMarkerId.HEEL: np.array([0.0, 0.0, 0.0]),
-            DemoMarkerId.TOE: np.array([1.0, 0.0, 0.0]),
-            DemoMarkerId.MID: np.array([0.0, 1.0, 0.0]),
-        },
-        patch_calibrations={
-            DemoPatchId.SOLE: PatchCalibrationSpec(
-                patch=DemoPatchId.SOLE,
-                markers=(DemoMarkerId.HEEL, DemoMarkerId.TOE, DemoMarkerId.MID),
-                region=RectangularRegion(width=1.0, height=1.0),
-            ),
-        },
-    ).with_built_patches()
-)
+class DemoPatches(Patches):
+    sole: Patch
+    toe: Patch
 
 
-@dataclass(frozen=True, slots=True)
-class DemoSubjectSpec(SubjectSpec):
-    segment_spec: SegmentSpec[DemoMarkerId, DemoPatchId]
-
-    def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.segment_spec
+class DemoSegments(Segments):
+    segment: Segment[DemoMarkers, DemoPatches]
 
 
-@dataclass(frozen=True, slots=True)
-class DemoSceneSpec(SceneSpec):
-    subject_spec: DemoSubjectSpec
+class DemoSubjects(Subjects):
+    subject: Subject[DemoSegments]
 
-    def iter_subjects(self) -> Iterable[SubjectSpec]:
-        yield self.subject_spec
+
+def make_demo_subjects() -> DemoSubjects:
+    sole_transform = calibrate_patch_transform(
+        marker_positions_segment=_MARKER_POSITIONS,
+        markers=("heel", "toe", "mid"),
+    )
+    return DemoSubjects(
+        subject=Subject(
+            segments=DemoSegments(
+                segment=Segment(
+                    markers=DemoMarkers(
+                        heel=Marker(vicon_name="heel", position_segment=_MARKER_POSITIONS["heel"]),
+                        toe=Marker(vicon_name="toe", position_segment=_MARKER_POSITIONS["toe"]),
+                        mid=Marker(vicon_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
+                    ),
+                    patches=DemoPatches(
+                        sole=Patch.rectangular(
+                            label="sole",
+                            transform_segment_patch=sole_transform,
+                            width=1.0,
+                            height=1.0,
+                        ),
+                        toe=Patch(label="toe"),
+                    ),
+                )
+            )
+        )
+    )
 
 
 def make_mocap_track(
     *,
     num_timesteps: int = 3,
     include_markers: bool = True,
-) -> MocapTrack:
-    scene_spec = DemoSceneSpec(
-        subject_spec=DemoSubjectSpec(
-            subject=DemoSubjectId.SUBJECT,
-            segment_spec=DEMO_SEGMENT_SPEC,
-        )
-    )
+) -> MocapTrack[DemoSubjects]:
     poses = tuple(
         RigidTransform.from_translation(np.array([float(i), 0.0, 0.0]))
         for i in range(num_timesteps)
     )
     state = SceneState(
         segment_poses={
-            SegmentKey(DemoSubjectId.SUBJECT, DemoSegmentId.SEGMENT): SegmentPoseTrajectory(
-                poses=poses,
-            )
+            SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)
         }
     )
     timestamps = np.arange(num_timesteps, dtype=np.float64) * 0.1
@@ -126,9 +113,9 @@ def make_mocap_track(
                 stamp_seconds=float(timestamps[i]),
                 markers=(
                     MarkerObservation(
-                        marker_name=DemoMarkerId.HEEL.label,
-                        subject_name=DemoSubjectId.SUBJECT.label,
-                        segment_name=DemoSegmentId.SEGMENT.label,
+                        marker_name="heel",
+                        subject_name=SUBJECT,
+                        segment_name=SEGMENT,
                         position_world=np.array([float(i), 0.0, 0.0]),
                         occluded=False,
                     ),
@@ -137,15 +124,28 @@ def make_mocap_track(
             for i in range(num_timesteps)
         )
     return MocapTrack(
-        scene_spec=scene_spec,
+        subjects=make_demo_subjects(),
         state=state,
         timestamps=timestamps,
         marker_frames=marker_frames,
     )
 
 
-def make_string_patch_target(name: str = "patch", subject: str = "subject") -> PatchTarget[str]:
-    return PatchTarget(subject=subject, handle=name)
+def demo_segment(track: MocapTrack[Any]) -> Segment[DemoMarkers, DemoPatches]:
+    """Return the canonical demo segment from a (possibly sliced) mocap track."""
+    return track.subjects[SUBJECT].segments[SEGMENT]
+
+
+def make_string_patch_target(
+    name: str = "patch",
+    subject: str = SUBJECT,
+    segment: str = SEGMENT,
+) -> PatchTarget:
+    return PatchTarget(subject=subject, segment=segment, patch=name)
+
+
+def make_demo_patch_target(patch: str = "sole") -> PatchTarget:
+    return PatchTarget(subject=SUBJECT, segment=SEGMENT, patch=patch)
 
 
 def make_string_contact_track(
@@ -154,18 +154,15 @@ def make_string_contact_track(
     target_name: str = "patch",
     contacts: list[bool] | np.ndarray = (False, True, True, False),
     confidences: list[float] | np.ndarray | None = (0.1, 0.2, 0.3, 0.4),
-) -> tuple[ContactTrack, PatchTarget[str]]:
+) -> tuple[ContactTrack, PatchTarget]:
     target = make_string_patch_target(target_name)
     track = ContactTrack(
         timestamps=np.asarray(timestamps, dtype=np.float64),
         contacts={target: np.asarray(contacts, dtype=np.bool_)},
-        confidences={target: np.asarray(confidences, dtype=np.float64)} if confidences is not None else None,
+        confidences=(
+            {target: np.asarray(confidences, dtype=np.float64)}
+            if confidences is not None
+            else {}
+        ),
     )
     return track, target
-
-
-def make_demo_patch_target(patch: DemoPatchId = DemoPatchId.SOLE) -> PatchTarget[DemoPatchId]:
-    return PatchTarget(
-        subject=DemoSubjectId.SUBJECT,
-        handle=PatchHandle(segment=DemoSegmentId.SEGMENT, patch=patch),
-    )

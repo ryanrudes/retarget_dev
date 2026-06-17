@@ -1,183 +1,79 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from dataclasses import dataclass
-from typing import Any
-
 import numpy as np
 
-from retarget.core import MarkerSetSpec, SceneSpec, SegmentSpec, SubjectSpec, Z_UP_AXES
-from retarget.core.enums import MarkerId, PatchId, SegmentId, SubjectId
-from retarget.core.keys import SegmentKey
-from retarget.core.state import SceneState, SegmentPoseTrajectory
-from retarget.core.transform import RigidTransform
-from retarget.core.views import SceneView, SubjectView
-
-
-class _LeftShoeSubject(SubjectId):
-    LEFT_SHOE = "left_shoe"
-
-
-class _RightShoeSubject(SubjectId):
-    RIGHT_SHOE = "right_shoe"
-
-
-class _ShoeSegment(SegmentId):
-    SHOE = "shoe"
-
-
-class _TestMarkerId(MarkerId):
-    A = "a"
-
-
-class _TestPatchId(PatchId):
-    P = "p"
-
-
-SHOE_SEGMENT_SPEC = SegmentSpec(
-    segment=_ShoeSegment.SHOE,
-    marker_type=_TestMarkerId,
-    patch_type=_TestPatchId,
-    axis_convention=Z_UP_AXES,
-    marker_set=MarkerSetSpec(marker_type=_TestMarkerId),
+from retarget.core import (
+    Marker,
+    Markers,
+    Patch,
+    Patches,
+    RigidTransform,
+    SceneState,
+    Segment,
+    SegmentKey,
+    SegmentPoseTrajectory,
+    Segments,
+    SegmentTarget,
+    Subject,
+    Subjects,
 )
+from retarget.demo import MocapTrack
 
 
-@dataclass(frozen=True, slots=True)
-class _LeftShoeSubjectSpec(SubjectSpec):
-    shoe: SegmentSpec[_TestMarkerId, _TestPatchId]
-
-    def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.shoe
+class _Markers(Markers):
+    a: Marker
 
 
-@dataclass(frozen=True, slots=True)
-class _RightShoeSubjectSpec(SubjectSpec):
-    shoe: SegmentSpec[_TestMarkerId, _TestPatchId]
-
-    def iter_segments(self) -> Iterable[SegmentSpec[Any, Any]]:
-        yield self.shoe
+class _Patches(Patches):
+    p: Patch
 
 
-@dataclass(frozen=True, slots=True)
-class _TestSceneSpec(SceneSpec):
-    left_shoe: _LeftShoeSubjectSpec
-    right_shoe: _RightShoeSubjectSpec
-
-    def iter_subjects(self) -> Iterable[SubjectSpec]:
-        yield self.left_shoe
-        yield self.right_shoe
+class _Segments(Segments):
+    shoe: Segment[_Markers, _Patches]
 
 
-TEST_SCENE_SPEC = _TestSceneSpec(
-    left_shoe=_LeftShoeSubjectSpec(
-        subject=_LeftShoeSubject.LEFT_SHOE,
-        shoe=SHOE_SEGMENT_SPEC,
-    ),
-    right_shoe=_RightShoeSubjectSpec(
-        subject=_RightShoeSubject.RIGHT_SHOE,
-        shoe=SHOE_SEGMENT_SPEC,
-    ),
-)
+class _Subjects(Subjects):
+    left_shoe: Subject[_Segments]
+    right_shoe: Subject[_Segments]
 
 
-def _trajectory_at_z(z: float) -> SegmentPoseTrajectory:
-    return SegmentPoseTrajectory(
-        poses=(
-            RigidTransform.from_rotation_translation(
-                rotation=np.eye(3),
-                translation=np.array([0.0, 0.0, z]),
+def _segment() -> Segment[_Markers, _Patches]:
+    return Segment(markers=_Markers(a=Marker(vicon_name="a")), patches=_Patches(p=Patch(label="p")))
+
+
+def _subjects() -> _Subjects:
+    return _Subjects(
+        left_shoe=Subject(segments=_Segments(shoe=_segment())),
+        right_shoe=Subject(segments=_Segments(shoe=_segment())),
+    )
+
+
+def test_segment_key_is_string_based_and_hashable() -> None:
+    key = SegmentKey("left_shoe", "shoe")
+    assert key.subject == "left_shoe"
+    assert key.segment == "shoe"
+    assert {key: 1}[SegmentKey("left_shoe", "shoe")] == 1
+
+
+def test_same_segment_name_across_subjects_does_not_collide() -> None:
+    state = SceneState(
+        segment_poses={
+            SegmentKey("left_shoe", "shoe"): SegmentPoseTrajectory(
+                poses=(RigidTransform.from_translation(np.array([0.0, 0.0, 0.1])),)
             ),
-        ),
-    )
-
-
-def test_same_segment_id_across_subjects_does_not_collide() -> None:
-    left_key = SegmentKey(_LeftShoeSubject.LEFT_SHOE, _ShoeSegment.SHOE)
-    right_key = SegmentKey(_RightShoeSubject.RIGHT_SHOE, _ShoeSegment.SHOE)
-
-    left_pose = _trajectory_at_z(0.1)
-    right_pose = _trajectory_at_z(0.9)
-
-    state = SceneState(
-        segment_poses={
-            left_key: left_pose,
-            right_key: right_pose,
+            SegmentKey("right_shoe", "shoe"): SegmentPoseTrajectory(
+                poses=(RigidTransform.from_translation(np.array([0.0, 0.0, 0.9])),)
+            ),
         }
     )
-
-    assert len(state.segment_poses) == 2
-    assert state.pose_for_key(left_key) is left_pose
-    assert state.pose_for_key(right_key) is right_pose
-    assert state.pose(_LeftShoeSubject.LEFT_SHOE, _ShoeSegment.SHOE) is left_pose
-    assert state.pose(_RightShoeSubject.RIGHT_SHOE, _ShoeSegment.SHOE) is right_pose
-
-    scene_view = SceneView(spec=TEST_SCENE_SPEC, state=state)
-    left_subject_view = scene_view.subject(_LeftShoeSubject.LEFT_SHOE)
-    right_subject_view = SubjectView(
-        subject_spec=TEST_SCENE_SPEC.right_shoe,
-        state=state,
-    )
-    left_segment_view = left_subject_view.segment(SHOE_SEGMENT_SPEC)
-    right_segment_view_from_scene = scene_view.segment(
-        _RightShoeSubject.RIGHT_SHOE,
-        SHOE_SEGMENT_SPEC,
-    )
-    right_segment_view = right_subject_view.segment(SHOE_SEGMENT_SPEC)
-    assert left_segment_view.trajectory is left_pose
-    assert right_segment_view_from_scene.trajectory is right_pose
-    assert right_segment_view.trajectory is right_pose
-    np.testing.assert_allclose(
-        left_segment_view.pose_at(0).translation,
-        np.array([0.0, 0.0, 0.1]),
-    )
-    np.testing.assert_allclose(
-        right_segment_view.pose_at(0).translation,
-        np.array([0.0, 0.0, 0.9]),
+    track = MocapTrack(
+        subjects=_subjects(), state=state, timestamps=np.array([0.0])
     )
 
+    left = track.subjects["left_shoe"].segments["shoe"]
+    right = track.subjects["right_shoe"].segments["shoe"]
 
-def test_subject_view_segment_accepts_segment_id() -> None:
-    pose = _trajectory_at_z(0.0)
-    state = SceneState(
-        segment_poses={
-            SegmentKey(_LeftShoeSubject.LEFT_SHOE, _ShoeSegment.SHOE): pose,
-        }
-    )
-    scene_view = SceneView(spec=TEST_SCENE_SPEC, state=state)
-    segment_view = scene_view.subject(_LeftShoeSubject.LEFT_SHOE).segment(
-        _ShoeSegment.SHOE
-    )
-    assert segment_view.spec is SHOE_SEGMENT_SPEC
-    assert segment_view.subject_id == _LeftShoeSubject.LEFT_SHOE
-
-
-def test_subject_view_segment_accepts_segment_spec() -> None:
-    pose = _trajectory_at_z(0.0)
-    state = SceneState(
-        segment_poses={
-            SegmentKey(_LeftShoeSubject.LEFT_SHOE, _ShoeSegment.SHOE): pose,
-        }
-    )
-    scene_view = SceneView(spec=TEST_SCENE_SPEC, state=state)
-    segment_view = scene_view.subject(_LeftShoeSubject.LEFT_SHOE).segment(
-        SHOE_SEGMENT_SPEC
-    )
-    assert segment_view.spec is SHOE_SEGMENT_SPEC
-    assert segment_view.subject_id == _LeftShoeSubject.LEFT_SHOE
-
-
-def test_scene_view_segment_accepts_segment_id() -> None:
-    pose = _trajectory_at_z(0.0)
-    state = SceneState(
-        segment_poses={
-            SegmentKey(_RightShoeSubject.RIGHT_SHOE, _ShoeSegment.SHOE): pose,
-        }
-    )
-    scene_view = SceneView(spec=TEST_SCENE_SPEC, state=state)
-    segment_view = scene_view.segment(
-        _RightShoeSubject.RIGHT_SHOE,
-        _ShoeSegment.SHOE,
-    )
-    assert segment_view.spec is SHOE_SEGMENT_SPEC
-    assert segment_view.subject_id == _RightShoeSubject.RIGHT_SHOE
+    np.testing.assert_allclose(left.translations()[0], np.array([0.0, 0.0, 0.1]))
+    np.testing.assert_allclose(right.translations()[0], np.array([0.0, 0.0, 0.9]))
+    assert left.segment_target() == SegmentTarget("left_shoe", "shoe")
+    assert right.segment_target() == SegmentTarget("right_shoe", "shoe")

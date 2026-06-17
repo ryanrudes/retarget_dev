@@ -1,279 +1,202 @@
 # AGENTS.md
 
-This repository is a typed, extensible research toolkit for motion retargeting, demonstration loading, synchronization, resampling, contact reasoning, and future SMPL/GVHMR/video integrations.
+This repository is a typed, extensible research toolkit for motion retargeting:
+demonstration loading, synchronization, resampling, contact reasoning, and
+future SMPL/GVHMR/video integrations.
 
-Coding agents must preserve the architecture. Do not flatten specs, state, views, tracks, and IO into one blob just because Python permits crimes against taste.
+The public model is **typed-first and enum-free**. Scene and demonstration
+structure is authored with `TypedDict` schemas and compiled into dual-purpose
+frozen dataclasses that are *both* the authoring objects and the bound runtime
+query surface. There are no identifier enums (`MarkerId`, `SegmentId`,
+`TrackId`, …). Authored string names are the identity; runtime keys are plain
+string-based targets.
 
 ## Python baseline
 
-This repository requires **Python 3.13+**.
+Requires **Python 3.13+**. Use PEP 695 generics with defaults for public
+generic types. The package ships a `py.typed` marker; keep it.
 
-Prefer PEP 695 generic classes/functions with default type parameters for new public generic APIs, especially typed demo/mocap mapping views. Python 3.13 makes that syntax practical; use it for readability.
+## The headline guarantee: typed deep chain
 
-Do **not** claim Python 3.13 solves arbitrary TypedDict schema key projection. Mapping access with variable keys may still hover as broad types even when defaults are present.
+Concrete `TypedDict` subclasses project literal keys to their declared field
+types, so the full query chain is statically typed with no codegen:
+
+```python
+demo.tracks["mocap"]                                   # MocapTrack[MocapSubjects]
+mocap.subjects["left_shoe"]                            # Subject[ShoeSegments]
+subject.segments["shoe"]                               # Segment[ShoeMarkers, ShoePatches]
+segment.markers["heel"].positions()                    # TimeVec3
+segment.patches["sole"].points()                       # TimeVec3
+```
+
+Do not regress this. The mechanism is: `Demonstration[TracksT].tracks -> TracksT`
+and `MocapTrack[SubjectsT].subjects -> SubjectsT`, where `TracksT`/`SubjectsT`
+are the user's concrete `TypedDict`s. Do **not** reintroduce identifier enums,
+`SegmentSpec[M, P]`, `SceneView`/`SegmentView`, handles, `TypedDemonstration`,
+or codegen to "improve" typing.
 
 ## Required workflow
 
-Before making changes:
+Before changing code:
 
-1. Read this file.
-2. Read all files in `.cursor/rules/`.
-3. Identify the layer being changed:
-   - core specs, handles, targets, transforms, or state;
-   - IO/parsing;
-   - scene/subject/segment views;
-   - demonstration containers/tracks/views;
-   - resampling;
-   - alignment/sync;
-   - contact tracks/detection;
-   - mocap tracks;
-   - examples/tests.
-4. Make the smallest coherent change.
-5. Add or update tests for changed behavior.
-6. Run the narrow relevant tests while iterating, then the full checks before calling the task done.
-
-If checks cannot be run, say exactly what was not run and why.
+1. Read this file and all files in `.cursor/rules/`.
+2. Identify the layer: core schema/dataclasses, targets/keys/state, IO/parsing,
+   demonstration container, mocap track, resampling, alignment/sync, contact
+   tracks, examples/tests.
+3. Make the smallest coherent change and add/update tests for changed behavior.
+4. Run the narrow relevant tests, then the full checks.
 
 ## Running commands
 
-Run from the repository root unless noted otherwise.
-
-On macOS/local machines, prefer `python3` when invoking the interpreter directly.
-
-### Default verification
+Run from the repository root. Prefer `python3` when invoking directly.
 
 ```bash
-python3 -m compileall -q src/retarget
-python3 -m compileall -q examples
-pytest -q
+python3 -m compileall -q src/retarget examples
+pytest -q                # or: uv run pytest -q
+uv run mypy              # strict; the typed deep chain must stay clean
 ```
 
-Equivalent with uv:
+`pytest` adds `src/` via `pythonpath` in `pyproject.toml`.
 
-```bash
-uv run pytest -q
-```
+## Authoring schema (the only public scene model)
 
-### Demo/resampling/sync checks
+The package provides generic primitives:
 
-```bash
-pytest -q \
-  tests/test_demo_resampling.py \
-  tests/test_demo_contact.py \
-  tests/test_demo_mocap.py \
-  tests/test_demo.py \
-  tests/test_demo_container.py \
-  tests/test_demo_sync.py
-```
+- `TypedDict` bases: `Markers`, `Patches`, `Segments`, `Subjects`, and (demo
+  layer) `Tracks`.
+- frozen dataclasses: `Marker`, `Patch`, `Segment[MarkersT, PatchesT]`,
+  `Subject[SegmentsT]`.
 
-### Optional lint/type checks
-
-```bash
-uv run ruff check .
-uv run mypy src/retarget
-```
-
-Only claim a command passed if it actually ran.
-
-## Non-negotiable architecture principles
-
-### Static specs are reusable definitions
-
-`SegmentSpec[M, P]` is subject-independent. It defines segment-local marker vocabulary, patch vocabulary, static marker geometry, axis convention, patch calibrations, and built patch specs.
-
-Do not add `SubjectId` to `SegmentSpec`, `MarkerHandle`, or `PatchHandle`.
-
-### Runtime identity is subject-scoped
-
-Segment IDs are subject-local. Runtime state must disambiguate concrete segment instances with:
+Project/user code declares concrete schemas and instances:
 
 ```python
-SegmentKey(subject, segment)
+class ShoeMarkers(Markers):
+    heel: Marker
+    toe: Marker
+
+class ShoePatches(Patches):
+    sole: Patch
+    toe_contact: Patch
+
+class ShoeSegments(Segments):
+    shoe: Segment[ShoeMarkers, ShoePatches]
+
+class MocapSubjects(Subjects):
+    left_shoe: Subject[ShoeSegments]
 ```
 
-Do not key `SceneState` by bare `SegmentId`.
+`build_scene(subjects)` path-binds the authored schema (so `*_target(...)` and
+geometry inspection work) and returns the same `SubjectsT` type. Loading data
+(`load_mocap_track(root, subjects)`) returns a `MocapTrack[SubjectsT]` whose
+`.subjects` answers time-series queries.
 
-### Views combine static specs with runtime state
+`Marker`/`Patch`/`Segment`/`Subject` carry a private, non-init `_binding` that
+links them to loaded data. It is `None` while authoring and excluded from
+equality/repr, so the public constructors stay pure authoring
+(`Marker(vicon_name=...)`). Mutable lazy caches (if any) stay non-frozen.
 
-`SceneView` holds both `spec: SceneSpec` and `state: SceneState`.
+## Identity, targets, and runtime keys
 
-`SubjectView` holds both `subject_spec: SubjectSpec` and `state: SceneState`.
-
-Segment lookup must preserve both paths:
+Identity is the authored string name. Stable runtime keys are string-based
+dataclasses:
 
 ```python
-scene.subject(subject_id).segment(SEGMENT_SPEC)  # typed, preserves generics
-scene.subject(subject_id).segment(segment_id)    # ergonomic runtime lookup
+SegmentTarget(subject="left_shoe", segment="shoe")
+MarkerTarget(subject="left_shoe", segment="shoe", marker="heel")
+PatchTarget(subject="left_shoe", segment="shoe", patch="sole")
+SegmentKey(subject="left_shoe", segment="shoe")   # SceneState pose key
 ```
 
-Do not remove either path.
-
-### Concrete dataclasses are for human-friendly authoring
-
-Concrete project specs should use typed fields with domain names and generic traversal methods. Avoid concrete fields named `segment` because they shadow `SubjectSpec.segment(...)`.
-
-Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the full hierarchy is proven safe:
-
-```python
-SubjectSpec.segment(self.subject_spec, segment)
-```
-
-
-## Current architecture direction: typed schema authoring
-
-The next core-spec refactor should move toward a TypedDict-based schema authoring layer that compiles into normalized runtime specs. The goal is to make the user-authored scene hierarchy statically legible without making raw nested dictionaries the runtime model.
-
-Use this split:
-
-```text
-TypedDict schema declarations
-    -> build_scene(...) / compile step
-    -> SceneSpec / SubjectSpec / SegmentSpec
-    -> SceneView / SubjectView / SegmentView
-    -> SegmentTarget / MarkerTarget / PatchTarget
-```
-
-The package should provide generic primitives such as `Marker`, `Patch`, `Markers`, `Patches`, `Segment[MarkersT, PatchesT]`, `Subject[SegmentsT]`, `Subjects`, and `build_scene(...)`.
-
-User/project code should define only the concrete hierarchy, for example `ShoeMarkers`, `ShoePatches`, `ShoeSegments`, and `MocapSubjects`, then instantiate it and compile it with `build_scene(...)`.
-
-Do not make raw `TypedDict` values the long-term runtime API. Runtime code should still use normalized specs/views and stable targets for validation, iteration, serialization, contact-track keys, mocap state keys, and dynamic data loaded from files.
+Contact tracks key off `PatchTarget`. Scene pose state (`SceneState`) keys off
+`SegmentKey`. Do not reintroduce `MarkerHandle`/`PatchHandle` or enum-typed
+identity. `Segment.marker_target(...)`, `.patch_target(...)`,
+`.segment_target()`, and `Marker.target` / `Patch.target` build these from the
+binding.
 
 ## Demonstration containers
 
-`Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments. It should not become a workflow object.
+```python
+class GroundEstimationTracks(Tracks):
+    mocap: MocapTrack[GroundEstimationSubjects]
+    contacts: ContactTrack
 
-This repo is pre-public. Prefer the clean final typed API over compatibility shims.
+demo = build_demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
+demo.tracks["mocap"]      # statically typed
+demo["mocap"]             # secondary, string-keyed Track access
+demo.track_ids()          # ("mocap", "contacts")
+clip = demo.slice_time(0.0, 1.0)   # DemonstrationView (tracks typed as Track)
+```
 
-Canonical public API for typed demonstrations:
+`Demonstration[TracksT]` holds the typed `tracks` mapping and optional
+`alignments`. `slice_time(...)` returns a `DemonstrationView` whose `.tracks`
+values are sliced/view tracks typed through the common `Track` surface (honest,
+broad). To keep the typed deep chain after slicing, slice the *track*
+(`mocap.slice_time(...)` returns `MocapTrack[SubjectsT]`), not the demo.
+
+Do not add `with_alignments`, `with_track`, `align`, or `sync` methods. Use the
+free functions in `retarget.demo.sync`.
+
+## Batch queries
+
+Single-entity access is mapping-style; batch/`as_dict` are string methods on
+`Segment`:
 
 ```python
-demo.tracks["mocap"]
-mocap.subjects["left_shoe"]
-subject.segments["shoe"]
 segment.markers["heel"].positions()
-segment.patches["sole"].points()
+segment.marker_positions("heel", "toe")              # (T, 2, 3)
+segment.marker_positions("heel", "toe", as_dict=True)  # {"heel": (T,3), ...}
+segment.patch_points("sole")                          # (T, 1, 3)
+segment.patch_contacts("sole")                        # (T, 1) bool
 ```
 
-Enum-keyed demonstrations (backend loaders, generic tests) may still use bracket lookup:
+No enum-typed query helpers. No underscore "private" query API as the primary
+surface.
 
-```python
-demo[track_id]
-demo.track_ids()
-track_id in demo
-demo.slice_time(start, stop)
-```
+## Mocap resampling policy
 
-Do not reintroduce or advertise transitional names in public examples:
+`MocapTrack.resample_to(...)`:
 
-- `typed_tracks`
-- `get_track(...)`
-- `mocap.subject(...)` / `mocap.segment(...)` (core `scene.subject(...)` / `SubjectSpec.segment(...)` remain valid scene APIs)
-- `marker_positions(...)` / `patch_points(...)` as the primary mocap query API
-- `GroundEstimationTrackId` in canonical typed-first examples
+- segment translations: linear interpolation;
+- segment rotations: discrete nearest/previous sampling;
+- attached contacts: delegated to `ContactTrack.resample_to(...)`;
+- raw marker frames: dropped on resampled output.
 
-Dynamic/config-driven lookup is supported through mapping access with variable keys, not parallel method-style APIs.
-
-Keep internal track storage on `Demonstration._tracks`. Typed demonstrations expose authored schema tracks through `demo.tracks`. Use `track_ids()` or `track_id in demo` for read-only track-key inspection on enum-keyed demonstrations.
-
-Backend/manual examples may call private mocap helpers such as `_subject`, `_segment`, `_marker_positions`, and `_patch_points`, but those files must be clearly labeled backend/manual and must not present underscore helpers as normal user API.
-
-Keep runtime identity internal: compiled specs, generated IDs, handles, and targets. Strings are authored public field names, not internal identity.
-
-Do not expose private accessor names in public/editor-facing types. Use public view names such as `MocapMarkerTrackView` and `MocapPatchTrackView`.
-
-The canonical example (`examples/process_mocap_data/new_api_example.py`) must remain typed-first and should not regress to enum-backed or dynamic method-style access.
-
-Do **not** add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested. Prefer free functions in `retarget.demo.sync` for workflows.
-
-## Track IDs
-
-Tracks must be identified with typed string-enum IDs, not raw strings in public APIs.
-
-Use a base like:
-
-```python
-class TrackId(NameId):
-    """Base class for user-defined demonstration track identifiers."""
-```
-
-Concrete demo track IDs should look like:
-
-```python
-class GroundEstimationTrackId(TrackId):
-    MOCAP = "mocap"
-    CONTACT = "contact"
-```
-
-## Track/resampling protocol
-
-`Track.resample_to(...)` means:
-
-```python
-track.resample_to(
-    timestamps,              # sample positions in this track's native time basis
-    output_timestamps=None,  # optional labels for returned track
-)
-```
-
-For alignment-aware resampling, non-reference tracks sample at transformed source-time coordinates and label the output with reference timestamps.
-
-`DemonstrationView.resample_to(reference)` preserves the reference track as-is. Non-reference tracks must implement `resample_to(...)`.
-
-Generic resampling helpers belong in `retarget.demo.resampling`, not miscellaneous `utils/` sludge.
+Do not synthesize raw marker observations. Do not linearly interpolate rotation
+matrices without explicit SO(3) projection/tests.
 
 ## Contact tracks
 
-`ContactTrack` stores boolean contact state and optional confidence arrays keyed by `PatchTarget[Any]`.
-
-Contact resampling is discrete and uses `ResampleMethod.NEAREST` or `ResampleMethod.PREVIOUS`. Do not interpolate contact booleans.
-
-`ContactTrack` and `ContactTrackView` share query/resampling behavior through the private `_ContactQueryMixin`; concrete classes define visible contact/confidence arrays.
-
-## Mocap tracks
-
-Current mocap resampling policy:
-
-- translations: linear interpolation;
-- rotations: discrete nearest/previous sampling;
-- attached contacts: delegated to `ContactTrack.resample_to(...)`;
-- raw marker frames: intentionally dropped on resampled output.
-
-Do not synthesize raw marker frames during resampling.
-
-Do not linearly interpolate rotation matrices unless the code explicitly projects/re-normalizes and tests SO(3) behavior. Prefer a future quaternion/slerp implementation if smooth rotations become necessary.
+`ContactTrack` stores boolean contact state and optional confidence arrays keyed
+by `PatchTarget`. Resampling is discrete (`ResampleMethod.NEAREST`/`PREVIOUS`);
+never interpolate contact booleans. `ContactTrack`/`ContactTrackView` share
+query/resampling via `_ContactQueryMixin`.
 
 ## Alignment and sync
 
-`EnergySignal` is a named scalar time series. Callers decide how to collapse vector/spatial data into scalar energy.
+`EnergySignal` is a named scalar series; callers collapse vector data to scalar.
+`TimelineTransform` uses `to_reference(...)` / `to_source(...)`; `then(other)`
+applies `self` first. `TrackAlignment`, `SyncEdge`, `SyncPlan` are string-keyed.
+`SyncPlan` is a connected graph rooted at `reference` and rejects empty/self/
+duplicate/disconnected edges. `estimate_sync_and_resample_to_reference(...)` is
+the one-shot free-function workflow (estimate, compose to root, slice, resample);
+do not mutate `Demonstration`.
 
-`TimelineTransform` direction names are:
+## Backend/manual loaders
 
-```python
-to_reference(...)
-to_source(...)
-```
-
-Do not reintroduce `source_to_reference` or `reference_to_source` aliases.
-
-`SyncPlan` is a connected graph rooted at `reference`, not a star-only plan. It should reject self edges, duplicate directed edges, duplicate undirected edges, empty edge lists, and disconnected graphs.
-
-`estimate_sync_and_resample_to_reference(...)` is the one-shot free-function workflow: estimate sync, compose alignments to the root reference, slice, and resample onto reference time. Keep it a free function and do not mutate `Demonstration`.
-
-## Examples
-
-Examples should teach the generic demonstration pattern:
-
-- define typed `Tracks` / `Subjects` schemas and compile with `build_demonstration(...)` / `build_scene(...)`;
-- retrieve tracks with `demo.tracks["mocap"]` for typed demonstrations;
-- query mocap through mapping access: `mocap.subjects[...].segments[...].markers[...].positions()`;
-- backend/manual loaders may return enum-keyed `Demonstration[ProjectTrackId]`, use `demo[track_id]`, and inspect keys with `demo.track_ids()` or `track_id in demo`;
-- keep `new_api_example.py` typed-first; backend/manual scripts may use private mocap helpers only when clearly labeled internal.
-
-Do not create project-specific demo container classes unless explicitly requested.
+Backend loaders (e.g. `examples/process_mocap_data/backend_specs/`) author the
+*same* typed `Subjects`/`Tracks` schemas, but may derive geometry from real VSK
+files via `calibrate_patch_transform(...)` and `read_marker_positions_from_vsk`.
+They return typed `Demonstration[TracksT]`. They do not use enums or private
+query helpers.
 
 ## Tests
 
-Any behavior change needs tests. For resampling behavior, cover timestamp validation, nearest/previous behavior, view behavior, `output_timestamps` relabeling, and source-time sampling versus output-time labeling.
+Every behavior change needs tests. Cover schema authoring/targets, observed vs
+modeled marker positions, patch geometry, batch/`as_dict` queries, slicing
+(including empty slices), mocap resampling, contact resampling, sync graph
+validation + root composition + one-shot workflow, and the typed deep chain
+(`tests/test_typed_deep_chain.py` uses `assert_type`).
 
-For sync behavior, cover graph validation, pairwise alignment estimation, root-reference composition, reverse-edge inversion, missing tracks, and the one-shot sync-and-resample workflow.
+Do not reintroduce enum/handle/spec/view fixtures or transitional names
+(`TypedDemonstration`, `typed_tracks`, `get_track`, `GroundEstimationTrackId`,
+`._subject`, `._marker_positions`, …) anywhere.

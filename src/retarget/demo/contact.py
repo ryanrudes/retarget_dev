@@ -25,7 +25,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any
 
 import numpy as np
 
@@ -51,18 +50,18 @@ class _ContactQueryMixin:
     def timestamps(self) -> np.ndarray:
         raise NotImplementedError
 
-    def _visible_contacts(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_contacts(self) -> Mapping[PatchTarget, np.ndarray]:
         raise NotImplementedError
 
-    def _visible_confidences(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_confidences(self) -> Mapping[PatchTarget, np.ndarray]:
         raise NotImplementedError
 
     def state(
         self,
-        target: PatchTarget[Any] | Sequence[PatchTarget[Any]],
+        target: PatchTarget | Sequence[PatchTarget],
         *,
         return_dict: bool = False,
-    ) -> np.ndarray | Mapping[PatchTarget[Any], np.ndarray]:
+    ) -> np.ndarray | Mapping[PatchTarget, np.ndarray]:
         return _query_contact_mapping(
             self._visible_contacts(),
             target,
@@ -71,10 +70,10 @@ class _ContactQueryMixin:
 
     def confidence(
         self,
-        target: PatchTarget[Any] | Sequence[PatchTarget[Any]],
+        target: PatchTarget | Sequence[PatchTarget],
         *,
         return_dict: bool = False,
-    ) -> np.ndarray | Mapping[PatchTarget[Any], np.ndarray]:
+    ) -> np.ndarray | Mapping[PatchTarget, np.ndarray]:
         return _query_contact_mapping(
             self._visible_confidences(),
             target,
@@ -119,9 +118,9 @@ class _ContactQueryMixin:
 class ContactTrack(_ContactQueryMixin, Track):
     """Time-varying contact state keyed by scene-level patch targets."""
 
-    contacts: Mapping[PatchTarget[Any], np.ndarray]
+    contacts: Mapping[PatchTarget, np.ndarray]
     timestamps: np.ndarray
-    confidences: Mapping[PatchTarget[Any], np.ndarray] = field(default_factory=dict)
+    confidences: Mapping[PatchTarget, np.ndarray] = field(default_factory=dict)
     nominal_hz_override: float | None = None
 
     def __post_init__(self) -> None:
@@ -131,7 +130,7 @@ class ContactTrack(_ContactQueryMixin, Track):
             raise ValueError("timestamps must be a 1D array")
         validate_strictly_increasing_timestamps(timestamps)
         num_timesteps = len(timestamps)
-        frozen_contacts: dict[PatchTarget[Any], np.ndarray] = {}
+        frozen_contacts: dict[PatchTarget, np.ndarray] = {}
         for target, values in self.contacts.items():
             array = np.asarray(values)
             if array.shape != (num_timesteps,):
@@ -148,7 +147,7 @@ class ContactTrack(_ContactQueryMixin, Track):
                 "confidences contains targets not present in contacts: "
                 f"{unknown_confidence_targets}"
             )
-        frozen_confidences: dict[PatchTarget[Any], np.ndarray] = {}
+        frozen_confidences: dict[PatchTarget, np.ndarray] = {}
         for target, values in self.confidences.items():
             array = np.asarray(values)
             if array.shape != (num_timesteps,):
@@ -168,10 +167,10 @@ class ContactTrack(_ContactQueryMixin, Track):
     def _view_type(cls) -> type[ContactTrackView]:
         return ContactTrackView
 
-    def _visible_contacts(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_contacts(self) -> Mapping[PatchTarget, np.ndarray]:
         return self.contacts
 
-    def _visible_confidences(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_confidences(self) -> Mapping[PatchTarget, np.ndarray]:
         return self.confidences
 
 
@@ -183,17 +182,17 @@ class ContactTrackView(_ContactQueryMixin, TrackView[ContactTrack]):
     def timestamps(self) -> np.ndarray:
         return slice_timestamps(self.source.timestamps, self.indices)
 
-    def _visible_contacts(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_contacts(self) -> Mapping[PatchTarget, np.ndarray]:
         return _slice_contact_mapping(self.source.contacts, self.indices)
 
-    def _visible_confidences(self) -> Mapping[PatchTarget[Any], np.ndarray]:
+    def _visible_confidences(self) -> Mapping[PatchTarget, np.ndarray]:
         return _slice_contact_mapping(self.source.confidences, self.indices)
 
 
 def _slice_contact_mapping(
-    mapping: Mapping[PatchTarget[Any], np.ndarray],
+    mapping: Mapping[PatchTarget, np.ndarray],
     indices: tuple[int, ...],
-) -> Mapping[PatchTarget[Any], np.ndarray]:
+) -> Mapping[PatchTarget, np.ndarray]:
     index_list = list(indices)
     return {target: values[index_list] for target, values in mapping.items()}
 
@@ -201,8 +200,8 @@ def _slice_contact_mapping(
 def _resampled_contact_track(
     *,
     timestamps: np.ndarray,
-    contacts: Mapping[PatchTarget[Any], np.ndarray],
-    confidences: Mapping[PatchTarget[Any], np.ndarray],
+    contacts: Mapping[PatchTarget, np.ndarray],
+    confidences: Mapping[PatchTarget, np.ndarray],
     indices: np.ndarray,
 ) -> ContactTrack:
     return ContactTrack(
@@ -215,11 +214,11 @@ def _resampled_contact_track(
 
 
 def _query_contact_mapping(
-    mapping: Mapping[PatchTarget[Any], np.ndarray],
-    target: PatchTarget[Any] | Sequence[PatchTarget[Any]],
+    mapping: Mapping[PatchTarget, np.ndarray],
+    target: PatchTarget | Sequence[PatchTarget],
     *,
     return_dict: bool,
-) -> np.ndarray | Mapping[PatchTarget[Any], np.ndarray]:
+) -> np.ndarray | Mapping[PatchTarget, np.ndarray]:
     targets, is_many = normalize_entity_input(target, PatchTarget)
     arrays = [mapping[t] for t in targets]
     if not is_many and not return_dict:

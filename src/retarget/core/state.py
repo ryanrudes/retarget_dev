@@ -4,7 +4,6 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
 
-from retarget.core.enums import SegmentId, SubjectId
 from retarget.core.keys import SegmentKey
 from retarget.core.transform import RigidTransform
 
@@ -14,10 +13,6 @@ class SegmentPoseTrajectory:
     """Time-varying pose trajectory for one concrete segment instance."""
 
     poses: tuple[RigidTransform, ...]
-
-    def __post_init__(self) -> None:
-        if len(self.poses) == 0:
-            raise ValueError("SegmentPoseTrajectory requires at least one pose")
 
     def __len__(self) -> int:
         """Number of timesteps in the trajectory."""
@@ -39,7 +34,7 @@ class SegmentPoseTrajectory:
 
 @dataclass(frozen=True, slots=True)
 class SceneState:
-    """Runtime pose state for a scene."""
+    """Runtime pose state for a scene, keyed by compiled string segment names."""
 
     segment_poses: Mapping[SegmentKey, SegmentPoseTrajectory] = field(
         default_factory=dict
@@ -52,7 +47,7 @@ class SceneState:
             MappingProxyType(dict(self.segment_poses)),
         )
 
-    def pose(self, subject: SubjectId, segment: SegmentId) -> SegmentPoseTrajectory:
+    def pose(self, subject: str, segment: str) -> SegmentPoseTrajectory:
         return self.segment_poses[SegmentKey(subject, segment)]
 
     def pose_for_key(self, key: SegmentKey) -> SegmentPoseTrajectory:

@@ -1,11 +1,9 @@
-"""This backend/manual workflow uses internal mocap query helpers.
+"""Typed demo-track workflow over real VSK-derived bag data.
 
-It loads real VSK-derived marker calibration and bag data through enum-keyed
-``Demonstration`` access. Private mocap helpers such as ``_subject``,
-``_segment``, and ``_patch_points`` are shown here for backend validation only;
-they are not part of the public typed mapping API.
-
-For the public typed authoring and demo-track path, see ``new_api_example.py``.
+This loads real data through the backend ``load_ground_estimation_demo`` helper,
+then uses the public typed API: ``demo.tracks["mocap"]`` and the
+``mocap.subjects[...].segments[...]`` deep chain. Slicing the track (rather than
+the demo) preserves the typed schema, so the chain stays statically typed.
 """
 
 from __future__ import annotations
@@ -15,13 +13,6 @@ from pathlib import Path
 import numpy as np
 
 from backend_specs.ground_estimation_loader import load_ground_estimation_demo
-from backend_specs.vicon_scene import LEFT_SHOE_SEGMENT
-from backend_specs.vicon_vocab import (
-    LeftShoePatchId,
-    ViconSubjectId,
-)
-from demo_vocab import GroundEstimationTrackId
-
 
 UNBAGGED_DIR = (
     Path(__file__).resolve().parents[2]
@@ -32,36 +23,30 @@ UNBAGGED_DIR = (
 
 
 def main() -> None:
-    demo = load_ground_estimation_demo(UNBAGGED_DIR)
-    mocap = demo[GroundEstimationTrackId.MOCAP]
-    clip = demo.slice_time(0.0, 1.0)
-    mocap_clip = clip[GroundEstimationTrackId.MOCAP]
-    # Internal mocap query helpers (backend/manual only; not public API):
-    left_shoe = (
-        mocap_clip._subject(ViconSubjectId.LEFT_SHOE)
-        ._segment(LEFT_SHOE_SEGMENT)
-    )
-    sole_target = left_shoe.segment_view.patch_target(LeftShoePatchId.SOLE)
-    translations = left_shoe.translations()
-    rotations = left_shoe.rotations()
-    sole_points = left_shoe._patch_points(LeftShoePatchId.SOLE)
-    sole_normals = left_shoe._patch_normals(LeftShoePatchId.SOLE)
+    if not UNBAGGED_DIR.is_dir():
+        print(f"Skipping; no local bag found at {UNBAGGED_DIR}")
+        return
 
-    print("Demo track ids:", demo.track_ids())
+    demo = load_ground_estimation_demo(UNBAGGED_DIR)
+    mocap = demo.tracks["mocap"]
+    clip = mocap.slice_time(0.0, 1.0)
+
+    shoe = clip.subjects["left_shoe"].segments["shoe"]
+    translations = shoe.translations()
+    rotations = shoe.rotations()
+    sole = shoe.patches["sole"]
+    sole_points = sole.points()
+    sole_normals = sole.normals()
+
+    print("Track names:", demo.track_ids())
     print("Mocap timestamps:", np.asarray(mocap.timestamps[:5]))
-    print("Clip timestamps:", np.asarray(mocap_clip.timestamps[:5]))
+    print("Clip timestamps:", np.asarray(clip.timestamps[:5]))
     print("Left shoe translations shape:", translations.shape)
     print("Left shoe rotations shape:", rotations.shape)
     print("First left shoe translation:", translations[0])
     print("First sole point:", sole_points[0])
     print("First sole normal:", sole_normals[0])
-    print("Sole target:", sole_target)
-
-    if GroundEstimationTrackId.CONTACTS in demo:
-        contacts = clip[GroundEstimationTrackId.CONTACTS]
-        print("Contact timestamps:", np.asarray(contacts.timestamps[:5]))
-        print("Sole contact:", contacts.state(sole_target)[:5])
-        print("Sole confidence:", contacts.confidence(sole_target)[:5])
+    print("Sole target:", sole.target)
 
 
 if __name__ == "__main__":

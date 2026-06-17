@@ -37,7 +37,7 @@ class RectangularRegion(ContactRegion):
 
     def contains(self, xy: Vec2) -> bool:
         x, y = xy
-        return abs(x) <= self.width / 2 and abs(y) <= self.height / 2
+        return bool(abs(x) <= self.width / 2 and abs(y) <= self.height / 2)
 
 
 @dataclass(frozen=True, slots=True)

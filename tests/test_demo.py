@@ -14,14 +14,14 @@ from conftest import make_string_patch_target as _target, make_string_contact_tr
 
 def _contact_track(
     *,
-    target: PatchTarget[str],
+    target: PatchTarget,
     timestamps: list[float],
     contacts: list[bool],
     confidences: list[float],
 ) -> ContactTrack:
     track, _ = make_string_contact_track(
         timestamps=timestamps,
-        target_name=target.handle,
+        target_name=target.patch,
         contacts=contacts,
         confidences=confidences,
     )
@@ -157,7 +157,7 @@ def test_demonstration_view_resample_to_does_not_resample_reference_track() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=demo._tracks,
+        tracks=dict(demo.tracks),
         alignments=demo.alignments,
     )
 
@@ -195,7 +195,7 @@ def test_demonstration_view_resample_to_requires_non_reference_resampling() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=demo._tracks,
+        tracks=dict(demo.tracks),
         alignments=demo.alignments,
     )
 

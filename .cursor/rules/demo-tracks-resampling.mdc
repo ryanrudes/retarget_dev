@@ -1,5 +1,5 @@
 ---
-description: Rules for demonstration tracks, views, resampling, contact tracks, and mocap tracks.
+description: Rules for demonstration tracks, slicing, resampling, contact tracks, and mocap tracks.
 globs:
   - "src/retarget/demo/**/*.py"
   - "tests/test_demo*.py"
@@ -10,66 +10,53 @@ alwaysApply: true
 
 ## Demonstration containers
 
-`Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments, but it should not become a workflow object.
-
-Canonical typed public API:
+`Demonstration[TracksT: Tracks]` holds a typed `tracks` mapping and optional
+`alignments`. Canonical access:
 
 ```python
 demo.tracks["mocap"]
-mocap.subjects["left_shoe"]
-subject.segments["shoe"]
-segment.markers["heel"].positions()
+mocap.subjects["left_shoe"].segments["shoe"].markers["heel"].positions()
 segment.patches["sole"].points()
 ```
 
-Enum-keyed demonstrations may use `demo[track_id]`, `demo.track_ids()`, `track_id in demo`, and `demo.slice_time(start, stop)`.
+`demo["mocap"]` is secondary string-keyed `Track` access; `demo.track_ids()` and
+`"mocap" in demo` inspect keys. `slice_time(...)` returns a `DemonstrationView`
+whose `.tracks` values are typed through the `Track` surface.
 
-Do not reintroduce `typed_tracks`, public `get_track(...)`, or method-style mocap query APIs. Backend/manual examples may use private mocap helpers only when clearly labeled internal.
-
-Do not add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested.
+Do not reintroduce `TypedDemonstration`, `typed_tracks`, `get_track`, identifier
+enums, or method-style mocap queries. Do not add `with_alignments`/`with_track`/
+`align`/`sync` methods.
 
 ## Track protocol
 
-`Track.resample_to(...)` means:
-
 ```python
-track.resample_to(
-    timestamps,              # sample positions in this track's time basis
-    output_timestamps=None,  # optional labels for returned track
-)
+track.resample_to(timestamps, output_timestamps=None)
 ```
 
-For alignment-aware resampling, source tracks sample at transformed source times and label the output with reference timestamps.
-
-The reference track in `DemonstrationView.resample_to(reference)` is preserved as-is. Non-reference tracks must implement `resample_to(...)`.
+Source tracks sample at transformed source times and label output with reference
+timestamps. The reference track in `DemonstrationView.resample_to(reference)` is
+preserved as-is.
 
 ## Contact tracks
 
-Contact tracks are discrete:
-
-- state arrays are boolean;
-- confidence arrays are float;
-- keys are `PatchTarget`;
-- resampling uses `ResampleMethod.NEAREST` or `ResampleMethod.PREVIOUS`.
-
-Do not interpolate contact booleans. Nobody wants 0.43 contact except a bug report.
+Discrete: bool state arrays, float confidence arrays, keys are `PatchTarget`,
+resampling uses `ResampleMethod.NEAREST`/`PREVIOUS`. Never interpolate contact
+booleans.
 
 ## Mocap tracks
 
-Current mocap resampling policy:
+`MocapTrack[SubjectsT]` resampling policy:
 
 - translations: linear interpolation;
 - rotations: discrete nearest/previous sampling;
 - attached contacts: delegated to contact resampling;
 - raw marker frames: dropped.
 
-Do not synthesize raw marker frames on resample.
-
-Do not linearly interpolate rotation matrices unless the code explicitly projects/re-normalizes and tests SO(3) behavior. Prefer a future slerp implementation if smooth rotations become necessary.
+Slicing materializes a new `MocapTrack` (empty slices allowed). Do not synthesize
+raw marker frames; do not linearly interpolate rotation matrices without SO(3)
+projection/tests.
 
 ## Resampling utilities
 
-Generic resampling helpers belong in `retarget.demo.resampling`, not random `utils/` sludge.
-
-Keep error text generic in that module. No `ContactTrack`-specific wording in shared utilities.
-
+Generic resampling helpers live in `retarget.demo.resampling`. Keep error text
+generic there (no `ContactTrack`-specific wording in shared utilities).

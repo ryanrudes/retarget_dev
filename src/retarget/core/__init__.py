@@ -11,20 +11,10 @@ from retarget.core.axes import (
     ISAAC_AXES,
 )
 from retarget.core.enums import (
-    NameId,
-    SubjectId,
-    SegmentId,
-    MarkerId,
-    PatchId,
-    TrackId,
     MarkerRole,
     RotationFormat,
     PoseFormat,
     QuaternionOrder,
-)
-from retarget.core.handles import (
-    MarkerHandle,
-    PatchHandle,
 )
 from retarget.core.contact_region import (
     ContactRegion,
@@ -32,22 +22,11 @@ from retarget.core.contact_region import (
     PolygonalRegion,
 )
 from retarget.core.keys import SegmentKey
-from retarget.core.specs import (
-    MarkerSpec,
-    MarkerSetSpec,
-    PatchDeclarationSpec,
-    PatchSpec,
-    PatchCalibrationSpec,
-    SegmentSpec,
-    SubjectSpec,
-    SceneSpec,
-)
 from retarget.core.state import (
     SegmentPoseTrajectory,
     SceneState,
 )
 from retarget.core.schema import (
-    GeneratedIds,
     Marker,
     Markers,
     Patch,
@@ -57,12 +36,8 @@ from retarget.core.schema import (
     Subject,
     Subjects,
     build_scene,
-    marker_external_name,
-    marker_from_external_name,
-    marker_from_vicon_name,
-    segment_external_name,
-    subject_external_name,
 )
+from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import (
     RigidTransform,
@@ -87,22 +62,9 @@ from retarget.core.types import (
     TimeBool,
     TimeEntityBool,
 )
-from retarget.core.views import (
-    SceneView,
-    SubjectView,
-    SegmentView,
-    MarkerView,
-    PatchView,
-)
 
 __all__ = [
-    # Enums / IDs
-    "NameId",
-    "SubjectId",
-    "SegmentId",
-    "MarkerId",
-    "PatchId",
-    "TrackId",
+    # Value enums
     "MarkerRole",
     "RotationFormat",
     "PoseFormat",
@@ -136,9 +98,7 @@ __all__ = [
     # Transform
     "RigidTransform",
 
-    # Handles / keys
-    "MarkerHandle",
-    "PatchHandle",
+    # Keys
     "SegmentKey",
 
     # Contact regions
@@ -146,7 +106,7 @@ __all__ = [
     "RectangularRegion",
     "PolygonalRegion",
 
-    # Authoring schema
+    # Authoring schema + bound runtime surface
     "Markers",
     "Patches",
     "Segments",
@@ -156,28 +116,15 @@ __all__ = [
     "Segment",
     "Subject",
     "build_scene",
-    "GeneratedIds",
-    "marker_external_name",
-    "marker_from_external_name",
-    "marker_from_vicon_name",
-    "segment_external_name",
-    "subject_external_name",
 
-    # Specs
-    "MarkerSpec",
-    "MarkerSetSpec",
-    "PatchDeclarationSpec",
-    "PatchSpec",
-    "PatchCalibrationSpec",
-    "SegmentSpec",
-    "SubjectSpec",
-    "SceneSpec",
+    # Calibration (backend helper)
+    "calibrate_patch_transform",
 
     # State
     "SegmentPoseTrajectory",
     "SceneState",
 
-    # Targets
+    # Targets (stable runtime keys)
     "SegmentTarget",
     "MarkerTarget",
     "PatchTarget",
@@ -186,11 +133,4 @@ __all__ = [
     "MarkerTranslation",
     "BodyFrameTranslation",
     "SemanticAxisTranslation",
-
-    # Views
-    "SceneView",
-    "SubjectView",
-    "SegmentView",
-    "MarkerView",
-    "PatchView",
 ]

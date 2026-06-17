@@ -1,3 +1,11 @@
+"""Canonical typed-first example: author a scene, then query a loaded demo.
+
+The whole public surface is the typed schema: ``demo.tracks["mocap"]`` is a
+``MocapTrack[MocapSubjects]``, and the deep chain
+``mocap.subjects["left_shoe"].segments["shoe"].markers["heel"].positions()`` is
+statically typed end to end. No identifier enums, no codegen.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -14,8 +22,7 @@ from retarget.core import (
     Subjects,
     build_scene,
 )
-from retarget.demo import Tracks, build_demonstration, load_mocap_track
-from retarget.demo.mocap import MocapTrack
+from retarget.demo import MocapTrack, Tracks, build_demonstration, load_mocap_track
 from retarget.io import UnbaggedDirectory
 
 
@@ -67,7 +74,7 @@ class GroundEstimationSubjects(Subjects):
 
 
 class GroundEstimationTracks(Tracks):
-    mocap: MocapTrack
+    mocap: MocapTrack[GroundEstimationSubjects]
 
 
 # ----------------------------
@@ -170,27 +177,18 @@ subjects = MocapSubjects(
 
 
 # ----------------------------
-# Compile into runtime spec
+# Build (path-bind) the scene for static target/geometry access
 # ----------------------------
 
 scene = build_scene(subjects)
 
-left_shoe_spec = scene.subject("left_shoe")
-shoe_spec = left_shoe_spec.segment("shoe")
-
-heel_handle = shoe_spec.marker("heel")
-sole_handle = shoe_spec.patch("sole")
-sole_label = shoe_spec.patch_label("sole")
-toe_target = shoe_spec.patch_target("toe_contact")
-# shoe_spec.patch_spec("toe_contact") would raise because that patch is declaration-only.
-
-shoe_target = shoe_spec.segment_target()
+shoe_spec = scene["left_shoe"].segments["shoe"]
 heel_target = shoe_spec.marker_target("heel")
 sole_target = shoe_spec.patch_target("sole")
+toe_target = shoe_spec.patch_target("toe_contact")  # declaration-only patch is still targetable
 
-print("Runtime handles:", heel_handle, sole_handle)
-print("Runtime patch label:", sole_label)
-print("Runtime targets:", shoe_target, heel_target, sole_target, toe_target)
+print("Marker target:", heel_target)
+print("Patch targets:", sole_target, toe_target)
 
 
 # ----------------------------
@@ -201,14 +199,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 if UNBAGGED_DIR.is_dir():
-    # The sample bag only contains the left shoe, so build a loadable subset
-    # from the same authored schema instead of forcing absent subjects through
-    # the loader.
+    # The sample bag only contains the left shoe, so load a subset built from the
+    # same authored schema.
     loadable_subjects = GroundEstimationSubjects(left_shoe=subjects["left_shoe"])
-    loadable_scene = build_scene(loadable_subjects)
     root = UnbaggedDirectory(UNBAGGED_DIR)
-    mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
-    demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
+    mocap_track = load_mocap_track(root, loadable_subjects).with_rebased_time()
+    demo = build_demonstration(GroundEstimationTracks(mocap=mocap_track))
+
     mocap = demo.tracks["mocap"]
     left_shoe = mocap.subjects["left_shoe"]
     shoe = left_shoe.segments["shoe"]
@@ -228,8 +225,7 @@ else:
 # Stable runtime keys
 # ----------------------------
 
-# These are stable keys for runtime data structures:
-#
-# contacts: dict[PatchTarget, BoolArray]
-# marker_observations: dict[MarkerTarget, FloatArray]
-# segment_poses: dict[SegmentTarget, SegmentPoseTrajectory]
+# These targets are stable keys for runtime data structures:
+#   contacts: dict[PatchTarget, BoolArray]
+#   marker_observations: dict[MarkerTarget, FloatArray]
+#   segment_poses: dict[SegmentTarget, SegmentPoseTrajectory]

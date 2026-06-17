@@ -2,7 +2,6 @@
 description: Guardrails for demonstration containers, tracks, alignment, resampling, mocap, and contact state.
 globs:
   - "src/retarget/demo/**/*.py"
-  - "src/retarget/contact/**/*.py"
   - "src/retarget/core/**/*.py"
   - "examples/**/*.py"
   - "tests/**/*.py"
@@ -11,160 +10,100 @@ alwaysApply: true
 
 # Demonstration pipeline rules
 
-The demonstration layer should make multimodal, time-indexed demonstrations easy to load, slice, align, resample, and query while preserving typed domain abstractions.
-
-Do not design only for the current Vicon shoe example. Also do not over-generalize so hard that the common case becomes unreadable. Walk the annoying middle path.
+The demonstration layer loads, slices, aligns, resamples, and queries
+multimodal demonstrations while keeping the typed schema as the only public
+surface.
 
 ## Demonstration containers
 
-`Demonstration[K]` owns typed track IDs mapped to `Track` instances. It may carry alignments, but it should not become a workflow object.
-
-This repo is pre-public. Prefer the clean final typed API over compatibility shims.
+```python
+@dataclass(frozen=True, slots=True)
+class Demonstration[TracksT: Tracks = Tracks]:
+    tracks: TracksT
+    alignments: tuple[TrackAlignment, ...] = ()
+```
 
 Canonical public API:
 
 ```python
-demo.tracks["mocap"]
-mocap.subjects["left_shoe"]
-subject.segments["shoe"]
-segment.markers["heel"].positions()
-segment.patches["sole"].points()
+demo = build_demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
+demo.tracks["mocap"]          # statically typed from TracksT
+demo["mocap"]                 # secondary, string-keyed Track access
+demo.track_ids()              # ("mocap", "contacts")
+"mocap" in demo
+clip = demo.slice_time(0.0, 1.0)   # DemonstrationView
 ```
 
-Enum-keyed demonstrations may still use `demo[track_id]`, `demo.track_ids()`, `track_id in demo`, and `demo.slice_time(start, stop)`.
+`DemonstrationView.tracks` is `Mapping[str, Track]` (honest, broad). To preserve
+the typed deep chain after slicing, slice the *track*
+(`mocap.slice_time(...) -> MocapTrack[SubjectsT]`).
 
-Do not reintroduce transitional public names: `typed_tracks`, `get_track(...)`, method-style mocap `subject(...)` / `segment(...)`, or `marker_positions(...)` / `patch_points(...)` as the primary query API. Core `scene.subject(...)` / `SubjectSpec.segment(...)` remain valid scene APIs.
+Do not reintroduce `TypedDemonstration`, `typed_tracks`, `get_track`,
+`_get_track`, `_generated_ids`, identifier enums, or enum-keyed
+`Demonstration[TrackId]`. Do not add `with_alignments`, `with_track`, `align`, or
+`sync` methods — use free functions in `retarget.demo.sync`.
 
-Backend/manual examples may use private mocap helpers (`_subject`, `_segment`, `_marker_positions`, `_patch_points`) only when clearly labeled internal.
-
-Dynamic/config-driven lookup uses mapping access with variable keys.
-
-Do not add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested. Use free functions in `retarget.demo.sync` for workflows.
-
-## Track IDs
-
-Tracks must use typed string enum IDs.
+## Track protocol
 
 ```python
-class GroundEstimationTrackId(TrackId):
-    MOCAP = "mocap"
-    CONTACT = "contact"
+track.resample_to(timestamps, output_timestamps=None)
 ```
 
-Avoid raw string track keys in public APIs. Tests may use strings when they are intentionally generic.
+`timestamps` are sample positions in the track's native time basis;
+`output_timestamps` optionally relabels the returned track. The reference track
+in `DemonstrationView.resample_to(reference)` is preserved as-is; non-reference
+tracks must implement `resample_to`.
 
-## Query methods
+## Mocap queries
 
-Mocap public query access is mapping-style on typed track views:
+Single-entity access is mapping-style; batch/`as_dict` are string methods on
+`Segment`:
 
 ```python
-segment.markers["heel"].positions()
-segment.markers["heel"].velocities()
-segment.patches["sole"].points()
-segment.patches["sole"].normals()
+segment.translations(); segment.rotations(); segment.poses()
+segment.markers["heel"].positions(); segment.markers["heel"].velocities()
+segment.patches["sole"].points(); segment.patches["sole"].normals()
+segment.marker_positions("heel", "toe", as_dict=True)
+segment.patch_points("sole"); segment.patch_contacts("sole")
 ```
 
-Segment-level pose queries remain on `MocapSegmentTrackView`:
-
-```python
-segment.translations()
-segment.rotations()
-segment.poses()
-```
-
-Batch or internal query helpers may remain private (`_marker_positions`, `_patch_points`, etc.).
-
-Do not make high-level demo users call low-level free functions for ordinary queries.
+No enum-typed query helpers and no underscore "private" query API as the primary
+surface.
 
 ## Array layout
 
-Internal canonical layout is time-major:
-
-- `(T,)` for scalar/bool time series;
-- `(T, 3)` for one vector signal;
-- `(T, N, 3)` for multiple vector signals;
-- `(T, 3, 3)` for rotation matrices;
-- `(T, 4)` for quaternions;
-- `(T, N)` for multiple scalar/bool signals.
-
+Time-major: `(T,)`, `(T, 3)`, `(T, N, 3)`, `(T, 3, 3)`, `(T, 4)`, `(T, N)`.
 Validate shapes at construction boundaries.
 
-## Resampling
-
-Tracks have native timelines. Alignment maps timelines. Resampling materializes tracks on a chosen output timeline.
-
-`Track.resample_to(...)` contract:
-
-```python
-track.resample_to(
-    timestamps,              # sample positions in this track's native time basis
-    output_timestamps=None,  # optional labels for returned track
-)
-```
-
-`DemonstrationView.resample_to(reference)` uses the reference track timestamps as the output grid. It preserves the reference track as-is. Every non-reference track must have a direct alignment to the reference and implement `resample_to(...)`.
-
-Do not assume all tracks are synchronized at load time.
-
-## Contact state
-
-`ContactTrack` is a derived, discrete track keyed by `PatchTarget[Any]`.
-
-Internal shape:
-
-```python
-contacts: Mapping[PatchTarget[Any], np.ndarray]      # bool arrays, shape (T,)
-confidences: Mapping[PatchTarget[Any], np.ndarray]   # float arrays, shape (T,)
-```
-
-Contact resampling uses `ResampleMethod.NEAREST` or `ResampleMethod.PREVIOUS`. Do not interpolate contact booleans.
-
-`ContactTrack` and `ContactTrackView` share public query/resampling behavior via `_ContactQueryMixin`; concrete classes expose visible contact/confidence arrays.
-
-Future contact detection should produce a `ContactTrack` from patch/mocap time series. Do not store contact data as arbitrary metadata on demonstrations, mocap tracks, or marker arrays.
-
 ## Mocap resampling
-
-Current `MocapTrack.resample_to(...)` policy:
 
 - segment translations: linear interpolation;
 - segment rotations: discrete nearest/previous sampling;
 - attached contacts: delegated to contact resampling;
 - raw marker frames: dropped.
 
-Do not synthesize raw marker observations. Do not linearly interpolate rotation matrices unless the implementation explicitly projects/re-normalizes and tests SO(3) behavior.
+Do not synthesize raw marker observations. Do not linearly interpolate rotation
+matrices without explicit SO(3) projection/tests.
+
+## Contact state
+
+`ContactTrack` keys boolean contact arrays (and optional float confidences) by
+`PatchTarget`. Resampling is discrete (`ResampleMethod.NEAREST`/`PREVIOUS`).
+Never interpolate contact booleans. `ContactTrack`/`ContactTrackView` share
+behavior via `_ContactQueryMixin`.
 
 ## Alignment and sync
 
-Energy signals are scalar time series extracted from tracks or views. Callers must decide how vector/spatial data becomes scalar energy.
+`EnergySignal` is a scalar series; callers collapse vector data. Transform
+directions are `to_reference(...)` / `to_source(...)`. `TrackAlignment`,
+`SyncEdge`, `SyncPlan` are string-keyed. `SyncPlan` is a connected graph rooted
+at `reference`. `estimate_sync_and_resample_to_reference(...)` is the one-shot
+free-function workflow; do not mutate `Demonstration`.
 
-Expected timeline transform direction names:
+## Examples
 
-```python
-to_reference(...)
-to_source(...)
-```
-
-Do not reintroduce `source_to_reference` or `reference_to_source` aliases.
-
-`SyncPlan` is a connected graph rooted at `reference`, not a star-only plan.
-
-`estimate_sync_and_resample_to_reference(...)` is the free-function one-shot workflow:
-
-1. estimate sync;
-2. compose alignments to root reference;
-3. slice;
-4. resample onto reference time.
-
-Keep it a free function. Do not mutate `Demonstration`.
-
-## Example demo pattern
-
-Examples should teach the generic demonstration pattern:
-
-- define typed `Tracks` / `Subjects` schemas;
-- compile with `build_demonstration(...)` and `build_scene(...)`;
-- retrieve tracks with `demo.tracks["mocap"]`;
-- query mocap through mapping access on track views.
-
-Do not define project-specific demo container classes in ordinary examples. Do not duplicate generic container behavior in examples.
+Examples teach the typed pattern: declare `Subjects`/`Tracks`, compile with
+`build_scene`/`build_demonstration`, query via `demo.tracks["mocap"]` and the
+`mocap.subjects[...].segments[...]` chain. Backend/manual loaders author the same
+typed schema (deriving geometry from VSK) and return typed
+`Demonstration[TracksT]`.

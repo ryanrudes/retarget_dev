@@ -6,21 +6,18 @@ from retarget.demo.alignment import (
     TrackAlignment,
     estimate_alignment_from_signals,
 )
-from retarget.demo.authoring import Tracks, build_demonstration
 from retarget.demo.contact import ContactTrack, ContactTrackView
-from retarget.demo.demo import Demonstration, DemonstrationView
-from retarget.demo.loaders import load_mocap_track
-from retarget.demo.mocap import (
-    MocapMarkerTrackView,
-    MocapPatchTrackView,
-    MocapSegmentTrackView,
-    MocapSubjectTrackView,
-    MocapTrack,
-    MocapTrackView,
+from retarget.demo.demo import (
+    Demonstration,
+    DemonstrationView,
+    Tracks,
+    build_demonstration,
 )
+from retarget.demo.loaders import load_mocap_track
+from retarget.demo.mocap import MocapTrack
 from retarget.demo.tracks import (
-    TrackSyncInfo,
     Track,
+    TrackSyncInfo,
     TrackView,
 )
 from retarget.demo.sync import (
@@ -33,39 +30,28 @@ from retarget.demo.sync import (
 )
 
 __all__ = [
-    "ContactTrack",
-    "ContactTrackView",
+    # Containers
+    "Demonstration",
+    "DemonstrationView",
     "Tracks",
     "build_demonstration",
 
-    # retarget.demo.demo
-    "Demonstration",
-    "DemonstrationView",
-
-
-    "EnergySignal",
-    "load_mocap_track",
-
-
-    # retarget.demo.mocap
+    # Tracks
     "MocapTrack",
-    "MocapTrackView",
-    "MocapMarkerTrackView",
-    "MocapPatchTrackView",
-    "MocapSegmentTrackView",
-    "MocapSubjectTrackView",
-
-    # retarget.demo.tracks
-    "TrackSyncInfo",
+    "ContactTrack",
+    "ContactTrackView",
     "Track",
     "TrackView",
+    "TrackSyncInfo",
+    "load_mocap_track",
 
-    # retarget.demo.alignment
+    # Alignment
+    "EnergySignal",
     "TimelineTransform",
     "TrackAlignment",
     "estimate_alignment_from_signals",
 
-    # retarget.demo.sync
+    # Sync
     "SyncEdge",
     "SyncPlan",
     "compose_alignments_to_reference",

@@ -1,5 +1,5 @@
 ---
-description: TypedDict schema authoring, runtime specs, and target identity rules.
+description: TypedDict schema authoring, dual-purpose dataclasses, and string-based target identity.
 globs:
   - "src/retarget/**/*.py"
   - "examples/**/*.py"
@@ -7,28 +7,25 @@ globs:
 alwaysApply: true
 ---
 
-# Schema authoring and runtime target rules
+# Schema authoring and target rules
 
-This project is moving toward a two-layer scene-spec model:
+The model is one layer, not three:
 
 ```text
-TypedDict schema declarations
-    -> build_scene(...) / compile step
-    -> SceneSpec / SubjectSpec / SegmentSpec
-    -> SceneView / SubjectView / SegmentView
-    -> SegmentTarget / MarkerTarget / PatchTarget
+TypedDict schema declarations (Markers/Patches/Segments/Subjects/Tracks)
+  + frozen dataclasses (Marker/Patch/Segment/Subject)
+ -> build_scene(...) path-binds          (targets + geometry)
+ -> load_mocap_track(...) data-binds     (MocapTrack[SubjectsT])
+ -> demo.tracks[...] / mocap.subjects[...].segments[...].markers[...]
+ -> MarkerTarget / PatchTarget / SegmentTarget   (stable string keys)
 ```
 
-The purpose is to make the authored hierarchy statically visible to Python type checkers while preserving a normalized, behavior-rich runtime model. Do not confuse those layers. That way lies nested-dict soup, and nobody needs that kind of lunch.
+There is no separate `SegmentSpec`/`SceneView`/handle layer and no identifier
+enums.
 
 ## Package-provided primitives
 
-The package should provide generic authoring primitives, not project-specific schemas:
-
 ```python
-from dataclasses import dataclass
-from typing import TypedDict
-
 class Markers(TypedDict): ...
 class Patches(TypedDict): ...
 class Segments(TypedDict): ...
@@ -37,27 +34,31 @@ class Subjects(TypedDict): ...
 @dataclass(frozen=True, slots=True)
 class Marker:
     vicon_name: str
+    position_segment: Vec3 | None = field(default=None, compare=False)
+    # private non-init _binding links to loaded data
 
 @dataclass(frozen=True, slots=True)
 class Patch:
     label: str
+    transform_segment_patch: RigidTransform | None = ...
+    region: ContactRegion | None = ...
     frame: str | None = None
 
 @dataclass(frozen=True, slots=True)
 class Segment[MarkersT: Markers, PatchesT: Patches]:
     markers: MarkersT
     patches: PatchesT
+    vicon_name: str | None = None
 
 @dataclass(frozen=True, slots=True)
 class Subject[SegmentsT: Segments]:
     segments: SegmentsT
+    vicon_name: str | None = None
 ```
 
-Use PEP 695 syntax for new generics. Do not introduce fresh `TypeVar` aliases for these primitives unless a type checker limitation forces it.
+Use PEP 695 syntax. Do not add identifier enums or `TypeVar` aliases.
 
-## User/project-authored schemas
-
-Project code should define concrete `TypedDict` schemas and instances:
+## User/project schemas
 
 ```python
 class ShoeMarkers(Markers):
@@ -76,56 +77,33 @@ class MocapSubjects(Subjects):
     right_shoe: Subject[ShoeSegments]
 ```
 
-Left and right instances should reuse the same schema when they share structure. Do not create duplicate enum/schema families just because subject names differ.
+Reuse one schema for structurally identical subjects (e.g. both shoes).
 
 ## Patches
 
-Patches are siblings of markers under a segment:
+Patches are siblings of markers under a segment. `Patch(label=...)` is
+declaration-only (targetable, but `.points()`/`.normals()` raise once bound).
+`Patch.rectangular(transform_segment_patch=..., width=..., height=...)` is
+calibrated. Backends may compute the transform with
+`calibrate_patch_transform(...)`.
 
-```text
-Subject
-  Segment
-    Markers
-    Patches
-```
-
-Do not model patches as subjects, tracks, or marker metadata. A segment owns both typed marker vocabulary and typed patch vocabulary.
-
-## Compile to runtime specs
-
-A function such as `build_scene(subjects)` should compile the typed authoring schema into normalized runtime specs:
+## Runtime traversal and queries
 
 ```python
-scene = build_scene(subjects)
-```
-
-Runtime specs should support behavior that raw `TypedDict` cannot provide cleanly:
-
-- validation of targets;
-- iteration over subjects, segments, markers, and patches;
-- serialization/deserialization;
-- dynamic lookups from loaded files;
-- stable keys for time-series data;
-- view construction;
-- error messages with full labels.
-
-## Runtime traversal
-
-After compilation, normal runtime usage should be method-based and behavior-rich:
-
-```python
-shoe = scene.subject("left_shoe").segment("shoe")
-heel_marker = shoe.marker("heel")
-sole_patch = shoe.patch("sole")
+scene = build_scene(subjects)                    # path-bound, dataless
+shoe = scene["left_shoe"].segments["shoe"]
 heel_target = shoe.marker_target("heel")
 sole_target = shoe.patch_target("sole")
+
+mocap = demo.tracks["mocap"]                      # bound to data
+shoe = mocap.subjects["left_shoe"].segments["shoe"]
+shoe.markers["heel"].positions()                 # single
+shoe.marker_positions("heel", "toe", as_dict=True)  # batch, string-keyed
+shoe.patches["sole"].points()
+shoe.translations()
 ```
 
-TypedDict indexing is fine in schema authoring code. Runtime algorithms should prefer specs/views/targets.
-
 ## Stable targets
-
-Keep concrete runtime targets for stored references and time-series keys:
 
 ```python
 SegmentTarget(subject="left_shoe", segment="shoe")
@@ -133,19 +111,6 @@ MarkerTarget(subject="left_shoe", segment="shoe", marker="heel")
 PatchTarget(subject="left_shoe", segment="shoe", patch="sole")
 ```
 
-Contact tracks should be keyed by `PatchTarget`. Mocap poses should be keyed by `SegmentTarget`. Marker observations, when keyed, should use `MarkerTarget`.
-
-Do not replace these with raw nested dictionaries in runtime data structures.
-
-## Migration guidance
-
-When implementing this refactor:
-
-1. Add package primitives first.
-2. Add `build_scene(...)` and normalized runtime specs/views.
-3. Add tests proving typed schema authoring still compiles to expected targets.
-4. Migrate examples to the new authoring syntax.
-5. Keep old APIs temporarily only if needed for compatibility tests.
-6. Do not rewrite demo sync/resampling/contact behavior as part of this change.
-
-Keep the change focused. If a task starts modifying alignment, mocap resampling, contact algorithms, and schema authoring at once, the agent is probably decorating a dumpster fire with generics.
+Contact tracks key by `PatchTarget`; mocap pose state by `SegmentKey`. Do not
+reintroduce handles or enum-typed identity. Authored strings are public field
+names; targets/keys are the runtime identity mechanism.

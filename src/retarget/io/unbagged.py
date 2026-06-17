@@ -3,26 +3,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, overload
+from typing import Any, cast
 
 import numpy as np
 import orjson
 from scipy.spatial.transform import Rotation
 
-from retarget.core import (
-    MarkerId,
-    SegmentSpec,
-    SegmentView,
-    SubjectId,
-    Vec3,
-    segment_external_name,
-    subject_external_name,
-)
-from retarget.core.enums import SegmentId
 from retarget.core.keys import SegmentKey
-from retarget.core.specs import SceneSpec
+from retarget.core.schema import Segment, Subject, Subjects
 from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.transform import RigidTransform
+from retarget.core.types import Vec3
 
 
 TF_FILENAME = "tf.json"
@@ -86,19 +77,10 @@ def rigid_transform_from_ros_json(transform: Mapping[str, Any]) -> RigidTransfor
     rotation = transform["rotation"]
     return RigidTransform.from_rotation_translation(
         rotation=Rotation.from_quat(
-            [
-                rotation["x"],
-                rotation["y"],
-                rotation["z"],
-                rotation["w"],
-            ]
+            [rotation["x"], rotation["y"], rotation["z"], rotation["w"]]
         ).as_matrix(),
         translation=np.array(
-            [
-                translation["x"],
-                translation["y"],
-                translation["z"],
-            ]
+            [translation["x"], translation["y"], translation["z"]]
         ),
     )
 
@@ -109,7 +91,7 @@ def parse_tf_child_frame(
     tf_prefix: str = "vicon",
 ) -> tuple[str, str]:
     """
-    Parse a Vicon TF child frame into subject and segment names.
+    Parse a Vicon TF child frame into subject and segment external names.
 
     Expected format: ``{tf_prefix}/{subject_name}/{segment_name}``.
     """
@@ -128,47 +110,51 @@ def parse_tf_child_frame(
 
 
 def tf_child_frame_id(
-    subject: SubjectId,
-    segment: SegmentId,
+    subject_name: str,
+    segment_name: str,
     *,
     tf_prefix: str = "vicon",
 ) -> str:
-    """Build the TF child frame id for one subject/segment pair."""
-    return f"{tf_prefix}/{subject.label}/{segment.label}"
+    """Build the TF child frame id for one subject/segment external-name pair."""
+    return f"{tf_prefix}/{subject_name}/{segment_name}"
+
+
+def _segment_keys_by_external_name(
+    subjects: Subjects,
+) -> dict[tuple[str, str], SegmentKey]:
+    """Map (external subject name, external segment name) -> compiled SegmentKey."""
+    mapping: dict[tuple[str, str], SegmentKey] = {}
+    for subject_name, subject in cast(Mapping[str, Subject[Any]], subjects).items():
+        subject_external = subject.vicon_name or subject_name
+        segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
+        for segment_name, segment in segments.items():
+            segment_external = segment.vicon_name or segment_name
+            key = SegmentKey(subject_name, segment_name)
+            label_pair = (subject_external, segment_external)
+            previous = mapping.get(label_pair)
+            if previous is not None and previous != key:
+                raise ValueError(
+                    "Duplicate external subject/segment names in scene: "
+                    f"{label_pair[0]!r}/{label_pair[1]!r} resolves to both "
+                    f"{previous.subject!r}/{previous.segment!r} and "
+                    f"{key.subject!r}/{key.segment!r}"
+                )
+            mapping[label_pair] = key
+    return mapping
 
 
 def load_segment_pose_trajectories(
     export: UnbaggedDirectory,
-    scene: SceneSpec,
+    subjects: Subjects,
     *,
     tf_prefix: str = "vicon",
 ) -> dict[SegmentKey, SegmentPoseTrajectory]:
     """Load world-from-segment pose trajectories for all scene segments."""
     messages = export.load_tf_messages()
-    subjects = tuple(scene.iter_subjects())
-    expected_keys = {
-        SegmentKey(subject.subject, segment.segment)
-        for subject in subjects
-        for segment in subject.iter_segments()
-    }
+    key_by_label_pair = _segment_keys_by_external_name(subjects)
     poses_by_key: dict[SegmentKey, list[RigidTransform]] = {
-        key: [] for key in expected_keys
+        key: [] for key in key_by_label_pair.values()
     }
-    key_by_label_pair: dict[tuple[str, str], SegmentKey] = {}
-    for subject in subjects:
-        subject_name = subject_external_name(subject)
-        for segment in tuple(subject.iter_segments()):
-            key = SegmentKey(subject.subject, segment.segment)
-            label_pair = (subject_name, segment_external_name(segment))
-            previous = key_by_label_pair.get(label_pair)
-            if previous is not None and previous != key:
-                raise ValueError(
-                    "Duplicate external subject/segment names in scene spec: "
-                    f"{label_pair[0]!r}/{label_pair[1]!r} resolves to both "
-                    f"{previous.subject!r}/{previous.segment!r} and "
-                    f"{key.subject!r}/{key.segment!r}"
-                )
-            key_by_label_pair[label_pair] = key
 
     # TODO: Parse timestamp keys into numeric time values before sorting if the
     # export format ever stops using lexicographically sortable keys.
@@ -179,14 +165,13 @@ def load_segment_pose_trajectories(
             tf_prefix=tf_prefix,
         )
         pose = rigid_transform_from_ros_json(message["transform"])
-
         label_pair = (subject_name, segment_name)
         try:
             key = key_by_label_pair[label_pair]
         except KeyError as exc:
             raise KeyError(
                 f"TF frame '{message['child_frame_id']}' at {timestamp_key} "
-                f"does not match any segment in the scene spec."
+                f"does not match any segment in the scene."
             ) from exc
         poses_by_key[key].append(pose)
 
@@ -194,26 +179,22 @@ def load_segment_pose_trajectories(
     for key, poses in poses_by_key.items():
         if not poses:
             raise ValueError(
-                f"No TF poses found for segment "
-                f"{key.subject.label}/{key.segment.label}."
+                f"No TF poses found for segment {key.subject!r}/{key.segment!r}."
             )
         trajectories[key] = SegmentPoseTrajectory(poses=tuple(poses))
-
     return trajectories
 
 
 def load_scene_state(
     export: UnbaggedDirectory,
-    scene: SceneSpec,
+    subjects: Subjects,
     *,
     tf_prefix: str = "vicon",
 ) -> SceneState:
     """Load a SceneState from an unbagged export directory."""
     return SceneState(
         segment_poses=load_segment_pose_trajectories(
-            export,
-            scene,
-            tf_prefix=tf_prefix,
+            export, subjects, tf_prefix=tf_prefix
         )
     )
 
@@ -242,10 +223,7 @@ def iter_vicon_marker_frames(
             )
             for marker in message["markers"]
         )
-        yield ViconMarkersFrame(
-            stamp_seconds=stamp_seconds,
-            markers=markers,
-        )
+        yield ViconMarkersFrame(stamp_seconds=stamp_seconds, markers=markers)
 
 
 def marker_positions_by_name(
@@ -268,77 +246,26 @@ def marker_positions_by_name(
     return positions
 
 
-@overload
-def marker_position[M: MarkerId](
-    marker_frame: ViconMarkersFrame,
-    *,
-    segment: SegmentView[M, Any],
-    marker: M,
-) -> Vec3 | None: ...
-
-
-@overload
-def marker_position[M: MarkerId](
-    marker_frame: ViconMarkersFrame,
-    *,
-    subject: SubjectId,
-    segment: SegmentSpec[M, Any],
-    marker: M,
-) -> Vec3 | None: ...
-
-
 def marker_position(
-    marker_frame: ViconMarkersFrame,
+    frame: ViconMarkersFrame,
     *,
-    marker: MarkerId,
-    segment: SegmentView[Any, Any] | SegmentSpec[Any, Any],
-    subject: SubjectId | None = None,
+    subject_name: str,
+    segment_name: str,
+    marker_name: str,
 ) -> Vec3 | None:
-    """
-    Return one observed marker position from a Vicon marker frame.
-
-    Preferred usage after resolving a view::
-
-        marker_position(marker_frame, segment=segment_view, marker=marker)
-
-    Alternative usage without a view::
-
-        marker_position(
-            marker_frame,
-            subject=subject_id,
-            segment=segment_spec,
-            marker=marker,
-        )
-    """
-    if isinstance(segment, SegmentView):
-        subject_resolver = getattr(segment.spec, "subject_external_name", None)
-        if callable(subject_resolver):
-            subject_name = subject_resolver()
-        else:
-            subject_name = segment.subject_id.label
-        segment_name = segment_external_name(segment.spec)
-        marker_name = segment.spec.marker_external_name(marker)
-    else:
-        if subject is None:
-            raise TypeError(
-                "subject must be provided when segment is a SegmentSpec"
-            )
-        subject_resolver = getattr(segment, "subject_external_name", None)
-        if callable(subject_resolver):
-            subject_name = subject_resolver()
-        else:
-            subject_name = subject.label
-        segment_name = segment_external_name(segment)
-        marker_name = segment.marker_external_name(marker)
-    positions = marker_positions_by_name(
-        marker_frame,
-        subject_name=subject_name,
-        segment_name=segment_name,
-    )
-    return positions.get(marker_name)
+    """Return one observed (non-occluded) marker position by external names."""
+    for marker in frame.markers:
+        if (
+            marker.subject_name == subject_name
+            and marker.segment_name == segment_name
+            and marker.marker_name == marker_name
+            and not marker.occluded
+        ):
+            return marker.position_world
+    return None
 
 
 def _load_json_object(path: Path) -> dict[str, Mapping[str, Any]]:
     if not path.is_file():
         raise FileNotFoundError(f"Expected unbagged JSON file: {path}")
-    return orjson.loads(path.read_bytes())
+    return cast(dict[str, Mapping[str, Any]], orjson.loads(path.read_bytes()))

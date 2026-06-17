@@ -3,8 +3,6 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from demo_vocab import GroundEstimationTrackId
-from retarget.core.enums import TrackId
 from retarget.demo.alignment import (
     EnergySignal,
     TimelineTransform,
@@ -14,10 +12,8 @@ from retarget.demo.alignment import (
 from retarget.demo.demo import Demonstration
 from conftest import make_mocap_track
 
-
-class DemoTrackId(TrackId):
-    SOURCE = "source"
-    REFERENCE = "reference"
+SOURCE = "source"
+REFERENCE = "reference"
 
 
 # --- EnergySignal ---
@@ -250,14 +246,14 @@ def test_timeline_transform_round_trip() -> None:
 
 def test_track_alignment_stores_fields() -> None:
     alignment = TrackAlignment(
-        source=DemoTrackId.SOURCE,
-        reference=DemoTrackId.REFERENCE,
+        source=SOURCE,
+        reference=REFERENCE,
         transform=TimelineTransform(scale=1.0, offset=-0.2),
         score=0.8,
     )
 
-    assert alignment.source is DemoTrackId.SOURCE
-    assert alignment.reference is DemoTrackId.REFERENCE
+    assert alignment.source is SOURCE
+    assert alignment.reference is REFERENCE
     assert alignment.transform.offset == -0.2
     assert alignment.score == 0.8
 
@@ -266,8 +262,8 @@ def test_track_alignment_stores_fields() -> None:
 def test_track_alignment_rejects_non_finite_score(score: float) -> None:
     with pytest.raises(ValueError, match="score must be finite"):
         TrackAlignment(
-            source=DemoTrackId.SOURCE,
-            reference=DemoTrackId.REFERENCE,
+            source=SOURCE,
+            reference=REFERENCE,
             transform=TimelineTransform.identity(),
             score=score,
         )
@@ -275,8 +271,8 @@ def test_track_alignment_rejects_non_finite_score(score: float) -> None:
 
 def test_track_alignment_allows_missing_score() -> None:
     alignment = TrackAlignment(
-        source=DemoTrackId.SOURCE,
-        reference=DemoTrackId.REFERENCE,
+        source=SOURCE,
+        reference=REFERENCE,
         transform=TimelineTransform.identity(),
     )
 
@@ -451,17 +447,17 @@ def test_demonstration_accepts_alignments_in_constructor() -> None:
         max_lag_seconds=0.5,
     )
     alignment = TrackAlignment(
-        source=GroundEstimationTrackId.MOCAP,
-        reference=GroundEstimationTrackId.MOCAP,
+        source="mocap",
+        reference="mocap",
         transform=transform,
         score=score,
     )
     demo = Demonstration(
-        tracks={GroundEstimationTrackId.MOCAP: mocap},
+        tracks={"mocap": mocap},
         alignments=(alignment,),
     )
     assert len(demo.alignments) == 1
     stored = demo.alignments[0]
-    assert stored.source is GroundEstimationTrackId.MOCAP
-    assert stored.reference is GroundEstimationTrackId.MOCAP
+    assert stored.source == "mocap"
+    assert stored.reference == "mocap"
     assert isinstance(stored.transform, TimelineTransform)

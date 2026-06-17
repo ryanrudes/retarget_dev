@@ -1,13 +1,13 @@
-"""Synchronization plans and execution helpers."""
+"""Synchronization plans and execution helpers (string-keyed track names)."""
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from typing import cast
 
 import networkx as nx
 
-from retarget.core.enums import TrackId
 from retarget.demo.alignment import (
     EnergySignal,
     TimelineTransform,
@@ -15,11 +15,6 @@ from retarget.demo.alignment import (
     estimate_alignment_from_signals,
 )
 from retarget.demo.demo import Demonstration, DemonstrationView
-from retarget.demo.authoring import (
-    TypedDemonstration,
-    TypedDemonstrationView,
-    _rebuild_schema_tracks,
-)
 from retarget.demo.tracks import Track
 
 type SignalExtractor = Callable[[Track], EnergySignal]
@@ -27,15 +22,11 @@ type SignalExtractor = Callable[[Track], EnergySignal]
 
 
 @dataclass(frozen=True, slots=True)
-class SyncEdge[K: TrackId]:
-    """Pairwise synchronization request between two tracks.
+class SyncEdge:
+    """Pairwise synchronization request between two named tracks."""
 
-    A ``SyncEdge`` says: estimate an alignment from ``source`` into
-    ``reference`` using scalar signals extracted from those tracks.
-    """
-
-    source: K
-    reference: K
+    source: str
+    reference: str
     source_signal: SignalExtractor
     reference_signal: SignalExtractor
     max_lag_seconds: float
@@ -48,20 +39,16 @@ class SyncEdge[K: TrackId]:
 
 
 @dataclass(frozen=True, slots=True)
-class SyncPlan[K: TrackId]:
+class SyncPlan:
     """Synchronization graph for a demonstration.
 
     ``reference`` is the root timeline for later composition/resampling. Edges
     may form any connected graph rooted at ``reference``; they are not required
-    to be a star. Each edge estimates one pairwise alignment from ``source``
-    into ``reference`` for that edge.
-
-    The plan does not prescribe how aligned tracks are resampled; it only
-    describes how to estimate pairwise timeline transforms.
+    to be a star.
     """
 
-    reference: K
-    edges: tuple[SyncEdge[K], ...]
+    reference: str
+    edges: tuple[SyncEdge, ...]
 
     def __post_init__(self) -> None:
         if len(self.edges) == 0:
@@ -90,35 +77,32 @@ class SyncPlan[K: TrackId]:
             )
 
     @property
-    def track_ids(self) -> frozenset[K]:
-        """Track ids required by this plan."""
-        ids: set[K] = {self.reference}
+    def track_ids(self) -> frozenset[str]:
+        """Track names required by this plan."""
+        ids: set[str] = {self.reference}
         for edge in self.edges:
             ids.add(edge.source)
             ids.add(edge.reference)
         return frozenset(ids)
 
     @property
-    def edge_ids(self) -> frozenset[tuple[K, K]]:
+    def edge_ids(self) -> frozenset[tuple[str, str]]:
         """Directed edge ids in this plan."""
         return frozenset((edge.source, edge.reference) for edge in self.edges)
 
 
-def estimate_sync[K: TrackId](
-    demonstration: Demonstration[K],
-    plan: SyncPlan[K],
-) -> tuple[TrackAlignment[K], ...]:
+def estimate_sync(
+    demonstration: Demonstration | DemonstrationView,
+    plan: SyncPlan,
+) -> tuple[TrackAlignment, ...]:
     """Estimate each pairwise alignment requested by a sync plan."""
-    _validate_plan_tracks(demonstration._tracks, plan)
+    tracks = _tracks_of(demonstration)
+    _validate_plan_tracks(tracks, plan)
 
-    alignments: list[TrackAlignment[K]] = []
+    alignments: list[TrackAlignment] = []
     for edge in plan.edges:
-        source_track = demonstration._get_track(edge.source)
-        reference_track = demonstration._get_track(edge.reference)
-
-        source_signal = edge.source_signal(source_track)
-        reference_signal = edge.reference_signal(reference_track)
-
+        source_signal = edge.source_signal(tracks[edge.source])
+        reference_signal = edge.reference_signal(tracks[edge.reference])
         transform, score = estimate_alignment_from_signals(
             reference=reference_signal,
             source=source_signal,
@@ -132,82 +116,53 @@ def estimate_sync[K: TrackId](
                 score=score,
             )
         )
-
     return tuple(alignments)
 
 
-def estimate_sync_to_reference[K: TrackId](
-    demonstration: Demonstration[K],
-    plan: SyncPlan[K],
-) -> tuple[TrackAlignment[K], ...]:
-    """Estimate root-reference alignments suitable for storing on a demo.
-
-    This first estimates each pairwise edge in ``plan`` and then composes the
-    pairwise transforms through the sync graph so every returned alignment maps
-    directly into ``plan.reference`` time.
-    """
+def estimate_sync_to_reference(
+    demonstration: Demonstration | DemonstrationView,
+    plan: SyncPlan,
+) -> tuple[TrackAlignment, ...]:
+    """Estimate root-reference alignments suitable for storing on a demo."""
     return compose_alignments_to_reference(
         reference=plan.reference,
         alignments=estimate_sync(demonstration, plan),
     )
 
 
-def estimate_sync_and_resample_to_reference[K: TrackId](
-    demonstration: Demonstration[K],
-    plan: SyncPlan[K],
+def estimate_sync_and_resample_to_reference(
+    demonstration: Demonstration | DemonstrationView,
+    plan: SyncPlan,
     *,
     start: float,
     stop: float,
-) -> DemonstrationView[K]:
+) -> DemonstrationView:
     """Estimate sync, slice the demo, and resample onto the plan reference.
-
-    This is a convenience wrapper for the common workflow:
 
     1. estimate pairwise sync edges from ``plan``;
     2. compose those alignments into direct transforms to ``plan.reference``;
     3. slice the demonstration to ``[start, stop)``;
     4. materialize that slice on the reference track timeline.
-
-    Sync is estimated on the full demonstration before slicing. This gives the
-    alignment estimator the largest available signal window, then materializes
-    only the requested slice.
-
-    The original ``Demonstration`` remains unchanged. The returned view carries
-    the composed root-reference alignments used for resampling.
     """
     alignments = estimate_sync_to_reference(demonstration, plan)
     sliced = demonstration.slice_time(start, stop)
-    if isinstance(demonstration, TypedDemonstration):
-        assert isinstance(sliced, TypedDemonstrationView)
-        aligned_view = TypedDemonstrationView(
-            source=sliced.source,
-            tracks=sliced._tracks,
-            alignments=alignments,
-            _generated_ids=sliced._generated_ids,
-            _schema_tracks=_rebuild_schema_tracks(sliced, demonstration._schema_tracks),
-        )
-        return aligned_view.resample_to(plan.reference)
-
-    aligned_view = DemonstrationView(
+    aligned = DemonstrationView(
         source=sliced.source,
-        tracks=sliced._tracks,
+        tracks=dict(sliced.tracks),
         alignments=alignments,
-        _generated_ids=sliced._generated_ids,
     )
-    return aligned_view.resample_to(plan.reference)
+    return aligned.resample_to(plan.reference)
 
 
-def compose_alignments_to_reference[K: TrackId](
+def compose_alignments_to_reference(
     *,
-    reference: K,
-    alignments: tuple[TrackAlignment[K], ...],
-) -> tuple[TrackAlignment[K], ...]:
+    reference: str,
+    alignments: tuple[TrackAlignment, ...],
+) -> tuple[TrackAlignment, ...]:
     """Compose pairwise alignments into root-reference transforms.
 
     Each returned alignment maps a non-reference track directly into
-    ``reference`` time. Pairwise alignments may form any connected graph.
-    Scores are not composed and are therefore omitted from the returned
-    alignments.
+    ``reference`` time. Scores are not composed and are omitted.
     """
     if len(alignments) == 0:
         return ()
@@ -221,7 +176,7 @@ def compose_alignments_to_reference[K: TrackId](
             f"unreachable tracks: {sorted(missing)!r}"
         )
 
-    composed: list[TrackAlignment[K]] = []
+    composed: list[TrackAlignment] = []
     for source in sorted(graph.nodes, key=str):
         if source == reference:
             continue
@@ -230,9 +185,7 @@ def compose_alignments_to_reference[K: TrackId](
                 source=source,
                 reference=reference,
                 transform=_compose_path_to_reference(
-                    graph,
-                    source=source,
-                    reference=reference,
+                    graph, source=source, reference=reference
                 ),
                 score=None,
             )
@@ -240,13 +193,12 @@ def compose_alignments_to_reference[K: TrackId](
     return tuple(composed)
 
 
-def _compose_path_to_reference[K: TrackId](
+def _compose_path_to_reference(
     graph: nx.Graph,
     *,
-    source: K,
-    reference: K,
+    source: str,
+    reference: str,
 ) -> TimelineTransform:
-    """Compose transforms along the shortest path from source to reference."""
     path = nx.shortest_path(graph, source=source, target=reference)
     transform = TimelineTransform.identity()
     for start, stop in zip(path, path[1:]):
@@ -254,11 +206,7 @@ def _compose_path_to_reference[K: TrackId](
     return transform
 
 
-def _sync_graph[K: TrackId](
-    reference: K,
-    edges: tuple[SyncEdge[K], ...],
-) -> nx.Graph:
-    """Build the undirected sync topology for validation/path queries."""
+def _sync_graph(reference: str, edges: tuple[SyncEdge, ...]) -> nx.Graph:
     graph = nx.Graph()
     graph.add_node(reference)
     for edge in edges:
@@ -266,11 +214,10 @@ def _sync_graph[K: TrackId](
     return graph
 
 
-def _alignment_graph[K: TrackId](
-    reference: K,
-    alignments: tuple[TrackAlignment[K], ...],
+def _alignment_graph(
+    reference: str,
+    alignments: tuple[TrackAlignment, ...],
 ) -> nx.Graph:
-    """Build an undirected graph carrying directed pairwise alignments."""
     graph = nx.Graph()
     graph.add_node(reference)
     for alignment in alignments:
@@ -279,21 +226,12 @@ def _alignment_graph[K: TrackId](
                 "Alignment graph contains duplicate undirected edge "
                 f"between {alignment.source!r} and {alignment.reference!r}"
             )
-        graph.add_edge(
-            alignment.source,
-            alignment.reference,
-            alignment=alignment,
-        )
+        graph.add_edge(alignment.source, alignment.reference, alignment=alignment)
     return graph
 
 
-def _edge_transform[K: TrackId](
-    graph: nx.Graph,
-    source: K,
-    reference: K,
-) -> TimelineTransform:
-    """Return the transform that maps ``source`` time to ``reference`` time."""
-    alignment: TrackAlignment[K] = graph.edges[source, reference]["alignment"]
+def _edge_transform(graph: nx.Graph, source: str, reference: str) -> TimelineTransform:
+    alignment: TrackAlignment = graph.edges[source, reference]["alignment"]
     if alignment.source == source and alignment.reference == reference:
         return alignment.transform
     if alignment.source == reference and alignment.reference == source:
@@ -304,10 +242,13 @@ def _edge_transform[K: TrackId](
     )
 
 
-def _validate_plan_tracks[K: TrackId](
-    tracks: Mapping[K, Track],
-    plan: SyncPlan[K],
-) -> None:
+def _tracks_of(
+    demonstration: Demonstration | DemonstrationView,
+) -> Mapping[str, Track]:
+    return cast(Mapping[str, Track], demonstration.tracks)
+
+
+def _validate_plan_tracks(tracks: Mapping[str, Track], plan: SyncPlan) -> None:
     missing = plan.track_ids.difference(tracks)
     if missing:
         raise KeyError(f"SyncPlan references missing tracks: {sorted(missing)!r}")

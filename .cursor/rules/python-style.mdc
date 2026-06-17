@@ -9,15 +9,21 @@ alwaysApply: true
 
 # Python style rules
 
-- Keep `from __future__ import annotations` in modules that use modern annotations.
+- Keep `from __future__ import annotations` in modules using modern annotations.
 - Prefer dataclasses with `frozen=True, slots=True` for immutable domain values.
-- Prefer `Mapping` for read-only inputs.
-- Use `MappingProxyType` when storing immutable mapping views makes sense.
-- Use Python 3.13 generic syntax where this repo already uses it, including default type parameters on public generic classes when that improves readability.
-- Use typed enum IDs for public identifiers.
-- Avoid raw strings in public track/spec/entity APIs except in generic tests.
+  Mutable lazy caches are non-frozen dataclasses.
+- Prefer `Mapping` for read-only inputs; use `MappingProxyType` for stored
+  immutable mapping views.
+- Use Python 3.13 PEP 695 generic syntax, including default type parameters on
+  public generic classes when it improves readability.
+- Identity is the authored **string** name. There are no identifier enums
+  (`MarkerId`, `SegmentId`, `PatchId`, `SubjectId`, `TrackId`) and no `NameId`.
+  Value enums (`RotationFormat`, `PoseFormat`, `MarkerRole`, `ResampleMethod`,
+  `SemanticAxis`, …) are fine.
+- Strings are the public field/identity vocabulary. Stable runtime keys are the
+  string-based `SegmentTarget`/`MarkerTarget`/`PatchTarget`/`SegmentKey`.
 - Use clear function names instead of comments that repeat the function name.
-- Keep module docstrings useful and high-level. Do not narrate every line. The code is already there, doing its little performance.
+- Keep module docstrings high-level.
 
 ## NumPy style
 
@@ -28,17 +34,15 @@ Canonical layout is time-major:
 - `(T, N, 3)` for multiple vector signals;
 - `(T, 3, 3)` for rotation matrices.
 
-Validate array shapes at construction boundaries.
-
-Prefer `np.testing.assert_array_equal` / `assert_allclose` in tests.
-
+Validate array shapes at construction boundaries. Prefer
+`np.testing.assert_array_equal` / `assert_allclose` in tests.
 
 ## Packaging and typing
 
-This project should be packaged with `uv` and use Hatch / `hatchling` as the build backend. It supports Python 3.13+ only.
+Package with `uv` and Hatch / `hatchling`. Python 3.13+ only. Ship and keep the
+`py.typed` marker.
 
-Python 3.13 enables cleaner PEP 695 generics with defaults. That is a syntax/readability upgrade, not a claim that arbitrary TypedDict schema key projection is solved.
-
-Use modern Python typing throughout. For new generic code, prefer PEP 695 syntax for generic classes, generic functions, and type aliases. Avoid legacy `TypeVar`-heavy patterns unless a current type checker or library limitation requires them.
-
-Do not introduce alternate packaging systems such as Poetry, Pipenv, setuptools-only configuration, or conda environment assumptions.
+Concrete `TypedDict` subclasses project literal keys to declared types, which is
+what makes the deep query chain statically typed. Iterating a *generic*
+`TypedDict` type var still yields broad values; cast internally where needed.
+Do not introduce alternate packaging systems (Poetry, setuptools-only, conda).

@@ -1,37 +1,47 @@
+"""Typed scene authoring schema and the bound runtime query surface.
+
+This module defines a single set of dual-purpose types:
+
+* ``Markers`` / ``Patches`` / ``Segments`` / ``Subjects`` are ``TypedDict`` bases
+  the user subclasses to declare the *shape* of a scene. Because each subclass is
+  a concrete ``TypedDict``, literal-key access projects to the declared field
+  type, which is what gives the deep query chain perfect static typing.
+* ``Marker`` / ``Patch`` / ``Segment`` / ``Subject`` are frozen dataclasses the
+  user instantiates to author concrete scene data. The same instances double as
+  the runtime query surface: once a :class:`~retarget.demo.mocap.MocapTrack`
+  binds them to loaded data, ``marker.positions()``/``segment.translations()``/
+  ``patch.points()`` answer time-series queries.
+
+Authoring objects carry a private, non-init ``_binding`` that links them to
+loaded track data. It is ``None`` while authoring and ignored by equality/repr,
+so the public constructors stay pure authoring (``Marker(vicon_name=...)``).
+"""
+
 from __future__ import annotations
 
-import keyword
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from enum import Enum
-from types import MappingProxyType
 from typing import Any, TypedDict, cast
 
-from retarget.core.axes import Z_UP_AXES
+import numpy as np
+
 from retarget.core.contact_region import ContactRegion, RectangularRegion
-from retarget.core.enums import (
-    MarkerId,
-    NameId,
-    PatchId,
-    SegmentId,
-    SubjectId,
+from retarget.core.enums import PoseFormat, RotationFormat
+from retarget.core.formats import (
+    finite_difference_velocity,
+    pose_arrays_to_format,
+    rotation_matrices_to_format,
+    speed_from_velocity,
 )
-from retarget.core.handles import MarkerHandle, PatchHandle
 from retarget.core.keys import SegmentKey
-from retarget.core.specs import (
-    MarkerSetSpec,
-    MarkerSpec,
-    PatchDeclarationSpec,
-    PatchSpec,
-    SceneSpec,
-    SegmentSpec,
-    SubjectSpec,
-)
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import RigidTransform
+from retarget.core.types import TimeMat3, TimeQuat, TimeVec3, Vec3
 
-_NON_IDENTIFIER = re.compile(r"[^0-9A-Za-z_]")
+
+# ---------------------------------------------------------------------------
+# Typed schema declaration bases
+# ---------------------------------------------------------------------------
 
 
 class Markers(TypedDict):
@@ -50,21 +60,149 @@ class Subjects(TypedDict):
     """Base class for typed subject schema declarations."""
 
 
+# ---------------------------------------------------------------------------
+# Runtime binding (private)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(slots=True, eq=False)
+class _SegmentRuntime:
+    """Per-segment time-series data attached to a bound segment subtree.
+
+    Arrays are already materialized at the bound track's (possibly sliced) time
+    resolution. ``observed_markers`` is keyed by marker ``vicon_name`` and always
+    contains an entry for every declared marker (NaN rows where unobserved).
+    ``contacts``/``confidences`` are keyed by authored patch name.
+    """
+
+    timestamps: np.ndarray
+    translations: np.ndarray
+    rotations: np.ndarray
+    observed_markers: Mapping[str, np.ndarray]
+    contacts: Mapping[str, np.ndarray]
+    confidences: Mapping[str, np.ndarray]
+
+
+@dataclass(slots=True, eq=False)
+class _MarkerBinding:
+    subject: str
+    segment: str
+    marker: str
+    runtime: _SegmentRuntime | None
+
+
+@dataclass(slots=True, eq=False)
+class _PatchBinding:
+    subject: str
+    segment: str
+    patch: str
+    runtime: _SegmentRuntime | None
+
+
+@dataclass(slots=True, eq=False)
+class _SegmentBinding:
+    subject: str
+    segment: str
+    runtime: _SegmentRuntime | None
+
+
+@dataclass(slots=True, eq=False)
+class _SubjectBinding:
+    subject: str
+
+
+_UNBOUND_MESSAGE = (
+    "This {what} is not bound to loaded data. Build a scene with build_scene(...) "
+    "for static/geometry access, or query it through a loaded MocapTrack for "
+    "time-series access."
+)
+
+
+# ---------------------------------------------------------------------------
+# Domain dataclasses (authoring + bound runtime surface)
+# ---------------------------------------------------------------------------
+
+
 @dataclass(frozen=True, slots=True)
 class Marker:
-    """Authoring-time marker metadata."""
+    """A marker: authoring metadata plus bound time-series queries."""
 
     vicon_name: str
+    position_segment: Vec3 | None = field(default=None, compare=False)
+    _binding: _MarkerBinding | None = field(
+        default=None, init=False, compare=False, repr=False
+    )
+
+    def positions(self, *, modeled: bool = False) -> TimeVec3:
+        """World-frame marker positions with shape ``(T, 3)``.
+
+        ``modeled=False`` returns observed positions (NaN where unobserved);
+        ``modeled=True`` rigidly transforms the segment-frame position.
+        """
+        runtime = self._runtime()
+        if modeled:
+            if self.position_segment is None:
+                raise ValueError(
+                    f"Marker {self._binding.marker!r} has no segment-frame "  # type: ignore[union-attr]
+                    "position for modeled queries"
+                )
+            local = np.asarray(self.position_segment, dtype=np.float64)
+            world = np.einsum("tij,j->ti", runtime.rotations, local)
+            return cast(TimeVec3, world + runtime.translations)
+        try:
+            return cast(TimeVec3, runtime.observed_markers[self.vicon_name])
+        except KeyError as exc:
+            raise ValueError(
+                "Observed marker positions require marker_frames on the mocap track"
+            ) from exc
+
+    def velocities(self, *, modeled: bool = False) -> TimeVec3:
+        """World-frame marker velocities with shape ``(T, 3)``."""
+        runtime = self._runtime()
+        return cast(
+            TimeVec3,
+            finite_difference_velocity(
+                self.positions(modeled=modeled), runtime.timestamps
+            ),
+        )
+
+    def speed(self, *, modeled: bool = False) -> np.ndarray:
+        """World-frame marker speed with shape ``(T,)``."""
+        return speed_from_velocity(self.velocities(modeled=modeled))
+
+    @property
+    def target(self) -> MarkerTarget:
+        """Stable scene-level identity for this marker."""
+        binding = self._require_binding()
+        return MarkerTarget(
+            subject=binding.subject,
+            segment=binding.segment,
+            marker=binding.marker,
+        )
+
+    def _require_binding(self) -> _MarkerBinding:
+        if self._binding is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Marker"))
+        return self._binding
+
+    def _runtime(self) -> _SegmentRuntime:
+        binding = self._require_binding()
+        if binding.runtime is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Marker"))
+        return binding.runtime
 
 
 @dataclass(frozen=True, slots=True)
 class Patch:
-    """Authoring-time patch metadata."""
+    """A contact patch: authoring metadata plus bound time-series queries."""
 
     label: str
-    transform_segment_patch: RigidTransform | None = None
-    region: ContactRegion | None = None
+    transform_segment_patch: RigidTransform | None = field(default=None, compare=False)
+    region: ContactRegion | None = field(default=None, compare=False)
     frame: str | None = None
+    _binding: _PatchBinding | None = field(
+        default=None, init=False, compare=False, repr=False
+    )
 
     @classmethod
     def rectangular(
@@ -84,476 +222,453 @@ class Patch:
             frame=frame,
         )
 
+    def points(self) -> TimeVec3:
+        """World-frame patch origin/contact points with shape ``(T, 3)``."""
+        runtime = self._runtime()
+        local = np.asarray(self._geometry().translation, dtype=np.float64)
+        world = np.einsum("tij,j->ti", runtime.rotations, local)
+        return cast(TimeVec3, world + runtime.translations)
+
+    def normals(self) -> TimeVec3:
+        """World-frame patch normals with shape ``(T, 3)``."""
+        runtime = self._runtime()
+        local_normal = np.asarray(self._geometry().rotation[:, 2], dtype=np.float64)
+        return cast(TimeVec3, np.einsum("tij,j->ti", runtime.rotations, local_normal))
+
+    def velocities(self) -> TimeVec3:
+        """World-frame patch-point velocities with shape ``(T, 3)``."""
+        runtime = self._runtime()
+        return cast(
+            TimeVec3, finite_difference_velocity(self.points(), runtime.timestamps)
+        )
+
+    def contacts(self) -> np.ndarray:
+        """Boolean contact state with shape ``(T,)`` from an attached contact track."""
+        runtime = self._runtime()
+        name = self._require_binding().patch
+        try:
+            return runtime.contacts[name]
+        except KeyError as exc:
+            raise ValueError(
+                f"No contact track is attached for patch {name!r}"
+            ) from exc
+
+    def confidence(self) -> np.ndarray:
+        """Contact confidence with shape ``(T,)`` from an attached contact track."""
+        runtime = self._runtime()
+        name = self._require_binding().patch
+        try:
+            return runtime.confidences[name]
+        except KeyError as exc:
+            raise ValueError(
+                f"No contact confidence is attached for patch {name!r}"
+            ) from exc
+
+    @property
+    def target(self) -> PatchTarget:
+        """Stable scene-level identity for this patch."""
+        binding = self._require_binding()
+        return PatchTarget(
+            subject=binding.subject,
+            segment=binding.segment,
+            patch=binding.patch,
+        )
+
+    def has_geometry(self) -> bool:
+        """Whether this patch carries calibrated geometry."""
+        return self.transform_segment_patch is not None and self.region is not None
+
+    def _geometry(self) -> RigidTransform:
+        if self.transform_segment_patch is None:
+            name = self._binding.patch if self._binding is not None else self.label
+            raise ValueError(
+                f"Patch {name!r} is declared but has no calibrated geometry"
+            )
+        return self.transform_segment_patch
+
+    def _require_binding(self) -> _PatchBinding:
+        if self._binding is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Patch"))
+        return self._binding
+
+    def _runtime(self) -> _SegmentRuntime:
+        binding = self._require_binding()
+        if binding.runtime is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Patch"))
+        return binding.runtime
+
 
 @dataclass(frozen=True, slots=True)
 class Segment[MarkersT: Markers, PatchesT: Patches]:
-    """Authoring-time segment declaration."""
+    """A rigid segment: typed marker/patch vocabularies plus bound pose queries."""
 
     markers: MarkersT
     patches: PatchesT
     vicon_name: str | None = None
+    _binding: _SegmentBinding | None = field(
+        default=None, init=False, compare=False, repr=False
+    )
+
+    def translations(self) -> TimeVec3:
+        """Segment-origin world translations with shape ``(T, 3)``."""
+        return cast(TimeVec3, self._runtime().translations)
+
+    def rotations(
+        self,
+        *,
+        format: RotationFormat = RotationFormat.MATRIX,
+    ) -> TimeMat3 | TimeQuat | np.ndarray:
+        """Segment world rotations in the requested representation."""
+        return rotation_matrices_to_format(self._runtime().rotations, format=format)
+
+    def poses(
+        self,
+        *,
+        format: PoseFormat = PoseFormat.RIGID_TRANSFORM,
+    ) -> tuple[RigidTransform, ...] | np.ndarray:
+        """Segment world poses in the requested representation."""
+        runtime = self._runtime()
+        return pose_arrays_to_format(
+            runtime.translations, runtime.rotations, format=format
+        )
+
+    def linear_velocities(self) -> TimeVec3:
+        """Segment-origin world velocities with shape ``(T, 3)``."""
+        runtime = self._runtime()
+        return cast(
+            TimeVec3,
+            finite_difference_velocity(runtime.translations, runtime.timestamps),
+        )
+
+    def speed(self) -> np.ndarray:
+        """Segment-origin world speed with shape ``(T,)``."""
+        return speed_from_velocity(self.linear_velocities())
+
+    def marker_positions(
+        self,
+        *markers: str,
+        modeled: bool = False,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, TimeVec3]:
+        """Batch marker positions: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        if as_dict:
+            return {
+                name: self._marker(name).positions(modeled=modeled) for name in markers
+            }
+        return self._stack(
+            [self._marker(name).positions(modeled=modeled) for name in markers]
+        )
+
+    def marker_velocities(
+        self,
+        *markers: str,
+        modeled: bool = False,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, TimeVec3]:
+        """Batch marker velocities: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        if as_dict:
+            return {
+                name: self._marker(name).velocities(modeled=modeled)
+                for name in markers
+            }
+        return self._stack(
+            [self._marker(name).velocities(modeled=modeled) for name in markers]
+        )
+
+    def patch_points(
+        self,
+        *patches: str,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, TimeVec3]:
+        """Batch patch points: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        if as_dict:
+            return {name: self._patch(name).points() for name in patches}
+        return self._stack([self._patch(name).points() for name in patches])
+
+    def patch_normals(
+        self,
+        *patches: str,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, TimeVec3]:
+        """Batch patch normals: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        if as_dict:
+            return {name: self._patch(name).normals() for name in patches}
+        return self._stack([self._patch(name).normals() for name in patches])
+
+    def patch_velocities(
+        self,
+        *patches: str,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, TimeVec3]:
+        """Batch patch-point velocities: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        if as_dict:
+            return {name: self._patch(name).velocities() for name in patches}
+        return self._stack([self._patch(name).velocities() for name in patches])
+
+    def patch_contacts(
+        self,
+        *patches: str,
+        as_dict: bool = False,
+    ) -> np.ndarray | dict[str, np.ndarray]:
+        """Batch patch contact state: ``(T, N)`` stacked, or ``{name: (T,)}``."""
+        if as_dict:
+            return {name: self._patch(name).contacts() for name in patches}
+        arrays = [self._patch(name).contacts() for name in patches]
+        if not arrays:
+            return np.empty((len(self._runtime().timestamps), 0), dtype=np.bool_)
+        return np.stack(arrays, axis=1)
+
+    def segment_target(self) -> SegmentTarget:
+        """Stable scene-level identity for this segment."""
+        binding = self._require_binding()
+        return SegmentTarget(subject=binding.subject, segment=binding.segment)
+
+    def marker_target(self, marker: str) -> MarkerTarget:
+        """Stable scene-level identity for one marker on this segment."""
+        binding = self._require_binding()
+        if marker not in self.markers:
+            raise KeyError(self._missing_marker_message(marker))
+        return MarkerTarget(
+            subject=binding.subject, segment=binding.segment, marker=marker
+        )
+
+    def patch_target(self, patch: str) -> PatchTarget:
+        """Stable scene-level identity for one patch on this segment."""
+        binding = self._require_binding()
+        if patch not in self.patches:
+            raise KeyError(self._missing_patch_message(patch))
+        return PatchTarget(
+            subject=binding.subject, segment=binding.segment, patch=patch
+        )
+
+    def _marker(self, name: str) -> Marker:
+        try:
+            return cast(Mapping[str, Marker], self.markers)[name]
+        except KeyError as exc:
+            raise KeyError(self._missing_marker_message(name)) from exc
+
+    def _patch(self, name: str) -> Patch:
+        try:
+            return cast(Mapping[str, Patch], self.patches)[name]
+        except KeyError as exc:
+            raise KeyError(self._missing_patch_message(name)) from exc
+
+    def _stack(self, arrays: list[TimeVec3]) -> np.ndarray:
+        if not arrays:
+            runtime = self._runtime()
+            return np.empty((len(runtime.timestamps), 0, 3), dtype=np.float64)
+        return np.stack(arrays, axis=1)
+
+    def _missing_marker_message(self, name: str) -> str:
+        label = self._binding.segment if self._binding is not None else "segment"
+        return f"Segment {label!r} has no marker {name!r}"
+
+    def _missing_patch_message(self, name: str) -> str:
+        label = self._binding.segment if self._binding is not None else "segment"
+        return f"Segment {label!r} has no patch {name!r}"
+
+    def _require_binding(self) -> _SegmentBinding:
+        if self._binding is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Segment"))
+        return self._binding
+
+    def _runtime(self) -> _SegmentRuntime:
+        binding = self._require_binding()
+        if binding.runtime is None:
+            raise RuntimeError(_UNBOUND_MESSAGE.format(what="Segment"))
+        return binding.runtime
 
 
 @dataclass(frozen=True, slots=True)
 class Subject[SegmentsT: Segments]:
-    """Authoring-time subject declaration."""
+    """A subject: a typed mapping of named segments."""
 
     segments: SegmentsT
     vicon_name: str | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class GeneratedIds:
-    """Private runtime ID classes generated from authored field names."""
-
-    subjects: type[SubjectId]
-    segments: Mapping[SubjectId, type[SegmentId]]
-    markers: Mapping[SegmentKey, type[MarkerId]]
-    patches: Mapping[SegmentKey, type[PatchId]]
-
-
-@dataclass(frozen=True, slots=True, kw_only=True)
-class CompiledSegmentSpec[M: MarkerId, P: PatchId](SegmentSpec[M, P]):
-    """SegmentSpec compiled from an authored segment declaration."""
-
-    subject: SubjectId
-    subject_vicon_name: str | None = None
-    vicon_name: str | None = None
-    marker_defs: Mapping[M, Marker]
-    patch_defs: Mapping[P, Patch]
-    _marker_from_vicon_name: Mapping[str, M] = field(
-        init=False,
-        repr=False,
-        compare=False,
+    _binding: _SubjectBinding | None = field(
+        default=None, init=False, compare=False, repr=False
     )
 
-    def __post_init__(self) -> None:
-        SegmentSpec.__post_init__(self)
-        object.__setattr__(
-            self,
-            "marker_defs",
-            MappingProxyType(dict(self.marker_defs)),
-        )
-        object.__setattr__(
-            self,
-            "patch_defs",
-            MappingProxyType(dict(self.patch_defs)),
-        )
+    def segment_external_name(self, segment: str) -> str:
+        """External (Vicon) name used by IO for one of this subject's segments."""
+        seg = cast(Mapping[str, Segment[Any, Any]], self.segments)[segment]
+        return seg.vicon_name or segment
 
-        marker_from_vicon_name: dict[str, M] = {}
-        for marker, marker_def in self.marker_defs.items():
-            self._check_marker(marker)
-            if marker_def.vicon_name in marker_from_vicon_name:
-                previous = marker_from_vicon_name[marker_def.vicon_name]
-                raise ValueError(
-                    "Duplicate Marker.vicon_name values within a segment: "
-                    f"{marker_def.vicon_name!r} used by {previous!r} and {marker!r}"
-                )
-            marker_from_vicon_name[marker_def.vicon_name] = marker
-
-        for patch in self.patch_defs:
-            self._check_patch(patch)
-
-        object.__setattr__(
-            self,
-            "_marker_from_vicon_name",
-            MappingProxyType(marker_from_vicon_name),
-        )
-
-    def marker_spec(self, marker: M) -> MarkerSpec[M]:
-        marker_id = self._coerce_marker(marker)
-        marker_def = self.marker_defs[marker_id]
-        return MarkerSpec(
-            marker=marker_id,
-            role=self.marker_set.role(marker_id),
-            vicon_name=marker_def.vicon_name,
-        )
-
-    def marker_external_name(self, marker: M) -> str:
-        marker_id = self._coerce_marker(marker)
-        return self.marker_defs[marker_id].vicon_name
-
-    def segment_external_name(self) -> str:
-        return self.vicon_name or self.segment.label
-
-    def subject_external_name(self) -> str:
-        return self.subject_vicon_name or self.subject.label
-
-    def marker_from_external_name(self, marker_name: str) -> M:
-        try:
-            return self._marker_from_vicon_name[marker_name]
-        except KeyError:
-            return SegmentSpec.marker_from_external_name(self, marker_name)
-
-    def marker_from_vicon_name(self, marker_name: str) -> M:
-        return self.marker_from_external_name(marker_name)
-
-    def marker(self, marker: M | str) -> MarkerHandle[M]:
-        marker_id = self._coerce_marker(marker)
-        return SegmentSpec.marker(self, marker_id)
-
-    def patch(self, patch: P | str) -> PatchHandle[P]:
-        patch_id = self._coerce_patch(patch)
-        return SegmentSpec.patch(self, patch_id)
-
-    def segment_target(self) -> SegmentTarget:
-        return SegmentTarget(subject=self.subject, segment=self.segment)
-
-    def marker_target(self, marker: M | str) -> MarkerTarget[M]:
-        return MarkerTarget(subject=self.subject, handle=self.marker(marker))
-
-    def patch_target(self, patch: P | str) -> PatchTarget[P]:
-        return PatchTarget(subject=self.subject, handle=self.patch(patch))
-
-    def patch_label(self, patch: P | str) -> str:
-        patch_id = self._coerce_patch(patch)
-        return self.patch_declaration(patch_id).label
-
-    def patch_frame(self, patch: P | str) -> str | None:
-        patch_id = self._coerce_patch(patch)
-        return self.patch_declaration(patch_id).frame
-
-    def _coerce_marker(self, marker: M | str) -> M:
-        if isinstance(marker, self.marker_type):
-            return marker
-        if isinstance(marker, str):
-            try:
-                return self.marker_type(marker)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Segment {self.segment!r} has no marker {marker!r}"
-                ) from exc
-        if isinstance(marker, NameId):
-            try:
-                return self.marker_type(marker)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Segment {self.segment!r} has no marker {marker!r}"
-                ) from exc
-        raise TypeError(
-            f"Expected marker of type {self.marker_type.__name__} or str, "
-            f"got {type(marker).__name__}"
-        )
-
-    def _coerce_patch(self, patch: P | str) -> P:
-        if isinstance(patch, self.patch_type):
-            return patch
-        if isinstance(patch, str):
-            try:
-                return self.patch_type(patch)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Segment {self.segment!r} has no patch {patch!r}"
-                ) from exc
-        if isinstance(patch, NameId):
-            try:
-                return self.patch_type(patch)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Segment {self.segment!r} has no patch {patch!r}"
-                ) from exc
-        raise TypeError(
-            f"Expected patch of type {self.patch_type.__name__} or str, "
-            f"got {type(patch).__name__}"
-        )
+    @property
+    def external_name(self) -> str | None:
+        """External (Vicon) subject name, if any."""
+        return self.vicon_name
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class CompiledSubjectSpec(SubjectSpec):
-    """SubjectSpec compiled from an authored subject declaration."""
-
-    vicon_name: str | None = None
-    segment_type: type[SegmentId]
-    segments: Mapping[SegmentId, CompiledSegmentSpec[Any, Any]]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "segments", MappingProxyType(dict(self.segments)))
-
-    def iter_segments(self) -> tuple[CompiledSegmentSpec[Any, Any], ...]:
-        return tuple(self.segments.values())
-
-    def subject_external_name(self) -> str:
-        return self.vicon_name or self.subject.label
-
-    def segment(self, segment: SegmentId | str) -> CompiledSegmentSpec[Any, Any]:
-        segment_id = self._coerce_segment(segment)
-        try:
-            return self.segments[segment_id]
-        except KeyError as exc:
-            raise KeyError(
-                f"Subject {self.subject!r} has no segment {segment!r}"
-            ) from exc
-
-    def _coerce_segment(self, segment: SegmentId | str) -> SegmentId:
-        if isinstance(segment, self.segment_type):
-            return segment
-        if isinstance(segment, str):
-            try:
-                return self.segment_type(segment)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Subject {self.subject!r} has no segment {segment!r}"
-                ) from exc
-        if isinstance(segment, NameId):
-            try:
-                return self.segment_type(segment)
-            except ValueError as exc:
-                raise KeyError(
-                    f"Subject {self.subject!r} has no segment {segment!r}"
-                ) from exc
-        raise TypeError(
-            f"Expected segment of type {self.segment_type.__name__} or str, "
-            f"got {type(segment).__name__}"
-        )
+# ---------------------------------------------------------------------------
+# Building / binding
+# ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class CompiledSceneSpec(SceneSpec):
-    """SceneSpec compiled from authored subject/segment/marker schemas."""
+def build_scene[SubjectsT: Subjects](subjects: SubjectsT) -> SubjectsT:
+    """Path-bind an authored scene so targets/geometry are available.
 
-    subject_type: type[SubjectId]
-    subjects: Mapping[SubjectId, CompiledSubjectSpec]
-    generated_ids: GeneratedIds
-
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "subjects", MappingProxyType(dict(self.subjects)))
-
-    def iter_subjects(self) -> tuple[CompiledSubjectSpec, ...]:
-        return tuple(self.subjects.values())
-
-    def subject(self, subject: SubjectId | str) -> CompiledSubjectSpec:
-        subject_id = self._coerce_subject(subject)
-        try:
-            return self.subjects[subject_id]
-        except KeyError as exc:
-            raise KeyError(f"Scene has no subject {subject!r}") from exc
-
-    def _coerce_subject(self, subject: SubjectId | str) -> SubjectId:
-        if isinstance(subject, self.subject_type):
-            return subject
-        if isinstance(subject, str):
-            try:
-                return self.subject_type(subject)
-            except ValueError as exc:
-                raise KeyError(f"Scene has no subject {subject!r}") from exc
-        if isinstance(subject, NameId):
-            try:
-                return self.subject_type(subject)
-            except ValueError as exc:
-                raise KeyError(f"Scene has no subject {subject!r}") from exc
-        raise TypeError(
-            f"Expected subject of type {self.subject_type.__name__} or str, "
-            f"got {type(subject).__name__}"
-        )
+    Returns a structure of the same ``SubjectsT`` type whose subjects/segments/
+    markers/patches know their compiled names (enabling ``*_target(...)`` and
+    geometry) but are not yet bound to time-series data.
+    """
+    _validate_subjects(subjects)
+    return _bind_subjects(subjects, runtimes=None)
 
 
-def build_scene[SubjectsT: Subjects](
+def bind_subjects_runtime[SubjectsT: Subjects](
     subjects: SubjectsT,
-) -> CompiledSceneSpec:
-    """Compile typed authoring declarations into runtime specs."""
-    subject_items = tuple(subjects.items())
-    subject_type = _runtime_id_type(
-        "Subject",
-        tuple(name for name, _ in subject_items),
-        SubjectId,
-    )
+    runtimes: Mapping[SegmentKey, _SegmentRuntime],
+) -> SubjectsT:
+    """Bind an authored scene to per-segment runtime data (used by MocapTrack)."""
+    return _bind_subjects(subjects, runtimes=runtimes)
 
-    compiled_subjects: dict[SubjectId, CompiledSubjectSpec] = {}
-    segment_types: dict[SubjectId, type[SegmentId]] = {}
-    marker_types: dict[SegmentKey, type[MarkerId]] = {}
-    patch_types: dict[SegmentKey, type[PatchId]] = {}
 
-    for subject_name, subject in subject_items:
-        subject_id = subject_type(subject_name)
-        segment_items = tuple(subject.segments.items())
-        segment_type = _runtime_id_type(
-            "Segment",
-            tuple(name for name, _ in segment_items),
-            SegmentId,
+def _bind_subjects[SubjectsT: Subjects](
+    subjects: SubjectsT,
+    *,
+    runtimes: Mapping[SegmentKey, _SegmentRuntime] | None,
+) -> SubjectsT:
+    bound = {
+        name: _bind_subject(subject, name=name, runtimes=runtimes)
+        for name, subject in cast(Mapping[str, Subject[Any]], subjects).items()
+    }
+    return cast(SubjectsT, bound)
+
+
+def _bind_subject(
+    subject: Subject[Any],
+    *,
+    name: str,
+    runtimes: Mapping[SegmentKey, _SegmentRuntime] | None,
+) -> Subject[Any]:
+    bound_segments = {
+        segment_name: _bind_segment(
+            segment,
+            subject=name,
+            segment_name=segment_name,
+            runtime=(
+                None
+                if runtimes is None
+                else runtimes.get(SegmentKey(name, segment_name))
+            ),
         )
-        segment_types[subject_id] = segment_type
+        for segment_name, segment in subject.segments.items()
+    }
+    bound = Subject(segments=cast(Any, bound_segments), vicon_name=subject.vicon_name)
+    object.__setattr__(bound, "_binding", _SubjectBinding(subject=name))
+    return bound
 
-        compiled_segments: dict[SegmentId, CompiledSegmentSpec[Any, Any]] = {}
-        for segment_name, segment in segment_items:
-            segment_id = segment_type(segment_name)
-            marker_items = tuple(segment.markers.items())
-            patch_items = tuple(segment.patches.items())
-            marker_type = _runtime_id_type(
-                "Marker",
-                tuple(name for name, _ in marker_items),
-                MarkerId,
-            )
-            patch_type = _runtime_id_type(
-                "Patch",
-                tuple(name for name, _ in patch_items),
-                PatchId,
-            )
-            key = SegmentKey(subject_id, segment_id)
-            marker_types[key] = marker_type
-            patch_types[key] = patch_type
 
-            marker_defs = {
-                marker_type(marker_name): marker_def
-                for marker_name, marker_def in marker_items
-            }
-            patch_defs: dict[PatchId, Patch] = {}
-            patch_declarations: dict[PatchId, PatchDeclarationSpec[Any]] = {}
-            compiled_patches: dict[PatchId, PatchSpec[Any]] = {}
-            for patch_name, patch_def in patch_items:
-                patch_id = patch_type(patch_name)
-                patch_defs[patch_id] = patch_def
-                patch_declarations[patch_id] = PatchDeclarationSpec(
-                    patch=patch_id,
-                    label=patch_def.label,
-                    frame=patch_def.frame,
-                )
-                if (
-                    patch_def.transform_segment_patch is None
-                    and patch_def.region is None
-                ):
-                    continue
-                if (
-                    patch_def.transform_segment_patch is None
-                    or patch_def.region is None
-                ):
-                    raise ValueError(
-                        "Patch geometry must provide both transform_segment_patch "
-                        f"and region; subject={subject_id!r}, segment={segment_id!r}, "
-                        f"patch={patch_id!r}"
-                    )
-                compiled_patches[patch_id] = PatchSpec(
-                    patch=patch_id,
-                    transform_segment_patch=patch_def.transform_segment_patch,
-                    region=patch_def.region,
-                    label=patch_def.label,
-                    frame=patch_def.frame,
-                )
-            compiled_segments[segment_id] = CompiledSegmentSpec(
-                subject=subject_id,
-                subject_vicon_name=subject.vicon_name,
-                vicon_name=segment.vicon_name,
-                segment=segment_id,
-                marker_type=marker_type,
-                patch_type=patch_type,
-                axis_convention=Z_UP_AXES,
-                marker_set=MarkerSetSpec(marker_type=marker_type),
-                marker_positions_segment={},
-                patch_calibrations={},
-                patch_declarations=patch_declarations,
-                patches=compiled_patches,
-                marker_defs=marker_defs,
-                patch_defs=patch_defs,
-            )
-
-        compiled_subjects[subject_id] = CompiledSubjectSpec(
-            subject=subject_id,
-            vicon_name=subject.vicon_name,
-            segment_type=segment_type,
-            segments=compiled_segments,
+def _bind_segment(
+    segment: Segment[Any, Any],
+    *,
+    subject: str,
+    segment_name: str,
+    runtime: _SegmentRuntime | None,
+) -> Segment[Any, Any]:
+    bound_markers = {
+        marker_name: _bind_marker(
+            marker,
+            subject=subject,
+            segment=segment_name,
+            marker_name=marker_name,
+            runtime=runtime,
         )
-
-    generated_ids = GeneratedIds(
-        subjects=subject_type,
-        segments=MappingProxyType(segment_types),
-        markers=MappingProxyType(marker_types),
-        patches=MappingProxyType(patch_types),
+        for marker_name, marker in segment.markers.items()
+    }
+    bound_patches = {
+        patch_name: _bind_patch(
+            patch,
+            subject=subject,
+            segment=segment_name,
+            patch_name=patch_name,
+            runtime=runtime,
+        )
+        for patch_name, patch in segment.patches.items()
+    }
+    bound = Segment(
+        markers=cast(Any, bound_markers),
+        patches=cast(Any, bound_patches),
+        vicon_name=segment.vicon_name,
     )
-    return CompiledSceneSpec(
-        subject_type=subject_type,
-        subjects=compiled_subjects,
-        generated_ids=generated_ids,
+    object.__setattr__(
+        bound,
+        "_binding",
+        _SegmentBinding(subject=subject, segment=segment_name, runtime=runtime),
     )
+    return bound
 
 
-def marker_external_name(segment: SegmentSpec[Any, Any], marker: MarkerId) -> str:
-    """Return the external marker label for a runtime marker ID."""
-    resolver = getattr(segment, "marker_external_name", None)
-    if callable(resolver):
-        return resolver(marker)
-    resolver = getattr(segment, "marker_vicon_name", None)
-    if callable(resolver):
-        return resolver(marker)
-    return marker.label
-
-
-def marker_from_external_name(
-    segment: SegmentSpec[Any, Any],
+def _bind_marker(
+    marker: Marker,
+    *,
+    subject: str,
+    segment: str,
     marker_name: str,
-) -> MarkerId:
-    """Resolve an external marker label back to the runtime marker ID."""
-    resolver = getattr(segment, "marker_from_external_name", None)
-    if callable(resolver):
-        return resolver(marker_name)
-    resolver = getattr(segment, "marker_from_vicon_name", None)
-    if callable(resolver):
-        return resolver(marker_name)
-    return segment.marker_type(marker_name)
-
-
-def marker_from_vicon_name(segment: SegmentSpec[Any, Any], marker_name: str) -> MarkerId:
-    """Backward-compatible alias for marker_from_external_name()."""
-    return marker_from_external_name(segment, marker_name)
-
-
-def subject_external_name(subject: SubjectSpec) -> str:
-    """Return the external subject label for a subject spec."""
-    resolver = getattr(subject, "subject_external_name", None)
-    if callable(resolver):
-        return resolver()
-    vicon_name = getattr(subject, "vicon_name", None)
-    if vicon_name is not None:
-        return vicon_name
-    return subject.subject.label
-
-
-def segment_external_name(segment: SegmentSpec[Any, Any]) -> str:
-    """Return the external segment label for a segment spec."""
-    resolver = getattr(segment, "segment_external_name", None)
-    if callable(resolver):
-        return resolver()
-    vicon_name = getattr(segment, "vicon_name", None)
-    if vicon_name is not None:
-        return vicon_name
-    return segment.segment.label
-
-
-def _runtime_id_type[IdT: NameId](
-    kind: str,
-    authored_keys: tuple[str, ...],
-    base: type[IdT],
-) -> type[IdT]:
-    member_map: dict[str, str] = {}
-    for authored_key in authored_keys:
-        member_name = _sanitize_identifier(authored_key)
-        if member_name in member_map:
-            previous = member_map[member_name]
-            if previous != authored_key:
-                raise ValueError(
-                    f"{kind} keys collide after sanitization: "
-                    f"{previous!r} and {authored_key!r} both map to {member_name!r}"
-                )
-            raise ValueError(
-                f"Duplicate {kind.lower()} key after sanitization: {authored_key!r}"
-            )
-        member_map[member_name] = authored_key
-
-    runtime_enum = Enum(
-        f"Generated{kind}Id",
-        member_map,
-        type=base,
-        module=__name__,
+    runtime: _SegmentRuntime | None,
+) -> Marker:
+    bound = Marker(
+        vicon_name=marker.vicon_name,
+        position_segment=marker.position_segment,
     )
-    return cast(type[IdT], runtime_enum)
+    object.__setattr__(
+        bound,
+        "_binding",
+        _MarkerBinding(
+            subject=subject, segment=segment, marker=marker_name, runtime=runtime
+        ),
+    )
+    return bound
 
 
-def _sanitize_identifier(name: str) -> str:
-    candidate = _NON_IDENTIFIER.sub("_", name)
-    if not candidate:
-        candidate = "_"
-    if candidate[0].isdigit():
-        candidate = f"_{candidate}"
-    if keyword.iskeyword(candidate):
-        candidate = f"{candidate}_"
-    if not candidate.isidentifier():
-        raise ValueError(f"Cannot sanitize {name!r} into a valid identifier")
-    return candidate
+def _bind_patch(
+    patch: Patch,
+    *,
+    subject: str,
+    segment: str,
+    patch_name: str,
+    runtime: _SegmentRuntime | None,
+) -> Patch:
+    bound = Patch(
+        label=patch.label,
+        transform_segment_patch=patch.transform_segment_patch,
+        region=patch.region,
+        frame=patch.frame,
+    )
+    object.__setattr__(
+        bound,
+        "_binding",
+        _PatchBinding(
+            subject=subject, segment=segment, patch=patch_name, runtime=runtime
+        ),
+    )
+    return bound
+
+
+def _validate_subjects(subjects: Mapping[str, Any]) -> None:
+    if not subjects:
+        raise ValueError("A scene must declare at least one subject")
+    for subject_name, subject in subjects.items():
+        if not subject_name:
+            raise ValueError("Subject names must be non-empty")
+        segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
+        for segment_name, segment in segments.items():
+            _validate_segment(subject_name, segment_name, segment)
+
+
+def _validate_segment(
+    subject_name: str,
+    segment_name: str,
+    segment: Segment[Any, Any],
+) -> None:
+    seen_vicon: dict[str, str] = {}
+    for marker_name, marker in segment.markers.items():
+        previous = seen_vicon.get(marker.vicon_name)
+        if previous is not None:
+            raise ValueError(
+                "Duplicate Marker.vicon_name within "
+                f"{subject_name!r}/{segment_name!r}: {marker.vicon_name!r} used by "
+                f"{previous!r} and {marker_name!r}"
+            )
+        seen_vicon[marker.vicon_name] = marker_name

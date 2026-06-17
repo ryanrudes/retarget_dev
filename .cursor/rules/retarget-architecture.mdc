@@ -1,5 +1,5 @@
 ---
-description: Preserve the core retarget architecture while editing specs, state, views, IO, and examples.
+description: Preserve the typed-first, enum-free retarget architecture while editing schema, state, views, IO, and examples.
 globs:
   - "src/retarget/**/*.py"
   - "examples/**/*.py"
@@ -9,102 +9,74 @@ alwaysApply: true
 
 # Retarget architecture rules
 
-This repository uses a layered typed architecture. Do not flatten specs, runtime state, views, tracks, and IO. That would be simpler in the way a pile of rubble is simpler than a building.
+The public model is **typed-first and enum-free**. There are no identifier enums
+(`MarkerId`, `SegmentId`, `PatchId`, `SubjectId`, `TrackId`) and no `NameId`.
+Authored string names are identity.
 
-## Specs
+## Dual-purpose schema dataclasses
 
-Specs are static definitions.
+`Marker`, `Patch`, `Segment[MarkersT, PatchesT]`, and `Subject[SegmentsT]` are
+frozen, slotted dataclasses that serve as **both** the authoring values and the
+bound runtime query surface. They carry a private, non-init `_binding`
+(`field(default=None, init=False, compare=False, repr=False)`) that links them to
+loaded data. It is `None` while authoring and excluded from equality/repr.
 
-`SegmentSpec[M, P]` is subject-independent. It must not contain a `SubjectId`.
+Do not split these back into `SegmentSpec` + `SegmentView` + handles. Do not add
+`SubjectId`/`MarkerId`/etc. Do not put runtime binding in the public constructor.
 
-A segment spec defines segment-local marker vocabulary, patch vocabulary, axis convention, segment-local marker positions, patch calibrations, and built patch specs.
+## TypedDict schema bases
 
-Do not add world-frame pose, observations, timestamps, or subject identity to `SegmentSpec`.
+`Markers`, `Patches`, `Segments`, `Subjects` (core) and `Tracks` (demo) are
+`TypedDict` bases. Concrete subclasses give the deep query chain its static
+typing, because concrete `TypedDict`s project literal keys to declared types.
 
-## Runtime state
-
-Runtime state stores concrete time-varying values.
-
-`SceneState` must use:
+## Deep-chain typing is load-bearing
 
 ```python
+demo.tracks["mocap"]                          # MocapTrack[SubjectsT]
+mocap.subjects["left_shoe"].segments["shoe"]  # Segment[...]
+segment.markers["heel"].positions()           # TimeVec3
+```
+
+This works via `Demonstration[TracksT].tracks -> TracksT` and
+`MocapTrack[SubjectsT].subjects -> SubjectsT`. Do not regress it and do not add
+codegen.
+
+## Targets, keys, state
+
+Stable runtime keys are string-based dataclasses:
+
+```python
+SegmentTarget(subject, segment)
+MarkerTarget(subject, segment, marker)
+PatchTarget(subject, segment, patch)
 SegmentKey(subject, segment)
 ```
 
-Do not key runtime segment state by bare `SegmentId`.
+`SceneState.segment_poses` is keyed by `SegmentKey` (strings). `ContactTrack`
+keys off `PatchTarget`. `SceneState`/`SegmentPoseTrajectory` remain the internal
+pose store; `SegmentPoseTrajectory` may be empty (materialized empty slices).
 
-Segment IDs are subject-local.
+Do not reintroduce `MarkerHandle`/`PatchHandle` or enum-typed identity.
 
-## Views
+## build_scene and loading
 
-Views combine static specs with runtime state.
-
-`SceneView` must hold both `spec: SceneSpec` and `state: SceneState`.
-
-`SubjectView` must hold both `subject_spec: SubjectSpec` and `state: SceneState`.
-
-Segment lookup must support both paths:
-
-```python
-scene.subject(subject_id).segment(segment_spec)
-scene.subject(subject_id).segment(segment_id)
-```
-
-The first path preserves marker/patch generic types. The second path is ergonomic runtime lookup and may return `SegmentView[Any, Any]`.
-
-Do not remove either path.
-
-## Concrete dataclasses
-
-Concrete project specs should use typed fields with domain names.
-
-Avoid concrete fields named `segment`, because that shadows `SubjectSpec.segment(...)`.
-
-Keep the defensive base-method lookup in `SubjectView.segment(...)` unless the full hierarchy is proven safe:
-
-```python
-SubjectSpec.segment(self.subject_spec, segment)
-```
-
-## Handles and targets
-
-`MarkerHandle[M]` and `PatchHandle[P]` are segment-scoped, not subject-scoped.
-
-Do not add `SubjectId` to marker or patch handles.
-
-Use `PatchTarget[P]` for scene-level contact references:
-
-```python
-PatchTarget(subject=subject_id, handle=patch_handle)
-```
-
-Contact data should key off `PatchTarget`, not raw strings.
+`build_scene(subjects)` path-binds the authored schema (targets + geometry
+available, no time-series) and returns the same `SubjectsT`. `load_mocap_track`
+returns a `MocapTrack[SubjectsT]` whose `.subjects` answers time-series queries.
+`calibrate_patch_transform(...)` is the backend helper that fits a patch frame
+from segment-frame marker positions (apply `marker_translations` before fitting,
+`normal_offset` after).
 
 ## IO
 
-IO modules may contain low-level parsing and helper functions. They should hide raw external string labels behind typed IDs/specs/views.
-
-High-level examples should not expose raw Vicon label plumbing.
-
-Low-level IO helpers are allowed. Do not make them the primary demo API.
-
-## Patch calibration
-
-Preserve patch calibration semantics:
-
-1. take segment-local marker positions;
-2. apply sparse `marker_translations` before fitting;
-3. fit the patch frame;
-4. apply `normal_offset` after fitting along the fitted normal.
-
-`PatchCalibrationSpec.markers` is required. Do not infer calibration markers from `marker_translations`.
+IO parses raw JSON/VSK and exposes typed values. `load_scene_state`,
+`load_mocap_track`, and `marker_position` take authored string names; do not
+reintroduce enum/spec-typed IO signatures.
 
 ## Type style
 
-Use Python 3.13+ PEP 695 generic syntax where this repo already uses it, including default type parameters on new public generic APIs when that improves readability. Do not introduce new `typing.TypeVar` aliases when a type parameter works directly.
-
-Default generic parameters do not solve arbitrary TypedDict key-to-view projection; deeper mapping access may still hover as broad types until a documented projection policy exists.
-
-Use `Mapping` for inputs and freeze stored mappings with `MappingProxyType` when appropriate.
-
-Do not weaken typed IDs to raw strings.
+Use PEP 695 generics with defaults. Use `Mapping` for inputs and
+`MappingProxyType` for stored immutable mappings. Keep `py.typed`. Concrete
+`TypedDict` projection types the deep chain; iterating a generic `TypedDict`
+type var still yields broad values — cast internally where needed.

@@ -1,29 +1,36 @@
-"""Private array caches and format conversion for mocap demonstration tracks."""
+"""Rotation/pose format conversion and small time-series array helpers.
+
+These are pure array utilities shared by the schema/runtime query surface. They
+live in ``retarget.core`` so the typed scene/demo layers can use them without
+importing higher layers.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from typing import cast
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 
 from retarget.core.enums import PoseFormat, RotationFormat
-from retarget.core.keys import SegmentKey
 from retarget.core.transform import RigidTransform
 
 
-@dataclass(slots=True)
-class MocapArrayCache:
-    """Lazy, mutable AoS caches keyed by segment identity.
+def finite_difference_velocity(
+    positions: np.ndarray,
+    timestamps: np.ndarray,
+) -> np.ndarray:
+    """Return velocity with shape matching ``positions`` using ``np.gradient``."""
+    if len(timestamps) == 0:
+        return np.empty_like(positions)
+    if len(timestamps) == 1:
+        return cast(np.ndarray, np.zeros(positions.shape, dtype=positions.dtype))
+    return cast(np.ndarray, np.gradient(positions, timestamps, axis=0))
 
-    Owned privately by :class:`~retarget.demo.mocap.MocapTrack` and not part of
-    the public API. ``MocapTrack`` remains frozen; this object holds mutable
-    lazy-cache state.
-    """
 
-    translations: dict[SegmentKey, np.ndarray] = field(default_factory=dict)
-    rotations: dict[SegmentKey, np.ndarray] = field(default_factory=dict)
-    observed_markers: dict[SegmentKey, np.ndarray] = field(default_factory=dict)
+def speed_from_velocity(velocity: np.ndarray) -> np.ndarray:
+    """Return the L2 norm of a velocity signal along the last axis."""
+    return cast(np.ndarray, np.linalg.norm(velocity, axis=-1))
 
 
 def rotation_matrices_to_format(

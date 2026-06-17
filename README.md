@@ -32,22 +32,26 @@ ros2 unbag bags/ground_estimation/ground_estimation_0.db3 \
   --resample /tf:nearest,0.02
 ```
 
-## Scene authoring
+## Typed-first model
 
-The preferred public path is the TypedDict authoring layer compiled by `build_scene(...)`.
+The public API is typed and enum-free. You declare scene and demonstration
+structure with `TypedDict` schemas, then instantiate frozen dataclasses. The
+same objects are the authoring values *and* the bound runtime query surface, so
+the full query chain is statically typed with no codegen:
+
+```python
+demo.tracks["mocap"]                                  # MocapTrack[MocapSubjects]
+mocap.subjects["left_shoe"].segments["shoe"]          # Segment[ShoeMarkers, ShoePatches]
+segment.markers["heel"].positions()                   # (T, 3) ndarray
+segment.patches["sole"].points()                      # (T, 3) ndarray
+```
+
+## Scene authoring
 
 ```python
 from retarget.core import (
-    Marker,
-    Markers,
-    Patch,
-    Patches,
-    RigidTransform,
-    Segment,
-    Segments,
-    Subject,
-    Subjects,
-    build_scene,
+    Marker, Markers, Patch, Patches, Segment, Segments, Subject, Subjects,
+    RigidTransform, build_scene,
 )
 
 class ShoeMarkers(Markers):
@@ -66,8 +70,10 @@ class ShoeSubjects(Subjects):
 
 subjects = ShoeSubjects(
     left_shoe=Subject(
+        vicon_name="Left_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
+                vicon_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
                     heel=Marker(vicon_name="left_shoe_heel"),
                     toe=Marker(vicon_name="left_shoe_toe"),
@@ -87,64 +93,69 @@ subjects = ShoeSubjects(
 )
 
 scene = build_scene(subjects)
-shoe = scene.subject("left_shoe").segment("shoe")
+shoe = scene["left_shoe"].segments["shoe"]
 heel_target = shoe.marker_target("heel")
 sole_target = shoe.patch_target("sole")
-toe_target = shoe.patch_target("toe_contact")
-# shoe.patch("toe_contact") raises because that patch is declaration-only.
+toe_target = shoe.patch_target("toe_contact")   # declaration-only patch is still targetable
+# shoe.patches["toe_contact"].points() raises once loaded, because that patch has no geometry.
 ```
 
-- Use `Subjects`, `Segments`, `Markers`, and `Patches` to declare the scene shape.
-- Use `Subject`, `Segment`, `Marker`, and `Patch` to author concrete scene data.
-- Authored field names are the internal canonical IDs.
-- Use `Marker.vicon_name` for external/Vicon lookup metadata.
-- Use `Patch.label` and `Patch.frame` for display/metadata, not identity.
-- Use `Patch(label=...)` to declare a patch without geometry.
-- Use `Patch.rectangular(...)` to declare a calibrated patch with geometry.
-- `SegmentSpec.patch(...)` returns a `PatchHandle` for any declared patch.
-- `SegmentSpec.patch_spec(...)` requires calibrated geometry.
-- `SegmentView.patch(...)` returns a geometry-backed `PatchView` and requires calibrated geometry.
-- `SegmentView.patch_target(...)` works for any declared patch.
-- `build_scene(...)` compiles authored field names into runtime specs and private generated IDs.
+- `Markers`/`Patches`/`Segments`/`Subjects` are `TypedDict` bases declaring scene shape.
+- `Marker`/`Patch`/`Segment`/`Subject` are frozen dataclasses for concrete data.
+- Authored field names are the canonical identity; `Marker.vicon_name`,
+  `Segment.vicon_name`, and `Subject.vicon_name` are external/Vicon lookup metadata.
+- `Patch(label=...)` declares a patch without geometry; `Patch.rectangular(...)`
+  declares calibrated geometry.
+- `build_scene(...)` path-binds the schema so `*_target(...)` and geometry work,
+  and returns the same `SubjectsT` type.
 
-Manual `SceneSpec` / `SubjectSpec` / `SegmentSpec` construction still exists, but it is a
-low-level backend path for loader code and geometry examples.
+## Stable runtime keys
 
-## Segment lookup
-
-Segment IDs are subject-local. At runtime, `SceneState` uses `SegmentKey(subject, segment)` to disambiguate concrete segment instances. For segment views, pass a `SegmentSpec` when you want marker/patch generic types preserved. Pass a `SegmentId` when you want ergonomic runtime lookup.
+Targets are plain string-based dataclasses used as stable keys for runtime data:
 
 ```python
-# Typed path
-scene.subject(subject_id).segment(LEFT_SHOE_SEGMENT)
-
-# Runtime lookup path
-scene.subject(subject_id).segment(LeftShoeSegmentId.LEFT_SHOE)
+SegmentTarget(subject="left_shoe", segment="shoe")
+MarkerTarget(subject="left_shoe", segment="shoe", marker="heel")
+PatchTarget(subject="left_shoe", segment="shoe", patch="sole")
 ```
 
-## Observed marker lookup
+Contact tracks are keyed by `PatchTarget`; scene pose state by `SegmentKey`.
 
-Observed marker lookup can use either a `SegmentView` or a `SegmentSpec`.
-
-Preferred after resolving a view:
+## Loading and querying demonstrations
 
 ```python
-marker_position(marker_frame, segment=left_shoe_view, marker=LeftShoeMarkerId.HEEL)
-```
+from retarget.demo import MocapTrack, Tracks, build_demonstration, load_mocap_track
+from retarget.io import UnbaggedDirectory
 
-Alternative without a view:
+class GroundEstimationTracks(Tracks):
+    mocap: MocapTrack[ShoeSubjects]
 
-```python
-marker_position(
-    marker_frame,
-    subject=ViconSubjectId.LEFT_SHOE,
-    segment=LEFT_SHOE_SEGMENT,
-    marker=LeftShoeMarkerId.HEEL,
-)
+mocap = load_mocap_track(UnbaggedDirectory("bags/.../unbagged"), subjects).with_rebased_time()
+demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
+
+mocap = demo.tracks["mocap"]
+shoe = mocap.subjects["left_shoe"].segments["shoe"]
+heel_positions = shoe.markers["heel"].positions()        # observed; NaN where unobserved
+heel_modeled = shoe.markers["heel"].positions(modeled=True)
+sole_points = shoe.patches["sole"].points()
+translations = shoe.translations()
+
+# Batch + dict queries (string-keyed):
+shoe.marker_positions("heel", "toe")                     # (T, 2, 3)
+shoe.marker_positions("heel", "toe", as_dict=True)       # {"heel": (T,3), "toe": (T,3)}
+
+# Slice the track to keep the typed chain; slice the demo for whole-demo views.
+clip = mocap.slice_time(0.0, 1.0)
 ```
 
 ## Example scripts
 
-`new_api_example.py` is the preferred public TypedDict authoring example. It shows the typed demo-track path with `demo.tracks["mocap"]`, then the typed mocap façade chain `mocap.subjects["left_shoe"].segments["shoe"].markers["heel"].positions()` and `mocap.subjects["left_shoe"].segments["shoe"].patches["sole"].points()`, then the optional local-bag handoff when `bags/ground_estimation/unbagged/` exists.
+`examples/process_mocap_data/new_api_example.py` is the canonical typed example:
+authoring, `build_scene`, then the `demo.tracks["mocap"]` deep chain with a
+bag-backed handoff when `bags/ground_estimation/unbagged/` exists.
 
-`backend_specs/` contains low-level backend/manual support for real VSK-derived calibration and bag-data loading. `run_demo_track_workflow.py` and `run_core_geometry_basics.py` are backend/manual examples: they use enum-keyed `demo[track_id]` access and private mocap helpers such as `_subject` and `_patch_points` for internal validation, not as the public typed mapping API. `run_core_geometry_basics.py` is a backend/manual geometry query example.
+`backend_specs/` holds backend/manual loader support that authors the same typed
+schema but derives marker geometry and patch calibration from a real VSK file
+(`calibrate_patch_transform`, `read_marker_positions_from_vsk`).
+`run_demo_track_workflow.py` and `run_core_geometry_basics.py` load that real
+data and query it through the public typed deep chain.

@@ -49,9 +49,20 @@ Prefer `pytest -q` or `pytest -q tests/test_foo.py`.
 
 Outside pytest: `cd tests` then `PYTHONPATH=../src python3 ...`, or use `PYTHONPATH=src:tests`.
 
+## Strict typing
+
+```bash
+uv run mypy
+```
+
+The typed deep chain (`demo.tracks["mocap"].subjects[...].segments[...]`) must
+stay mypy-clean.
+
 ## Examples
 
 ```bash
 cd examples/process_mocap_data
-PYTHONPATH=../../src:. python3 run_demo_example.py
+PYTHONPATH=../../src:. python3 new_api_example.py
+PYTHONPATH=../../src:. python3 run_demo_track_workflow.py
+PYTHONPATH=../../src:. python3 run_core_geometry_basics.py
 ```

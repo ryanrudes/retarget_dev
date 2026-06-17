@@ -1,26 +1,17 @@
+from __future__ import annotations
+
 import numpy as np
 import pytest
 
 from retarget.core import (
-    SubjectId,
-    SegmentId,
-    SegmentKey,
     RigidTransform,
-    SegmentPoseTrajectory,
     SceneState,
+    SegmentKey,
+    SegmentPoseTrajectory,
 )
 
 
-class _SubjectId(SubjectId):
-    A = "a"
-    B = "b"
-
-
-class _SegmentId(SegmentId):
-    FOOT = "foot"
-
-
-def test_scene_state_allows_same_segment_id_in_different_subjects() -> None:
+def test_scene_state_allows_same_segment_name_in_different_subjects() -> None:
     pose_a = RigidTransform.identity()
     pose_b = RigidTransform.from_rotation_translation(
         rotation=np.eye(3),
@@ -28,35 +19,28 @@ def test_scene_state_allows_same_segment_id_in_different_subjects() -> None:
     )
     state = SceneState(
         segment_poses={
-            SegmentKey(_SubjectId.A, _SegmentId.FOOT): SegmentPoseTrajectory(
-                poses=(pose_a,),
-            ),
-            SegmentKey(_SubjectId.B, _SegmentId.FOOT): SegmentPoseTrajectory(
-                poses=(pose_b,),
-            ),
+            SegmentKey("a", "foot"): SegmentPoseTrajectory(poses=(pose_a,)),
+            SegmentKey("b", "foot"): SegmentPoseTrajectory(poses=(pose_b,)),
         }
     )
-    resolved_a = state.pose(_SubjectId.A, _SegmentId.FOOT).at(0)
-    resolved_b = state.pose(_SubjectId.B, _SegmentId.FOOT).at(0)
     np.testing.assert_allclose(
-        resolved_a.translation,
+        state.pose("a", "foot").at(0).translation,
         np.array([0.0, 0.0, 0.0]),
     )
     np.testing.assert_allclose(
-        resolved_b.translation,
+        state.pose("b", "foot").at(0).translation,
         np.array([1.0, 2.0, 3.0]),
     )
 
 
-def test_segment_pose_trajectory_rejects_empty_trajectory() -> None:
-    with pytest.raises(ValueError, match="requires at least one pose"):
-        SegmentPoseTrajectory(poses=())
+def test_segment_pose_trajectory_allows_empty_trajectory() -> None:
+    trajectory = SegmentPoseTrajectory(poses=())
+    assert trajectory.num_timesteps == 0
+    assert len(trajectory) == 0
 
 
 def test_segment_pose_trajectory_checks_bounds() -> None:
-    trajectory = SegmentPoseTrajectory(
-        poses=(RigidTransform.identity(),),
-    )
+    trajectory = SegmentPoseTrajectory(poses=(RigidTransform.identity(),))
     with pytest.raises(IndexError, match="out of range"):
         trajectory.at(1)
 
@@ -64,14 +48,11 @@ def test_segment_pose_trajectory_checks_bounds() -> None:
 def test_scene_state_rejects_inconsistent_trajectory_lengths() -> None:
     state = SceneState(
         segment_poses={
-            SegmentKey(_SubjectId.A, _SegmentId.FOOT): SegmentPoseTrajectory(
+            SegmentKey("a", "foot"): SegmentPoseTrajectory(
                 poses=(RigidTransform.identity(),),
             ),
-            SegmentKey(_SubjectId.B, _SegmentId.FOOT): SegmentPoseTrajectory(
-                poses=(
-                    RigidTransform.identity(),
-                    RigidTransform.identity(),
-                ),
+            SegmentKey("b", "foot"): SegmentPoseTrajectory(
+                poses=(RigidTransform.identity(), RigidTransform.identity()),
             ),
         }
     )

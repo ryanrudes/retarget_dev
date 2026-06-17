@@ -1,198 +1,135 @@
-"""Generic demonstration containers and sliced/resampled views.
+"""Typed demonstration container and sliced/resampled views.
 
-A :class:`Demonstration` owns a mapping of typed track identifiers to concrete
-demo tracks. ``slice_time(...)`` returns a :class:`DemonstrationView`, which is
-a lightweight container over sliced track views while preserving the root demo
-as ``source``.
+A :class:`Demonstration` owns a typed ``Tracks`` mapping (a ``TypedDict`` of
+named tracks). ``demo.tracks["mocap"]`` is statically typed from the user's
+schema. ``slice_time(...)`` returns a :class:`DemonstrationView`, whose
+``tracks`` are sliced/view tracks typed through the common ``Track`` surface.
 
 ``DemonstrationView.resample_to(...)`` materializes a new view whose tracks are
-sampled onto a shared reference timeline. Pairwise or composed alignments tell
-the method how to convert reference timestamps into each source track's native
-time basis before delegating interpolation/discrete sampling to each track.
+sampled onto a shared reference timeline using stored alignments.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from dataclasses import InitVar, dataclass, field
+from collections.abc import Iterator, Mapping
+from dataclasses import dataclass
 from types import MappingProxyType
+from typing import Any, TypedDict, cast
 
-from retarget.core.enums import TrackId
+import numpy as np
+
 from retarget.demo.alignment import TrackAlignment
 from retarget.demo.tracks import Track
 
 
-@dataclass(frozen=True, slots=True)
-class _GeneratedTrackIds:
-    """Private runtime TrackId bridge generated from authored track names."""
-
-    tracks: type[TrackId]
+class Tracks(TypedDict):
+    """Base class for typed demonstration track-schema declarations."""
 
 
 @dataclass(frozen=True, slots=True)
-class Demonstration[K: TrackId]:
-    """Multimodal demonstration keyed by typed track identifiers."""
+class Demonstration[TracksT: Tracks = Tracks]:
+    """Multimodal demonstration keyed by authored track names."""
 
-    tracks: InitVar[Mapping[K, Track]]
-    alignments: tuple[TrackAlignment[K], ...] = ()
-    _generated_ids: _GeneratedTrackIds | None = field(
-        default=None,
-        repr=False,
-        compare=False,
-        kw_only=True,
-    )
-    _tracks: Mapping[K, Track] = field(init=False, repr=False)
+    tracks: TracksT
+    alignments: tuple[TrackAlignment, ...] = ()
 
-    def __post_init__(self, tracks: Mapping[K, Track]) -> None:
-        object.__setattr__(self, "_tracks", _freeze_tracks(tracks))
+    def __post_init__(self) -> None:
+        frozen = _freeze_tracks(cast(Mapping[str, Track], self.tracks))
+        object.__setattr__(self, "tracks", cast(TracksT, frozen))
 
-    def __getitem__(self, track: K) -> Track:
-        return self._tracks[track]
-
-    def track_ids(self) -> tuple[K, ...]:
-        """Return the demonstration's track identifiers in insertion order."""
-        return tuple(self._tracks)
+    def __getitem__(self, track: str) -> Track:
+        return self._track_map()[track]
 
     def __contains__(self, track: object) -> bool:
-        if isinstance(track, TrackId):
-            return track in self._tracks
-        if isinstance(track, str):
-            try:
-                return self._coerce_track_id(track) in self._tracks
-            except KeyError:
-                return False
-        return False
+        return track in self._track_map()
 
-    def __iter__(self):
-        return iter(self._tracks)
+    def __iter__(self) -> Iterator[str]:
+        return iter(self._track_map())
 
-    def _get_track(self, track: K | str) -> Track:
-        track_id = self._coerce_track_id(track)
-        return self[track_id]
+    def track_ids(self) -> tuple[str, ...]:
+        """Return the demonstration's track names in insertion order."""
+        return tuple(self._track_map())
 
-    def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
+    def slice_time(self, start: float, stop: float) -> DemonstrationView:
         return DemonstrationView(
-            source=self._view_source(),
+            source=self,
             tracks={
-                track_id: track.slice_time(start, stop)
-                for track_id, track in self._tracks.items()
+                name: track.slice_time(start, stop)
+                for name, track in self._track_map().items()
             },
             alignments=self.alignments,
-            _generated_ids=self._generated_ids,
         )
 
-    def resample_with_alignments(
-        self,
-        reference: K | str,
-        alignments: tuple[TrackAlignment[K], ...],
-    ) -> DemonstrationView[K]:
-        """Compatibility wrapper for pairwise alignments.
-
-        Prefer :func:`retarget.demo.sync.estimate_sync_and_resample_to_reference`
-        for the full sync-and-resample workflow.
-        """
-        import dataclasses
-        from retarget.demo.sync import compose_alignments_to_reference
-
-        reference_id = self._coerce_track_id(reference)
-
-        # Keep the legacy pairwise-alignment path alive for existing callers.
-        composed = compose_alignments_to_reference(
-            reference=reference_id,
-            alignments=alignments,
-        )
-
-        if isinstance(self, DemonstrationView):
-            source = dataclasses.replace(
-                self.source,
-                tracks=dict(self.source._tracks),
-                alignments=composed,
-            )
-            view = dataclasses.replace(
-                self,
-                tracks=dict(self._tracks),
-                source=source,
-                alignments=composed,
-            )
-        else:
-            view = DemonstrationView(
-                source=self,
-                tracks=self._tracks,
-                alignments=composed,
-                _generated_ids=self._generated_ids,
-            )
-
-        return view.resample_to(reference_id)
-
-    def _view_source(self) -> Demonstration[K]:
-        return self
-
-    def _coerce_track_id(self, track: K | str) -> K:
-        if isinstance(track, TrackId):
-            return track
-        if isinstance(track, str):
-            if self._generated_ids is not None:
-                try:
-                    return self._generated_ids.tracks(track)
-                except ValueError as exc:
-                    raise KeyError(
-                        f"Track {track!r} is not in this demonstration"
-                    ) from exc
-            if self._tracks_are_track_ids():
-                raise KeyError(f"Track {track!r} is not in this demonstration")
-        return track
-
-    def _tracks_are_track_ids(self) -> bool:
-        for track_id in self._tracks:
-            if not isinstance(track_id, TrackId):
-                return False
-        return True
+    def _track_map(self) -> Mapping[str, Track]:
+        return cast(Mapping[str, Track], self.tracks)
 
 
-@dataclass(frozen=True, slots=True, kw_only=True)
-class DemonstrationView[K: TrackId](Demonstration[K]):
-    """Time-sliced view over a demonstration."""
+@dataclass(frozen=True, slots=True)
+class DemonstrationView:
+    """Time-sliced / resampled view over a demonstration."""
 
-    source: Demonstration[K]
+    source: Demonstration[Any]
+    tracks: Mapping[str, Track]
+    alignments: tuple[TrackAlignment, ...] = ()
 
-    def _view_source(self) -> Demonstration[K]:
-        return self.source
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "tracks", MappingProxyType(dict(self.tracks)))
 
-    def resample_to(self, reference: K | str) -> DemonstrationView[K]:
-        """Return a materialized view resampled onto a reference track timeline."""
-        reference_id = self._coerce_track_id(reference)
-        if reference_id not in self._tracks:
-            raise KeyError(f"Reference track {reference!r} is not in this view")
+    def __getitem__(self, track: str) -> Track:
+        return self.tracks[track]
 
-        reference_track = self[reference_id]
-        reference_timestamps = reference_track.timestamps
-        alignment_by_source = _alignments_to_reference(
-            reference=reference_id,
+    def __contains__(self, track: object) -> bool:
+        return track in self.tracks
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.tracks)
+
+    def track_ids(self) -> tuple[str, ...]:
+        return tuple(self.tracks)
+
+    def slice_time(self, start: float, stop: float) -> DemonstrationView:
+        return DemonstrationView(
+            source=self.source,
+            tracks={
+                name: track.slice_time(start, stop)
+                for name, track in self.tracks.items()
+            },
             alignments=self.alignments,
         )
 
-        resampled_tracks: dict[K, Track] = {}
-        for track_id, track in self._tracks.items():
-            if track_id == reference_id:
-                resampled_tracks[track_id] = track
-                continue
+    def resample_to(self, reference: str) -> DemonstrationView:
+        """Return a materialized view resampled onto a reference track timeline."""
+        if reference not in self.tracks:
+            raise KeyError(f"Reference track {reference!r} is not in this view")
 
+        reference_track = self.tracks[reference]
+        reference_timestamps = reference_track.timestamps
+        alignment_by_source = _alignments_to_reference(
+            reference=reference, alignments=self.alignments
+        )
+
+        resampled_tracks: dict[str, Track] = {}
+        for name, track in self.tracks.items():
+            if name == reference:
+                resampled_tracks[name] = track
+                continue
             try:
-                alignment = alignment_by_source[track_id]
+                alignment = alignment_by_source[name]
             except KeyError as exc:
                 raise ValueError(
-                    f"Track {track_id!r} has no alignment to reference {reference!r}"
+                    f"Track {name!r} has no alignment to reference {reference!r}"
                 ) from exc
-
-            source_timestamps = alignment.transform.to_source(reference_timestamps)
+            source_timestamps = cast(
+                np.ndarray, alignment.transform.to_source(reference_timestamps)
+            )
             try:
-                resampled_tracks[track_id] = track.resample_to(
+                resampled_tracks[name] = track.resample_to(
                     source_timestamps,
                     output_timestamps=reference_timestamps,
                 )
             except NotImplementedError as exc:
                 raise NotImplementedError(
-                    f"Cannot resample track {track_id!r} onto reference {reference!r}: "
+                    f"Cannot resample track {name!r} onto reference {reference!r}: "
                     f"{type(track).__name__} does not implement resample_to"
                 ) from exc
 
@@ -200,16 +137,24 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
             source=self.source,
             tracks=resampled_tracks,
             alignments=self.alignments,
-            _generated_ids=self._generated_ids,
         )
 
 
-def _alignments_to_reference[K: TrackId](
+def build_demonstration[TracksT: Tracks](
+    tracks: TracksT,
     *,
-    reference: K,
-    alignments: tuple[TrackAlignment[K], ...],
-) -> Mapping[K, TrackAlignment[K]]:
-    alignment_by_source: dict[K, TrackAlignment[K]] = {}
+    alignments: tuple[TrackAlignment, ...] = (),
+) -> Demonstration[TracksT]:
+    """Build a typed demonstration from an authored ``Tracks`` mapping."""
+    return Demonstration(tracks=tracks, alignments=alignments)
+
+
+def _alignments_to_reference(
+    *,
+    reference: str,
+    alignments: tuple[TrackAlignment, ...],
+) -> Mapping[str, TrackAlignment]:
+    alignment_by_source: dict[str, TrackAlignment] = {}
     for alignment in alignments:
         if alignment.reference != reference:
             continue
@@ -222,7 +167,7 @@ def _alignments_to_reference[K: TrackId](
     return MappingProxyType(alignment_by_source)
 
 
-def _freeze_tracks[K: TrackId](tracks: Mapping[K, Track]) -> Mapping[K, Track]:
+def _freeze_tracks(tracks: Mapping[str, Track]) -> Mapping[str, Track]:
     copied = dict(tracks)
     for key, value in copied.items():
         if not isinstance(value, Track):

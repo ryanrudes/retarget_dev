@@ -47,6 +47,10 @@ warn_unreachable = true
 warn_unused_ignores = true
 plugins = ["depend.mypy_plugin.plugin"]
 
+[[tool.mypy.overrides]]
+module = ["scipy.*", "networkx.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-q"
 testpaths = ["tests"]

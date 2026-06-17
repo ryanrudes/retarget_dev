@@ -11,9 +11,13 @@ alwaysApply: true
 
 # Sync and alignment rules
 
+Track identity in this layer is the authored **string** track name. Do not
+reintroduce identifier enums or `[K: TrackId]` generics.
+
 ## Alignment primitives
 
-`EnergySignal` is a named scalar time series. Do not make it automatically collapse vector signals. Callers must decide how to convert vector/spatial data into scalar energy.
+`EnergySignal` is a named scalar time series. Do not auto-collapse vector/spatial
+data; callers convert to scalar energy.
 
 `TimelineTransform` uses exactly these directions:
 
@@ -23,14 +27,14 @@ to_source(...)
 ```
 
 Do not reintroduce `source_to_reference` / `reference_to_source` aliases.
+`TimelineTransform.then(other)` applies `self` first, then `other`.
 
-`TimelineTransform.then(other)` composes transforms by applying `self` first, then `other`.
+`TrackAlignment(source: str, reference: str, transform, score=None)`.
 
 ## Sync plans
 
-`SyncPlan` describes a connected undirected graph rooted at `reference`; it is not restricted to a star.
-
-Validation should reject:
+`SyncEdge` and `SyncPlan` are string-keyed. `SyncPlan` describes a connected
+undirected graph rooted at `reference` (not star-only). Validation rejects:
 
 - empty edge list;
 - self edges;
@@ -40,18 +44,18 @@ Validation should reject:
 
 ## Alignment composition
 
-`compose_alignments_to_reference(...)` composes pairwise alignments through the graph so every returned alignment maps a source directly into the root reference timeline.
-
-Scores do not compose. Composed alignments should use `score=None` unless a documented score-composition policy is introduced.
+`compose_alignments_to_reference(...)` composes pairwise alignments through the
+graph so each returned alignment maps a source directly into the root reference.
+Scores do not compose; composed alignments use `score=None`.
 
 ## One-shot workflow
 
-`estimate_sync_and_resample_to_reference(...)` is the convenience wrapper for:
+`estimate_sync_and_resample_to_reference(...)` is the convenience wrapper:
 
 1. estimate sync;
 2. compose alignments to root reference;
 3. slice;
 4. resample onto reference time.
 
-Keep it a free function. Do not mutate `Demonstration` and do not add `with_alignments`.
-
+Keep it a free function. Do not mutate `Demonstration` and do not add
+`with_alignments`.
