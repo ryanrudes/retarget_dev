@@ -247,6 +247,38 @@ def test_string_subject_and_segment_queries_resolve_to_typed_ids() -> None:
     assert segment.patch_points("sole").shape == (3, 3)
 
 
+def test_typed_mocap_accessors_delegate_to_dynamic_queries() -> None:
+    track = make_mocap_track()
+
+    left_shoe = track.subjects["subject"]
+    assert left_shoe == track.subject("subject")
+
+    shoe = left_shoe.segments["segment"]
+    assert shoe == left_shoe.segment("segment")
+
+    heel = shoe.markers["heel"]
+    sole = shoe.patches["sole"]
+
+    np.testing.assert_allclose(heel.positions(), shoe.marker_positions("heel"))
+    np.testing.assert_allclose(sole.points(), shoe.patch_points("sole"))
+
+
+def test_typed_mocap_accessors_work_on_sliced_views() -> None:
+    track = make_mocap_track()
+    view = track.slice_time(0.1, 0.25)
+
+    left_shoe = view.subjects["subject"]
+    assert left_shoe == view.subject("subject")
+    shoe = left_shoe.segments["segment"]
+    assert shoe == view.subject("subject").segment("segment")
+    heel = shoe.markers["heel"]
+    sole = shoe.patches["sole"]
+
+    assert len(heel.positions()) == len(view.timestamps)
+    np.testing.assert_allclose(heel.positions(), shoe.marker_positions("heel"))
+    np.testing.assert_allclose(sole.points(), shoe.patch_points("sole"))
+
+
 def test_unknown_marker_string_raises_key_error() -> None:
     segment = make_mocap_track().subject("subject").segment("segment")
     with pytest.raises(KeyError, match="has no marker 'missing'"):

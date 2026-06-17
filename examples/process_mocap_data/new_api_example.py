@@ -62,6 +62,10 @@ class MocapSubjects(Subjects):
     right_hand: Subject[HandSegments]
 
 
+class GroundEstimationSubjects(Subjects):
+    left_shoe: Subject[ShoeSegments]
+
+
 class GroundEstimationTracks(Tracks):
     mocap: MocapTrack
 
@@ -200,16 +204,19 @@ if UNBAGGED_DIR.is_dir():
     # The sample bag only contains the left shoe, so build a loadable subset
     # from the same authored schema instead of forcing absent subjects through
     # the loader.
-    loadable_subjects = MocapSubjects(left_shoe=subjects["left_shoe"])
+    loadable_subjects = GroundEstimationSubjects(left_shoe=subjects["left_shoe"])
     loadable_scene = build_scene(loadable_subjects)
     root = UnbaggedDirectory(UNBAGGED_DIR)
     mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
     demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
     # demo.get_track("mocap") remains the dynamic lookup path.
-    mocap = demo.typed_tracks["mocap"]
-    left_shoe_track = mocap.subject("left_shoe").segment("shoe")
-    heel_positions = left_shoe_track.marker_positions("heel")
-    sole_points = left_shoe_track.patch_points("sole")
+    mocap = demo.typed_tracks["mocap"]  # MocapTrack
+    left_shoe = mocap.subjects["left_shoe"]
+    shoe = left_shoe.segments["shoe"]
+    heel = shoe.markers["heel"]
+    heel_positions = heel.positions()  # TimeVec3
+    sole = shoe.patches["sole"]
+    sole_points = sole.points()  # TimeVec3
     print("Loaded mocap timestamps:", mocap.timestamps[:5])
     print("Heel positions:", heel_positions[:3])
     print("Sole points:", sole_points[:3])
