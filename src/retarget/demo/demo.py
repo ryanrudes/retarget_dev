@@ -49,6 +49,23 @@ class Demonstration[K: TrackId]:
     def __getitem__(self, track: K) -> Track:
         return self._tracks[track]
 
+    def track_ids(self) -> tuple[K, ...]:
+        """Return the demonstration's track identifiers in insertion order."""
+        return tuple(self._tracks)
+
+    def __contains__(self, track: object) -> bool:
+        if isinstance(track, TrackId):
+            return track in self._tracks
+        if isinstance(track, str):
+            try:
+                return self._coerce_track_id(track) in self._tracks
+            except KeyError:
+                return False
+        return False
+
+    def __iter__(self):
+        return iter(self._tracks)
+
     def _get_track(self, track: K | str) -> Track:
         track_id = self._coerce_track_id(track)
         return self[track_id]

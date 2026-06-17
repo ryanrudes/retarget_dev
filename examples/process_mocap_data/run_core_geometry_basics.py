@@ -1,6 +1,11 @@
 """Backend/manual geometry query example for the real Vicon scene.
 
-The preferred public authoring example is new_api_example.py.
+Uses enum-keyed ``Demonstration`` access and internal mocap helpers such as
+``_subject``, ``_segment``, ``_marker_positions``, and ``_patch_points`` for
+backend validation. Those underscore helpers are not the public typed mapping
+API.
+
+The preferred public authoring example is ``new_api_example.py``.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ def main() -> None:
     mocap = clip[GroundEstimationTrackId.MOCAP]
     assert isinstance(mocap, mocap_mod.MocapTrack | mocap_mod.MocapTrackView)
 
+    # Internal mocap query helpers (backend/manual only; not public API):
     left_shoe = (
         mocap._subject(ViconSubjectId.LEFT_SHOE)
         ._segment(LEFT_SHOE_SEGMENT)

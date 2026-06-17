@@ -31,9 +31,11 @@ segment.markers["heel"].positions()
 segment.patches["sole"].points()
 ```
 
-Enum-keyed demonstrations may still use `demo[track_id]` and `demo.slice_time(start, stop)`.
+Enum-keyed demonstrations may still use `demo[track_id]`, `demo.track_ids()`, `track_id in demo`, and `demo.slice_time(start, stop)`.
 
-Do not reintroduce transitional public names: `typed_tracks`, `get_track(...)`, method-style mocap `subject(...)` / `segment(...)`, or `marker_positions(...)` / `patch_points(...)` as the primary query API.
+Do not reintroduce transitional public names: `typed_tracks`, `get_track(...)`, method-style mocap `subject(...)` / `segment(...)`, or `marker_positions(...)` / `patch_points(...)` as the primary query API. Core `scene.subject(...)` / `SubjectSpec.segment(...)` remain valid scene APIs.
+
+Backend/manual examples may use private mocap helpers (`_subject`, `_segment`, `_marker_positions`, `_patch_points`) only when clearly labeled internal.
 
 Dynamic/config-driven lookup uses mapping access with variable keys.
 

@@ -159,6 +159,8 @@ Enum-keyed demonstrations (backend loaders, generic tests) may still use bracket
 
 ```python
 demo[track_id]
+demo.track_ids()
+track_id in demo
 demo.slice_time(start, stop)
 ```
 
@@ -166,13 +168,15 @@ Do not reintroduce or advertise transitional names in public examples:
 
 - `typed_tracks`
 - `get_track(...)`
-- `subject(...)` / `segment(...)` on mocap tracks
-- `marker_positions(...)` / `patch_points(...)` as the primary query API
+- `mocap.subject(...)` / `mocap.segment(...)` (core `scene.subject(...)` / `SubjectSpec.segment(...)` remain valid scene APIs)
+- `marker_positions(...)` / `patch_points(...)` as the primary mocap query API
 - `GroundEstimationTrackId` in canonical typed-first examples
 
 Dynamic/config-driven lookup is supported through mapping access with variable keys, not parallel method-style APIs.
 
-Keep internal track storage on `Demonstration._tracks`. Typed demonstrations expose authored schema tracks through `demo.tracks`.
+Keep internal track storage on `Demonstration._tracks`. Typed demonstrations expose authored schema tracks through `demo.tracks`. Use `track_ids()` or `track_id in demo` for read-only track-key inspection on enum-keyed demonstrations.
+
+Backend/manual examples may call private mocap helpers such as `_subject`, `_segment`, `_marker_positions`, and `_patch_points`, but those files must be clearly labeled backend/manual and must not present underscore helpers as normal user API.
 
 Keep runtime identity internal: compiled specs, generated IDs, handles, and targets. Strings are authored public field names, not internal identity.
 
@@ -263,7 +267,8 @@ Examples should teach the generic demonstration pattern:
 - define typed `Tracks` / `Subjects` schemas and compile with `build_demonstration(...)` / `build_scene(...)`;
 - retrieve tracks with `demo.tracks["mocap"]` for typed demonstrations;
 - query mocap through mapping access: `mocap.subjects[...].segments[...].markers[...].positions()`;
-- backend/manual loaders may return enum-keyed `Demonstration[ProjectTrackId]` and use `demo[track_id]`.
+- backend/manual loaders may return enum-keyed `Demonstration[ProjectTrackId]`, use `demo[track_id]`, and inspect keys with `demo.track_ids()` or `track_id in demo`;
+- keep `new_api_example.py` typed-first; backend/manual scripts may use private mocap helpers only when clearly labeled internal.
 
 Do not create project-specific demo container classes unless explicitly requested.
 

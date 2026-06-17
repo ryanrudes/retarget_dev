@@ -80,6 +80,15 @@ def test_enum_keyed_demo_rejects_raw_string_track_names() -> None:
         demo._get_track("mocap")
 
 
+def test_track_ids_and_contains_expose_enum_keyed_track_keys() -> None:
+    mocap = make_mocap_track()
+    demo = Demonstration(tracks={GroundEstimationTrackId.MOCAP: mocap})
+    assert demo.track_ids() == (GroundEstimationTrackId.MOCAP,)
+    assert GroundEstimationTrackId.MOCAP in demo
+    assert "mocap" not in demo
+    assert tuple(demo) == (GroundEstimationTrackId.MOCAP,)
+
+
 def test_slice_time_returns_demonstration_view() -> None:
     demo = _make_demo()
     clip = demo.slice_time(0.0, 0.2)

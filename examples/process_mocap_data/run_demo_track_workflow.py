@@ -1,7 +1,11 @@
-"""This workflow uses backend/manual Vicon scene support.
+"""This backend/manual workflow uses internal mocap query helpers.
 
-It loads real VSK-derived marker calibration and bag data. For public scene
-authoring, see new_api_example.py.
+It loads real VSK-derived marker calibration and bag data through enum-keyed
+``Demonstration`` access. Private mocap helpers such as ``_subject``,
+``_segment``, and ``_patch_points`` are shown here for backend validation only;
+they are not part of the public typed mapping API.
+
+For the public typed authoring and demo-track path, see ``new_api_example.py``.
 """
 
 from __future__ import annotations
@@ -32,6 +36,7 @@ def main() -> None:
     mocap = demo[GroundEstimationTrackId.MOCAP]
     clip = demo.slice_time(0.0, 1.0)
     mocap_clip = clip[GroundEstimationTrackId.MOCAP]
+    # Internal mocap query helpers (backend/manual only; not public API):
     left_shoe = (
         mocap_clip._subject(ViconSubjectId.LEFT_SHOE)
         ._segment(LEFT_SHOE_SEGMENT)
@@ -42,7 +47,7 @@ def main() -> None:
     sole_points = left_shoe._patch_points(LeftShoePatchId.SOLE)
     sole_normals = left_shoe._patch_normals(LeftShoePatchId.SOLE)
 
-    print("Demo tracks:", tuple(demo._tracks))
+    print("Demo track ids:", demo.track_ids())
     print("Mocap timestamps:", np.asarray(mocap.timestamps[:5]))
     print("Clip timestamps:", np.asarray(mocap_clip.timestamps[:5]))
     print("Left shoe translations shape:", translations.shape)
@@ -52,7 +57,7 @@ def main() -> None:
     print("First sole normal:", sole_normals[0])
     print("Sole target:", sole_target)
 
-    if GroundEstimationTrackId.CONTACTS in demo._tracks:
+    if GroundEstimationTrackId.CONTACTS in demo:
         contacts = clip[GroundEstimationTrackId.CONTACTS]
         print("Contact timestamps:", np.asarray(contacts.timestamps[:5]))
         print("Sole contact:", contacts.state(sole_target)[:5])

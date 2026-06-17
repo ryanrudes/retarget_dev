@@ -22,9 +22,9 @@ segment.markers["heel"].positions()
 segment.patches["sole"].points()
 ```
 
-Enum-keyed demonstrations may use `demo[track_id]` and `demo.slice_time(start, stop)`.
+Enum-keyed demonstrations may use `demo[track_id]`, `demo.track_ids()`, `track_id in demo`, and `demo.slice_time(start, stop)`.
 
-Do not reintroduce `typed_tracks`, public `get_track(...)`, or method-style mocap query APIs.
+Do not reintroduce `typed_tracks`, public `get_track(...)`, or method-style mocap query APIs. Backend/manual examples may use private mocap helpers only when clearly labeled internal.
 
 Do not add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested.
 

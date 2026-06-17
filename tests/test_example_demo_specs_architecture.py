@@ -166,7 +166,11 @@ def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
 def test_run_demo_track_workflow_uses_enum_keyed_track_lookup() -> None:
     source = RUN_DEMO_TRACK_WORKFLOW.read_text()
     assert "GroundEstimationTrackId.MOCAP" in source
+    assert "backend/manual" in source.lower()
+    assert "internal" in source.lower()
+    assert ".track_ids()" in source
     assert ".get_track(" not in source
+    assert "._tracks" not in source
     assert ".mocap" not in source
     assert "GroundEstimationDemo" not in source
     assert "GroundEstimationDemoView" not in source
