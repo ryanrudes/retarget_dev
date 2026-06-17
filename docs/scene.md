@@ -100,7 +100,3 @@ demo.tracks["mocap"]                          # MocapTrack[MocapSubjects]
 mocap.subjects["left_shoe"].segments["shoe"]  # Segment[ShoeMarkers, ShoePatches]
 segment.markers["heel"].positions()           # TimeVec3
 ```
-
-The earlier enum/handle/spec model and its "dependent typing is impossible"
-caveat no longer apply: literal-key `TypedDict` projection gives the deep chain
-its static types directly.
