@@ -143,14 +143,14 @@ def test_nearest_index_on_empty_mocap_view_raises() -> None:
 
 def test_segment_lookup_by_segment_id_and_spec() -> None:
     track = make_mocap_track()
-    by_id = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    by_spec = track.subject(DemoSubjectId.SUBJECT).segment(DEMO_SEGMENT_SPEC)
+    by_id = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    by_spec = track._subject(DemoSubjectId.SUBJECT)._segment(DEMO_SEGMENT_SPEC)
     assert by_id.segment_view.spec is DEMO_SEGMENT_SPEC
     assert by_spec.segment_view.spec is DEMO_SEGMENT_SPEC
 
 
 def test_translations_and_rotations_shapes() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     translations = segment.translations()
     rotations = segment.rotations()
     quats = segment.rotations(format=RotationFormat.QUATERNION_XYZW)
@@ -160,9 +160,9 @@ def test_translations_and_rotations_shapes() -> None:
 
 
 def test_marker_positions_modeled_and_observed() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    observed = segment.marker_positions(DemoMarkerId.HEEL)
-    modeled = segment.marker_positions(DemoMarkerId.HEEL, modeled=True)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    observed = segment._marker_positions(DemoMarkerId.HEEL)
+    modeled = segment._marker_positions(DemoMarkerId.HEEL, modeled=True)
     assert observed.shape == (3, 3)
     assert modeled.shape == (3, 3)
     np.testing.assert_allclose(observed[:, 0], np.array([0.0, 1.0, 2.0]))
@@ -186,24 +186,24 @@ def test_single_element_sequence_query_shapes() -> None:
         marker_frames=track.marker_frames,
         contacts=contacts,
     )
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    assert segment.marker_positions(DemoMarkerId.HEEL).shape == (3, 3)
-    assert segment.marker_positions([DemoMarkerId.HEEL]).shape == (3, 1, 3)
-    assert segment.marker_positions([]).shape == (3, 0, 3)
-    assert segment.marker_velocities(DemoMarkerId.HEEL).shape == (3, 3)
-    assert segment.marker_velocities([DemoMarkerId.HEEL]).shape == (3, 1, 3)
-    assert segment.patch_points(DemoPatchId.SOLE).shape == (3, 3)
-    assert segment.patch_points([DemoPatchId.SOLE]).shape == (3, 1, 3)
-    assert segment.patch_normals(DemoPatchId.SOLE).shape == (3, 3)
-    assert segment.patch_normals([DemoPatchId.SOLE]).shape == (3, 1, 3)
-    assert segment.marker_positions("heel").shape == (3, 3)
-    assert segment.marker_velocities("heel").shape == (3, 3)
-    assert segment.patch_points("sole").shape == (3, 3)
-    assert segment.patch_normals("sole").shape == (3, 3)
-    assert segment.patch_velocities("sole").shape == (3, 3)
-    assert segment.patch_contacts(DemoPatchId.SOLE).shape == (3,)
-    assert segment.patch_contacts([DemoPatchId.SOLE]).shape == (3, 1)
-    assert segment.patch_contacts("sole").shape == (3,)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    assert segment._marker_positions(DemoMarkerId.HEEL).shape == (3, 3)
+    assert segment._marker_positions([DemoMarkerId.HEEL]).shape == (3, 1, 3)
+    assert segment._marker_positions([]).shape == (3, 0, 3)
+    assert segment._marker_velocities(DemoMarkerId.HEEL).shape == (3, 3)
+    assert segment._marker_velocities([DemoMarkerId.HEEL]).shape == (3, 1, 3)
+    assert segment._patch_points(DemoPatchId.SOLE).shape == (3, 3)
+    assert segment._patch_points([DemoPatchId.SOLE]).shape == (3, 1, 3)
+    assert segment._patch_normals(DemoPatchId.SOLE).shape == (3, 3)
+    assert segment._patch_normals([DemoPatchId.SOLE]).shape == (3, 1, 3)
+    assert segment._marker_positions("heel").shape == (3, 3)
+    assert segment._marker_velocities("heel").shape == (3, 3)
+    assert segment._patch_points("sole").shape == (3, 3)
+    assert segment._patch_normals("sole").shape == (3, 3)
+    assert segment._patch_velocities("sole").shape == (3, 3)
+    assert segment._patch_contacts(DemoPatchId.SOLE).shape == (3,)
+    assert segment._patch_contacts([DemoPatchId.SOLE]).shape == (3, 1)
+    assert segment._patch_contacts("sole").shape == (3,)
 
 
 def test_missing_observed_marker_returns_nan_rows() -> None:
@@ -220,15 +220,15 @@ def test_missing_observed_marker_returns_nan_rows() -> None:
         timestamps=track.timestamps,
         marker_frames=marker_frames,
     )
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    observed = segment.marker_positions(DemoMarkerId.HEEL)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    observed = segment._marker_positions(DemoMarkerId.HEEL)
     assert np.isnan(observed[1]).all()
 
 
 def test_multiple_marker_query_and_return_dict() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    stacked = segment.marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE])
-    by_id = segment.marker_positions(
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    stacked = segment._marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE])
+    by_id = segment._marker_positions(
         [DemoMarkerId.HEEL, DemoMarkerId.TOE],
         return_dict=True,
     )
@@ -239,28 +239,28 @@ def test_multiple_marker_query_and_return_dict() -> None:
 
 def test_string_subject_and_segment_queries_resolve_to_typed_ids() -> None:
     track = make_mocap_track()
-    subject = track.subject("subject")
+    subject = track._subject("subject")
     assert subject.subject_id is DemoSubjectId.SUBJECT
-    segment = subject.segment("segment")
+    segment = subject._segment("segment")
     assert segment.segment_view.segment_id is DemoSegmentId.SEGMENT
-    assert segment.marker_positions("heel").shape == (3, 3)
-    assert segment.patch_points("sole").shape == (3, 3)
+    assert segment._marker_positions("heel").shape == (3, 3)
+    assert segment._patch_points("sole").shape == (3, 3)
 
 
 def test_typed_mocap_accessors_delegate_to_dynamic_queries() -> None:
     track = make_mocap_track()
 
     left_shoe = track.subjects["subject"]
-    assert left_shoe == track.subject("subject")
+    assert left_shoe == track._subject("subject")
 
     shoe = left_shoe.segments["segment"]
-    assert shoe == left_shoe.segment("segment")
+    assert shoe == left_shoe._segment("segment")
 
     heel = shoe.markers["heel"]
     sole = shoe.patches["sole"]
 
-    np.testing.assert_allclose(heel.positions(), shoe.marker_positions("heel"))
-    np.testing.assert_allclose(sole.points(), shoe.patch_points("sole"))
+    np.testing.assert_allclose(heel.positions(), shoe._marker_positions("heel"))
+    np.testing.assert_allclose(sole.points(), shoe._patch_points("sole"))
 
 
 def test_typed_mocap_accessors_work_on_sliced_views() -> None:
@@ -268,56 +268,56 @@ def test_typed_mocap_accessors_work_on_sliced_views() -> None:
     view = track.slice_time(0.1, 0.25)
 
     left_shoe = view.subjects["subject"]
-    assert left_shoe == view.subject("subject")
+    assert left_shoe == view._subject("subject")
     shoe = left_shoe.segments["segment"]
-    assert shoe == view.subject("subject").segment("segment")
+    assert shoe == view._subject("subject")._segment("segment")
     heel = shoe.markers["heel"]
     sole = shoe.patches["sole"]
 
     assert len(heel.positions()) == len(view.timestamps)
-    np.testing.assert_allclose(heel.positions(), shoe.marker_positions("heel"))
-    np.testing.assert_allclose(sole.points(), shoe.patch_points("sole"))
+    np.testing.assert_allclose(heel.positions(), shoe._marker_positions("heel"))
+    np.testing.assert_allclose(sole.points(), shoe._patch_points("sole"))
 
 
 def test_unknown_marker_string_raises_key_error() -> None:
-    segment = make_mocap_track().subject("subject").segment("segment")
+    segment = make_mocap_track()._subject("subject")._segment("segment")
     with pytest.raises(KeyError, match="has no marker 'missing'"):
-        segment.marker_positions("missing")
+        segment._marker_positions("missing")
 
 
 def test_unknown_patch_string_raises_key_error() -> None:
-    segment = make_mocap_track().subject("subject").segment("segment")
+    segment = make_mocap_track()._subject("subject")._segment("segment")
     with pytest.raises(KeyError, match="has no patch 'missing'"):
-        segment.patch_points("missing")
+        segment._patch_points("missing")
 
 
 def test_modeled_marker_velocity_shape() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    velocities = segment.marker_velocities(DemoMarkerId.HEEL, modeled=True)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    velocities = segment._marker_velocities(DemoMarkerId.HEEL, modeled=True)
     assert velocities.shape == (3, 3)
     np.testing.assert_allclose(velocities[:, 0], 10.0, rtol=1e-5)
 
 
 def test_observed_marker_velocity_shape() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    velocities = segment.marker_velocities(DemoMarkerId.HEEL)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    velocities = segment._marker_velocities(DemoMarkerId.HEEL)
     assert velocities.shape == (3, 3)
     np.testing.assert_allclose(velocities[:, 0], 10.0, rtol=1e-5)
 
 
 def test_multi_marker_velocity_columns_match_single_marker() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE, DemoMarkerId.MID]
-    stacked = segment.marker_velocities(markers, modeled=True)
+    stacked = segment._marker_velocities(markers, modeled=True)
     assert stacked.shape == (3, 3, 3)
     for column, marker in enumerate(markers):
-        single = segment.marker_velocities(marker, modeled=True)
+        single = segment._marker_velocities(marker, modeled=True)
         np.testing.assert_allclose(stacked[:, column, :], single)
 
-    observed_stacked = segment.marker_velocities(markers)
+    observed_stacked = segment._marker_velocities(markers)
     assert observed_stacked.shape == (3, 3, 3)
     for column, marker in enumerate(markers):
-        single = segment.marker_velocities(marker)
+        single = segment._marker_velocities(marker)
         np.testing.assert_allclose(
             observed_stacked[:, column, :],
             single,
@@ -327,104 +327,104 @@ def test_multi_marker_velocity_columns_match_single_marker() -> None:
 
 def test_one_timestep_marker_velocity_returns_zeros() -> None:
     track = make_mocap_track(num_timesteps=1)
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    modeled = segment.marker_velocities(DemoMarkerId.HEEL, modeled=True)
-    observed = segment.marker_velocities(DemoMarkerId.HEEL)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    modeled = segment._marker_velocities(DemoMarkerId.HEEL, modeled=True)
+    observed = segment._marker_velocities(DemoMarkerId.HEEL)
     assert modeled.shape == (1, 3)
     assert observed.shape == (1, 3)
     np.testing.assert_allclose(modeled, 0.0)
     np.testing.assert_allclose(observed, 0.0)
 
-    multi = segment.marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True)
+    multi = segment._marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True)
     assert multi.shape == (1, 2, 3)
     np.testing.assert_allclose(multi, 0.0)
 
 
 def test_empty_slice_returns_correctly_shaped_arrays() -> None:
     track = make_mocap_track()
-    segment = track.slice_time(100.0, 101.0).subject(DemoSubjectId.SUBJECT).segment(
+    segment = track.slice_time(100.0, 101.0)._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     assert segment.poses() == ()
     assert segment.translations().shape == (0, 3)
     assert segment.rotations().shape == (0, 3, 3)
     assert segment.rotations(format=RotationFormat.QUATERNION_XYZW).shape == (0, 4)
-    assert segment.marker_positions(DemoMarkerId.HEEL).shape == (0, 3)
-    assert segment.marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE]).shape == (0, 2, 3)
-    by_id = segment.marker_positions(
+    assert segment._marker_positions(DemoMarkerId.HEEL).shape == (0, 3)
+    assert segment._marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE]).shape == (0, 2, 3)
+    by_id = segment._marker_positions(
         [DemoMarkerId.HEEL, DemoMarkerId.TOE],
         return_dict=True,
     )
     assert by_id[DemoMarkerId.HEEL].shape == (0, 3)
     assert by_id[DemoMarkerId.TOE].shape == (0, 3)
-    assert segment.marker_positions(DemoMarkerId.HEEL, modeled=True).shape == (0, 3)
+    assert segment._marker_positions(DemoMarkerId.HEEL, modeled=True).shape == (0, 3)
     assert (
-        segment.marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True).shape
+        segment._marker_positions([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True).shape
         == (0, 2, 3)
     )
-    modeled_by_id = segment.marker_positions(
+    modeled_by_id = segment._marker_positions(
         [DemoMarkerId.HEEL, DemoMarkerId.TOE],
         modeled=True,
         return_dict=True,
     )
     assert modeled_by_id[DemoMarkerId.HEEL].shape == (0, 3)
     assert modeled_by_id[DemoMarkerId.TOE].shape == (0, 3)
-    assert segment.marker_velocities(DemoMarkerId.HEEL).shape == (0, 3)
-    assert segment.marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE]).shape == (0, 2, 3)
-    velocity_by_id = segment.marker_velocities(
+    assert segment._marker_velocities(DemoMarkerId.HEEL).shape == (0, 3)
+    assert segment._marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE]).shape == (0, 2, 3)
+    velocity_by_id = segment._marker_velocities(
         [DemoMarkerId.HEEL, DemoMarkerId.TOE],
         return_dict=True,
     )
     assert velocity_by_id[DemoMarkerId.HEEL].shape == (0, 3)
     assert velocity_by_id[DemoMarkerId.TOE].shape == (0, 3)
-    assert segment.marker_velocities(DemoMarkerId.HEEL, modeled=True).shape == (0, 3)
+    assert segment._marker_velocities(DemoMarkerId.HEEL, modeled=True).shape == (0, 3)
     assert (
-        segment.marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True).shape
+        segment._marker_velocities([DemoMarkerId.HEEL, DemoMarkerId.TOE], modeled=True).shape
         == (0, 2, 3)
     )
-    assert segment.patch_points(DemoPatchId.SOLE).shape == (0, 3)
-    assert segment.patch_normals(DemoPatchId.SOLE).shape == (0, 3)
-    assert segment.patch_points([DemoPatchId.SOLE]).shape == (0, 1, 3)
-    assert segment.patch_normals([DemoPatchId.SOLE]).shape == (0, 1, 3)
+    assert segment._patch_points(DemoPatchId.SOLE).shape == (0, 3)
+    assert segment._patch_normals(DemoPatchId.SOLE).shape == (0, 3)
+    assert segment._patch_points([DemoPatchId.SOLE]).shape == (0, 1, 3)
+    assert segment._patch_normals([DemoPatchId.SOLE]).shape == (0, 1, 3)
 
 
 def test_modeled_multi_marker_positions_shape_and_columns() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE, DemoMarkerId.MID]
-    stacked = segment.marker_positions(markers, modeled=True)
+    stacked = segment._marker_positions(markers, modeled=True)
     assert stacked.shape == (3, 3, 3)
     for column, marker in enumerate(markers):
-        single = segment.marker_positions(marker, modeled=True)
+        single = segment._marker_positions(marker, modeled=True)
         np.testing.assert_allclose(stacked[:, column, :], single)
 
 
 def test_modeled_multi_marker_return_dict() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE]
-    by_id = segment.marker_positions(markers, modeled=True, return_dict=True)
+    by_id = segment._marker_positions(markers, modeled=True, return_dict=True)
     assert set(by_id) == set(markers)
     for marker in markers:
         np.testing.assert_allclose(
             by_id[marker],
-            segment.marker_positions(marker, modeled=True),
+            segment._marker_positions(marker, modeled=True),
         )
 
 
 def test_modeled_marker_positions_repeated_calls_are_equal() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE]
-    first = segment.marker_positions(markers, modeled=True)
-    second = segment.marker_positions(markers, modeled=True)
+    first = segment._marker_positions(markers, modeled=True)
+    second = segment._marker_positions(markers, modeled=True)
     np.testing.assert_array_equal(first, second)
 
 
 def test_observed_multi_marker_positions_shape_and_columns() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE, DemoMarkerId.MID]
-    stacked = segment.marker_positions(markers)
+    stacked = segment._marker_positions(markers)
     assert stacked.shape == (3, 3, 3)
     for column, marker in enumerate(markers):
-        single = segment.marker_positions(marker)
+        single = segment._marker_positions(marker)
         np.testing.assert_allclose(
             stacked[:, column, :],
             single,
@@ -433,14 +433,14 @@ def test_observed_multi_marker_positions_shape_and_columns() -> None:
 
 
 def test_observed_multi_marker_return_dict() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     markers = [DemoMarkerId.HEEL, DemoMarkerId.TOE]
-    by_id = segment.marker_positions(markers, return_dict=True)
+    by_id = segment._marker_positions(markers, return_dict=True)
     assert set(by_id) == set(markers)
     for marker in markers:
         np.testing.assert_allclose(
             by_id[marker],
-            segment.marker_positions(marker),
+            segment._marker_positions(marker),
             equal_nan=True,
         )
 
@@ -467,104 +467,104 @@ def test_occluded_observed_marker_returns_nan() -> None:
         timestamps=track.timestamps,
         marker_frames=marker_frames,
     )
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    observed = segment.marker_positions(DemoMarkerId.HEEL)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    observed = segment._marker_positions(DemoMarkerId.HEEL)
     assert np.isnan(observed[1]).all()
 
 
 def test_empty_observed_marker_query_shapes() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    assert segment.marker_positions([]).shape == (3, 0, 3)
-    assert segment.marker_positions([], return_dict=True) == {}
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    assert segment._marker_positions([]).shape == (3, 0, 3)
+    assert segment._marker_positions([], return_dict=True) == {}
 
 
 def test_patch_points_matches_scalar_oracle() -> None:
     track = make_mocap_track()
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     patch_view = segment.segment_view.patch(DemoPatchId.SOLE)
     expected = np.stack(
         [patch_view.contact_point_world_at(i) for i in range(len(track))],
         axis=0,
     )
-    np.testing.assert_allclose(segment.patch_points(DemoPatchId.SOLE), expected)
+    np.testing.assert_allclose(segment._patch_points(DemoPatchId.SOLE), expected)
 
 
 def test_patch_normals_matches_scalar_oracle() -> None:
     track = make_mocap_track()
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     patch_view = segment.segment_view.patch(DemoPatchId.SOLE)
     expected = np.stack(
         [patch_view.normal_world_at(i) for i in range(len(track))],
         axis=0,
     )
-    np.testing.assert_allclose(segment.patch_normals(DemoPatchId.SOLE), expected)
+    np.testing.assert_allclose(segment._patch_normals(DemoPatchId.SOLE), expected)
 
 
 def test_multi_patch_points_shape_and_columns() -> None:
-    segment = make_two_patch_mocap_track().subject(DemoSubjectId.SUBJECT).segment(
+    segment = make_two_patch_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     patches = [TwoPatchId.SOLE, TwoPatchId.HEEL_CAP]
-    stacked = segment.patch_points(patches)
+    stacked = segment._patch_points(patches)
     assert stacked.shape == (3, 2, 3)
     for column, patch in enumerate(patches):
-        single = segment.patch_points(patch)
+        single = segment._patch_points(patch)
         np.testing.assert_allclose(stacked[:, column, :], single)
 
 
 def test_multi_patch_normals_shape_and_columns() -> None:
-    segment = make_two_patch_mocap_track().subject(DemoSubjectId.SUBJECT).segment(
+    segment = make_two_patch_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     patches = [TwoPatchId.SOLE, TwoPatchId.HEEL_CAP]
-    stacked = segment.patch_normals(patches)
+    stacked = segment._patch_normals(patches)
     assert stacked.shape == (3, 2, 3)
     for column, patch in enumerate(patches):
-        single = segment.patch_normals(patch)
+        single = segment._patch_normals(patch)
         np.testing.assert_allclose(stacked[:, column, :], single)
 
 
 def test_patch_points_return_dict() -> None:
-    segment = make_two_patch_mocap_track().subject(DemoSubjectId.SUBJECT).segment(
+    segment = make_two_patch_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     patches = [TwoPatchId.SOLE, TwoPatchId.HEEL_CAP]
-    by_id = segment.patch_points(patches, return_dict=True)
+    by_id = segment._patch_points(patches, return_dict=True)
     assert set(by_id) == set(patches)
     for patch in patches:
-        np.testing.assert_allclose(by_id[patch], segment.patch_points(patch))
+        np.testing.assert_allclose(by_id[patch], segment._patch_points(patch))
 
 
 def test_patch_normals_return_dict() -> None:
-    segment = make_two_patch_mocap_track().subject(DemoSubjectId.SUBJECT).segment(
+    segment = make_two_patch_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     patches = [TwoPatchId.SOLE, TwoPatchId.HEEL_CAP]
-    by_id = segment.patch_normals(patches, return_dict=True)
+    by_id = segment._patch_normals(patches, return_dict=True)
     assert set(by_id) == set(patches)
     for patch in patches:
-        np.testing.assert_allclose(by_id[patch], segment.patch_normals(patch))
+        np.testing.assert_allclose(by_id[patch], segment._patch_normals(patch))
 
 
 def test_empty_patch_query_shapes() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    assert segment.patch_points([]).shape == (3, 0, 3)
-    assert segment.patch_normals([]).shape == (3, 0, 3)
-    assert segment.patch_points([], return_dict=True) == {}
-    assert segment.patch_normals([], return_dict=True) == {}
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    assert segment._patch_points([]).shape == (3, 0, 3)
+    assert segment._patch_normals([]).shape == (3, 0, 3)
+    assert segment._patch_points([], return_dict=True) == {}
+    assert segment._patch_normals([], return_dict=True) == {}
 
-    empty_time = make_two_patch_mocap_track().slice_time(100.0, 101.0).subject(
+    empty_time = make_two_patch_mocap_track().slice_time(100.0, 101.0)._subject(
         DemoSubjectId.SUBJECT
-    ).segment(DemoSegmentId.SEGMENT)
+    )._segment(DemoSegmentId.SEGMENT)
     patches = [TwoPatchId.SOLE, TwoPatchId.HEEL_CAP]
-    assert empty_time.patch_points(patches).shape == (0, 2, 3)
-    assert empty_time.patch_normals(patches).shape == (0, 2, 3)
+    assert empty_time._patch_points(patches).shape == (0, 2, 3)
+    assert empty_time._patch_normals(patches).shape == (0, 2, 3)
 
 
 def test_patch_points_repeated_calls_are_equal() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    first = segment.patch_points(DemoPatchId.SOLE)
-    second = segment.patch_points(DemoPatchId.SOLE)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    first = segment._patch_points(DemoPatchId.SOLE)
+    second = segment._patch_points(DemoPatchId.SOLE)
     np.testing.assert_array_equal(first, second)
 
 
@@ -582,9 +582,9 @@ def test_nan_observed_marker_positions_propagate_to_velocities() -> None:
         timestamps=track.timestamps,
         marker_frames=marker_frames,
     )
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    positions = segment.marker_positions(DemoMarkerId.HEEL)
-    velocities = segment.marker_velocities(DemoMarkerId.HEEL)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    positions = segment._marker_positions(DemoMarkerId.HEEL)
+    velocities = segment._marker_velocities(DemoMarkerId.HEEL)
     assert velocities.shape == (3, 3)
     assert np.isnan(positions[1]).all()
     assert np.isnan(velocities[0]).all()

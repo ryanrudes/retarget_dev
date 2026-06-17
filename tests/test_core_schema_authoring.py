@@ -244,18 +244,18 @@ def test_build_scene_uses_vicon_name_for_marker_lookup() -> None:
         timestamps=np.array([0.0], dtype=np.float64),
         marker_frames=(frame,),
     )
-    mocap_subject = track.subject("left_shoe")
+    mocap_subject = track.subjects["left_shoe"]
     assert mocap_subject.subject_id is subject_id
-    mocap_segment = mocap_subject.segment("shoe")
+    mocap_segment = mocap_subject.segments["shoe"]
     assert mocap_segment.segment_view.segment_id is segment_id
-    string_observed = mocap_segment.marker_positions("heel")
+    string_observed = mocap_segment.markers["heel"].positions()
     np.testing.assert_allclose(string_observed, expected.reshape(1, 3))
     np.testing.assert_allclose(
-        mocap_segment.patch_points("sole")[0],
+        mocap_segment.patches["sole"].points()[0],
         np.zeros(3, dtype=np.float64),
     )
     np.testing.assert_allclose(
-        mocap_segment.patch_normals("sole")[0],
+        mocap_segment.patches["sole"].normals()[0],
         np.array([0.0, 0.0, 1.0], dtype=np.float64),
     )
     positions = track.observed_marker_positions_for_segment(

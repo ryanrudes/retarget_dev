@@ -29,26 +29,26 @@ UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 def main() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
     clip = demo.slice_time(0.0, 1.0)
-    mocap = clip.get_track(GroundEstimationTrackId.MOCAP)
+    mocap = clip[GroundEstimationTrackId.MOCAP]
     assert isinstance(mocap, mocap_mod.MocapTrack | mocap_mod.MocapTrackView)
 
     left_shoe = (
-        mocap.subject(ViconSubjectId.LEFT_SHOE)
-        .segment(LEFT_SHOE_SEGMENT)
+        mocap._subject(ViconSubjectId.LEFT_SHOE)
+        ._segment(LEFT_SHOE_SEGMENT)
     )
 
-    heel_obs = left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
-    heel_model = left_shoe.marker_positions(
+    heel_obs = left_shoe._marker_positions(LeftShoeMarkerId.HEEL)
+    heel_model = left_shoe._marker_positions(
         LeftShoeMarkerId.HEEL,
         modeled=True,
     )
-    heel_vel = left_shoe.marker_velocities(LeftShoeMarkerId.HEEL)
+    heel_vel = left_shoe._marker_velocities(LeftShoeMarkerId.HEEL)
     shoe_quat = left_shoe.rotations(
         format=RotationFormat.QUATERNION_XYZW,
     )
     sole_target = left_shoe.segment_view.patch_target(LeftShoePatchId.SOLE)
-    sole_point = left_shoe.patch_points(LeftShoePatchId.SOLE)
-    sole_normal = left_shoe.patch_normals(LeftShoePatchId.SOLE)
+    sole_point = left_shoe._patch_points(LeftShoePatchId.SOLE)
+    sole_normal = left_shoe._patch_normals(LeftShoePatchId.SOLE)
 
     print("Clip timesteps:", len(mocap.timestamps))
     print("Heel observed:", heel_obs)

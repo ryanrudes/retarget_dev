@@ -138,7 +138,7 @@ def test_rotation_matrices_to_format_rejects_bad_shape() -> None:
 
 
 def test_segment_view_rotations_and_poses_use_format_helpers() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
+    segment = make_mocap_track()._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
     assert segment.rotations().shape == (3, 3, 3)
     assert segment.rotations(format=RotationFormat.QUATERNION_XYZW).shape == (3, 4)
     assert segment.rotations(format=RotationFormat.QUATERNION_WXYZ).shape == (3, 4)
@@ -150,7 +150,7 @@ def test_segment_view_rotations_and_poses_use_format_helpers() -> None:
 
 
 def test_empty_slice_pose_format_shapes() -> None:
-    segment = make_mocap_track().slice_time(100.0, 101.0).subject(DemoSubjectId.SUBJECT).segment(
+    segment = make_mocap_track().slice_time(100.0, 101.0)._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
     assert segment.poses() == ()

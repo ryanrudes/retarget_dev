@@ -21,7 +21,7 @@ UNBAGGED_DIR = REPO_ROOT / "bags" / "ground_estimation" / "unbagged"
 
 
 def _mocap_track(demo_or_clip: Demonstration[GroundEstimationTrackId]) -> MocapTrack | MocapTrackView:
-    value = demo_or_clip.get_track(GroundEstimationTrackId.MOCAP)
+    value = demo_or_clip[GroundEstimationTrackId.MOCAP]
     assert isinstance(value, MocapTrack | MocapTrackView)
     return value
 
@@ -58,9 +58,9 @@ def test_load_mocap_track_uses_example_scene_spec() -> None:
 @pytest.mark.skipif(not UNBAGGED_DIR.is_dir(), reason="ground-estimation bag not present")
 def test_loader_accepts_example_vocab_marker_ids() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
-    left_shoe = _mocap_track(demo).subject(ViconSubjectId.LEFT_SHOE).segment(
+    left_shoe = _mocap_track(demo)._subject(ViconSubjectId.LEFT_SHOE)._segment(
         LeftShoeSegmentId.LEFT_SHOE
     )
-    heel = left_shoe.marker_positions(LeftShoeMarkerId.HEEL)
+    heel = left_shoe._marker_positions(LeftShoeMarkerId.HEEL)
     assert heel.ndim == 2
     assert heel.shape[1] == 3

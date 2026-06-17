@@ -12,15 +12,19 @@ alwaysApply: true
 
 `Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments, but it should not become a workflow object.
 
-Keep these APIs:
+Canonical typed public API:
 
 ```python
-demo[track_id]
-demo.get_track(track_id)
-demo.slice_time(start, stop)
+demo.tracks["mocap"]
+mocap.subjects["left_shoe"]
+subject.segments["shoe"]
+segment.markers["heel"].positions()
+segment.patches["sole"].points()
 ```
 
-`slice_time(...)` returns `DemonstrationView[K]` and preserves the root source.
+Enum-keyed demonstrations may use `demo[track_id]` and `demo.slice_time(start, stop)`.
+
+Do not reintroduce `typed_tracks`, public `get_track(...)`, or method-style mocap query APIs.
 
 Do not add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested.
 

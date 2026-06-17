@@ -11,6 +11,8 @@ from retarget.demo.contact import ContactTrack, ContactTrackView
 from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.loaders import load_mocap_track
 from retarget.demo.mocap import (
+    MocapMarkerTrackView,
+    MocapPatchTrackView,
     MocapSegmentTrackView,
     MocapSubjectTrackView,
     MocapTrack,
@@ -48,6 +50,8 @@ __all__ = [
     # retarget.demo.mocap
     "MocapTrack",
     "MocapTrackView",
+    "MocapMarkerTrackView",
+    "MocapPatchTrackView",
     "MocapSegmentTrackView",
     "MocapSubjectTrackView",
 

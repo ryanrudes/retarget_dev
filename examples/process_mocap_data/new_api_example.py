@@ -209,14 +209,14 @@ if UNBAGGED_DIR.is_dir():
     root = UnbaggedDirectory(UNBAGGED_DIR)
     mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
     demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
-    # demo.get_track("mocap") remains the dynamic lookup path.
-    mocap = demo.typed_tracks["mocap"]  # MocapTrack
+    mocap = demo.tracks["mocap"]
     left_shoe = mocap.subjects["left_shoe"]
     shoe = left_shoe.segments["shoe"]
+
     heel = shoe.markers["heel"]
-    heel_positions = heel.positions()  # TimeVec3
+    heel_positions = heel.positions()
     sole = shoe.patches["sole"]
-    sole_points = sole.points()  # TimeVec3
+    sole_points = sole.points()
     print("Loaded mocap timestamps:", mocap.timestamps[:5])
     print("Heel positions:", heel_positions[:3])
     print("Sole points:", sole_points[:3])

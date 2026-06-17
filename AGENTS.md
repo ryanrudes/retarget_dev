@@ -135,15 +135,42 @@ Do not make raw `TypedDict` values the long-term runtime API. Runtime code shoul
 
 `Demonstration[K]` is a generic container mapping typed track IDs to `Track` instances. It may carry alignments. It should not become a workflow object.
 
-Keep these APIs:
+This repo is pre-public. Prefer the clean final typed API over compatibility shims.
+
+Canonical public API for typed demonstrations:
+
+```python
+demo.tracks["mocap"]
+mocap.subjects["left_shoe"]
+subject.segments["shoe"]
+segment.markers["heel"].positions()
+segment.patches["sole"].points()
+```
+
+Enum-keyed demonstrations (backend loaders, generic tests) may still use bracket lookup:
 
 ```python
 demo[track_id]
-demo.get_track(track_id)
 demo.slice_time(start, stop)
 ```
 
-`slice_time(...)` returns `DemonstrationView[K]` and preserves the root source.
+Do not reintroduce or advertise transitional names in public examples:
+
+- `typed_tracks`
+- `get_track(...)`
+- `subject(...)` / `segment(...)` on mocap tracks
+- `marker_positions(...)` / `patch_points(...)` as the primary query API
+- `GroundEstimationTrackId` in canonical typed-first examples
+
+Dynamic/config-driven lookup is supported through mapping access with variable keys, not parallel method-style APIs.
+
+Keep internal track storage on `Demonstration._tracks`. Typed demonstrations expose authored schema tracks through `demo.tracks`.
+
+Keep runtime identity internal: compiled specs, generated IDs, handles, and targets. Strings are authored public field names, not internal identity.
+
+Do not expose private accessor names in public/editor-facing types. Use public view names such as `MocapMarkerTrackView` and `MocapPatchTrackView`.
+
+The canonical example (`examples/process_mocap_data/new_api_example.py`) must remain typed-first and should not regress to enum-backed or dynamic method-style access.
 
 Do **not** add `with_alignments`, `with_track`, `align`, or `sync` methods unless explicitly requested. Prefer free functions in `retarget.demo.sync` for workflows.
 
@@ -225,10 +252,10 @@ Do not reintroduce `source_to_reference` or `reference_to_source` aliases.
 
 Examples should teach the generic demonstration pattern:
 
-- define a project-specific `TrackId` enum;
-- write project-specific loader functions;
-- return `Demonstration[ProjectTrackId]`;
-- retrieve tracks with `demo[track_id]` or `demo.get_track(track_id)`.
+- define typed `Tracks` / `Subjects` schemas and compile with `build_demonstration(...)` / `build_scene(...)`;
+- retrieve tracks with `demo.tracks["mocap"]` for typed demonstrations;
+- query mocap through mapping access: `mocap.subjects[...].segments[...].markers[...].positions()`;
+- backend/manual loaders may return enum-keyed `Demonstration[ProjectTrackId]` and use `demo[track_id]`.
 
 Do not create project-specific demo container classes unless explicitly requested.
 

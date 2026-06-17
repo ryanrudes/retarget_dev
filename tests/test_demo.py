@@ -157,7 +157,7 @@ def test_demonstration_view_resample_to_does_not_resample_reference_track() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=demo.tracks,
+        tracks=demo._tracks,
         alignments=demo.alignments,
     )
 
@@ -195,7 +195,7 @@ def test_demonstration_view_resample_to_requires_non_reference_resampling() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=demo.tracks,
+        tracks=demo._tracks,
         alignments=demo.alignments,
     )
 

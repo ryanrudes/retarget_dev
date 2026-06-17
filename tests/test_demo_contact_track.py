@@ -152,10 +152,10 @@ def test_mocap_patch_contacts_resolves_patch_target() -> None:
         marker_frames=track.marker_frames,
         contacts=contacts,
     )
-    segment = track.subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    values = segment.patch_contacts(DemoPatchId.SOLE)
+    segment = track._subject(DemoSubjectId.SUBJECT)._segment(DemoSegmentId.SEGMENT)
+    values = segment._patch_contacts(DemoPatchId.SOLE)
     np.testing.assert_array_equal(values, np.array([True, False, True]))
-    stacked = segment.patch_contacts([DemoPatchId.SOLE])
+    stacked = segment._patch_contacts([DemoPatchId.SOLE])
     assert stacked.shape == (3, 1)
     np.testing.assert_array_equal(stacked[:, 0], values)
 
@@ -217,10 +217,10 @@ def test_empty_slice_patch_contacts_returns_empty_bool_array() -> None:
         marker_frames=track.marker_frames,
         contacts=contacts,
     )
-    segment = track.slice_time(100.0, 101.0).subject(DemoSubjectId.SUBJECT).segment(
+    segment = track.slice_time(100.0, 101.0)._subject(DemoSubjectId.SUBJECT)._segment(
         DemoSegmentId.SEGMENT
     )
-    values = segment.patch_contacts(DemoPatchId.SOLE)
+    values = segment._patch_contacts(DemoPatchId.SOLE)
     assert values.shape == (0,)
     assert values.dtype == np.bool_
 
@@ -228,8 +228,8 @@ def test_empty_slice_patch_contacts_returns_empty_bool_array() -> None:
 def test_patch_contacts_without_track_raises() -> None:
     segment = (
         make_mocap_track()
-        .subject(DemoSubjectId.SUBJECT)
-        .segment(DemoSegmentId.SEGMENT)
+        ._subject(DemoSubjectId.SUBJECT)
+        ._segment(DemoSegmentId.SEGMENT)
     )
     with pytest.raises(ValueError, match="No contact track"):
-        segment.patch_contacts(DemoPatchId.SOLE)
+        segment._patch_contacts(DemoPatchId.SOLE)

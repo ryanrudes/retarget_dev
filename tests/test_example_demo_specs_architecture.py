@@ -158,14 +158,15 @@ def test_load_ground_estimation_demo_rebases_time(monkeypatch) -> None:
         fake_load_mocap_track,
     )
     demo = ground_estimation_loader.load_ground_estimation_demo(Path("dummy"))
-    mocap = demo.get_track(demo_vocab.GroundEstimationTrackId.MOCAP)
+    mocap = demo[demo_vocab.GroundEstimationTrackId.MOCAP]
     assert isinstance(mocap, MocapTrack)
     np.testing.assert_allclose(mocap.timestamps, track.timestamps)
 
 
-def test_run_demo_track_workflow_uses_generic_get_track_pattern() -> None:
+def test_run_demo_track_workflow_uses_enum_keyed_track_lookup() -> None:
     source = RUN_DEMO_TRACK_WORKFLOW.read_text()
-    assert ".get_track(" in source
+    assert "GroundEstimationTrackId.MOCAP" in source
+    assert ".get_track(" not in source
     assert ".mocap" not in source
     assert "GroundEstimationDemo" not in source
     assert "GroundEstimationDemoView" not in source
@@ -237,7 +238,7 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert "class GroundEstimationSubjects(Subjects):" in source
     assert "class GroundEstimationTracks(Tracks):" in source
     assert "build_demonstration(GroundEstimationTracks(mocap=mocap))" in source
-    assert 'mocap = demo.typed_tracks["mocap"]' in source
+    assert 'mocap = demo.tracks["mocap"]' in source
     assert "GroundEstimationTrackId" not in source
     assert 'left_shoe = mocap.subjects["left_shoe"]' in source
     assert 'shoe = left_shoe.segments["shoe"]' in source
@@ -255,8 +256,10 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert "load_ground_estimation_demo(" not in source
     assert "shoe_spec.marker_type.heel" not in source
     assert "shoe_spec.patch_type.sole" not in source
-    assert "typed_tracks.mocap" not in source
-    assert 'mocap.subject("left_shoe").segment("shoe")' not in source
-    assert 'marker_positions("heel")' not in source
-    assert 'patch_points("sole")' not in source
+    assert "typed_tracks" not in source
+    assert "get_track(" not in source
+    assert "mocap.subject(" not in source
+    assert "mocap.segment(" not in source
+    assert "marker_positions(" not in source
+    assert "patch_points(" not in source
     assert 'left_shoe_track = ' not in source

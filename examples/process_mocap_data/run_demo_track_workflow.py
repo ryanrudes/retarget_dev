@@ -29,20 +29,20 @@ UNBAGGED_DIR = (
 
 def main() -> None:
     demo = load_ground_estimation_demo(UNBAGGED_DIR)
-    mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
+    mocap = demo[GroundEstimationTrackId.MOCAP]
     clip = demo.slice_time(0.0, 1.0)
-    mocap_clip = clip.get_track(GroundEstimationTrackId.MOCAP)
+    mocap_clip = clip[GroundEstimationTrackId.MOCAP]
     left_shoe = (
-        mocap_clip.subject(ViconSubjectId.LEFT_SHOE)
-        .segment(LEFT_SHOE_SEGMENT)
+        mocap_clip._subject(ViconSubjectId.LEFT_SHOE)
+        ._segment(LEFT_SHOE_SEGMENT)
     )
     sole_target = left_shoe.segment_view.patch_target(LeftShoePatchId.SOLE)
     translations = left_shoe.translations()
     rotations = left_shoe.rotations()
-    sole_points = left_shoe.patch_points(LeftShoePatchId.SOLE)
-    sole_normals = left_shoe.patch_normals(LeftShoePatchId.SOLE)
+    sole_points = left_shoe._patch_points(LeftShoePatchId.SOLE)
+    sole_normals = left_shoe._patch_normals(LeftShoePatchId.SOLE)
 
-    print("Demo tracks:", tuple(demo.tracks))
+    print("Demo tracks:", tuple(demo._tracks))
     print("Mocap timestamps:", np.asarray(mocap.timestamps[:5]))
     print("Clip timestamps:", np.asarray(mocap_clip.timestamps[:5]))
     print("Left shoe translations shape:", translations.shape)
@@ -52,8 +52,8 @@ def main() -> None:
     print("First sole normal:", sole_normals[0])
     print("Sole target:", sole_target)
 
-    if GroundEstimationTrackId.CONTACTS in demo.tracks:
-        contacts = clip.get_track(GroundEstimationTrackId.CONTACTS)
+    if GroundEstimationTrackId.CONTACTS in demo._tracks:
+        contacts = clip[GroundEstimationTrackId.CONTACTS]
         print("Contact timestamps:", np.asarray(contacts.timestamps[:5]))
         print("Sole contact:", contacts.state(sole_target)[:5])
         print("Sole confidence:", contacts.confidence(sole_target)[:5])

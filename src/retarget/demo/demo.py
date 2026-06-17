@@ -14,7 +14,7 @@ time basis before delegating interpolation/discrete sampling to each track.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from types import MappingProxyType
 
 from retarget.core.enums import TrackId
@@ -33,7 +33,7 @@ class _GeneratedTrackIds:
 class Demonstration[K: TrackId]:
     """Multimodal demonstration keyed by typed track identifiers."""
 
-    tracks: Mapping[K, Track]
+    tracks: InitVar[Mapping[K, Track]]
     alignments: tuple[TrackAlignment[K], ...] = ()
     _generated_ids: _GeneratedTrackIds | None = field(
         default=None,
@@ -41,18 +41,15 @@ class Demonstration[K: TrackId]:
         compare=False,
         kw_only=True,
     )
+    _tracks: Mapping[K, Track] = field(init=False, repr=False)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "tracks", _freeze_tracks(self.tracks))
+    def __post_init__(self, tracks: Mapping[K, Track]) -> None:
+        object.__setattr__(self, "_tracks", _freeze_tracks(tracks))
 
     def __getitem__(self, track: K) -> Track:
-        return self.tracks[track]
+        return self._tracks[track]
 
-    @property
-    def typed_tracks(self) -> Mapping[str, Track]:
-        return MappingProxyType(_tracks_by_label(self.tracks))
-
-    def get_track(self, track: K | str) -> Track:
+    def _get_track(self, track: K | str) -> Track:
         track_id = self._coerce_track_id(track)
         return self[track_id]
 
@@ -61,7 +58,7 @@ class Demonstration[K: TrackId]:
             source=self._view_source(),
             tracks={
                 track_id: track.slice_time(start, stop)
-                for track_id, track in self.tracks.items()
+                for track_id, track in self._tracks.items()
             },
             alignments=self.alignments,
             _generated_ids=self._generated_ids,
@@ -89,12 +86,21 @@ class Demonstration[K: TrackId]:
         )
 
         if isinstance(self, DemonstrationView):
-            source = dataclasses.replace(self.source, alignments=composed)
-            view = dataclasses.replace(self, source=source, alignments=composed)
+            source = dataclasses.replace(
+                self.source,
+                tracks=dict(self.source._tracks),
+                alignments=composed,
+            )
+            view = dataclasses.replace(
+                self,
+                tracks=dict(self._tracks),
+                source=source,
+                alignments=composed,
+            )
         else:
             view = DemonstrationView(
                 source=self,
-                tracks=self.tracks,
+                tracks=self._tracks,
                 alignments=composed,
                 _generated_ids=self._generated_ids,
             )
@@ -120,7 +126,7 @@ class Demonstration[K: TrackId]:
         return track
 
     def _tracks_are_track_ids(self) -> bool:
-        for track_id in self.tracks:
+        for track_id in self._tracks:
             if not isinstance(track_id, TrackId):
                 return False
         return True
@@ -138,7 +144,7 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
     def resample_to(self, reference: K | str) -> DemonstrationView[K]:
         """Return a materialized view resampled onto a reference track timeline."""
         reference_id = self._coerce_track_id(reference)
-        if reference_id not in self.tracks:
+        if reference_id not in self._tracks:
             raise KeyError(f"Reference track {reference!r} is not in this view")
 
         reference_track = self[reference_id]
@@ -149,7 +155,7 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
         )
 
         resampled_tracks: dict[K, Track] = {}
-        for track_id, track in self.tracks.items():
+        for track_id, track in self._tracks.items():
             if track_id == reference_id:
                 resampled_tracks[track_id] = track
                 continue
@@ -207,7 +213,3 @@ def _freeze_tracks[K: TrackId](tracks: Mapping[K, Track]) -> Mapping[K, Track]:
                 f"Track {key!r} must be a Track; got {type(value).__name__}"
             )
     return MappingProxyType(copied)
-
-
-def _tracks_by_label[K: TrackId](tracks: Mapping[K, Track]) -> dict[str, Track]:
-    return {track_id.label: track for track_id, track in tracks.items()}

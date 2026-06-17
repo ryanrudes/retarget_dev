@@ -495,9 +495,9 @@ def test_estimate_sync_and_resample_to_reference_preserves_typed_string_bridge()
         stop=1.25,
     )
 
-    assert resampled.get_track("mocap") is resampled.get_track(mocap_id)
-    assert resampled.get_track("reference") is resampled.get_track(reference_id)
-    assert resampled.typed_tracks["mocap"] is resampled.get_track("mocap")
+    assert resampled._get_track("mocap") is resampled._get_track(mocap_id)
+    assert resampled._get_track("reference") is resampled._get_track(reference_id)
+    assert resampled.tracks["mocap"] is resampled._get_track("mocap")
 
 
 def test_sync_plan_rejects_duplicate_undirected_edges() -> None:

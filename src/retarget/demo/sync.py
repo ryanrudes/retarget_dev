@@ -15,6 +15,11 @@ from retarget.demo.alignment import (
     estimate_alignment_from_signals,
 )
 from retarget.demo.demo import Demonstration, DemonstrationView
+from retarget.demo.authoring import (
+    TypedDemonstration,
+    TypedDemonstrationView,
+    _rebuild_schema_tracks,
+)
 from retarget.demo.tracks import Track
 
 type SignalExtractor = Callable[[Track], EnergySignal]
@@ -104,12 +109,12 @@ def estimate_sync[K: TrackId](
     plan: SyncPlan[K],
 ) -> tuple[TrackAlignment[K], ...]:
     """Estimate each pairwise alignment requested by a sync plan."""
-    _validate_plan_tracks(demonstration.tracks, plan)
+    _validate_plan_tracks(demonstration._tracks, plan)
 
     alignments: list[TrackAlignment[K]] = []
     for edge in plan.edges:
-        source_track = demonstration.get_track(edge.source)
-        reference_track = demonstration.get_track(edge.reference)
+        source_track = demonstration._get_track(edge.source)
+        reference_track = demonstration._get_track(edge.reference)
 
         source_signal = edge.source_signal(source_track)
         reference_signal = edge.reference_signal(reference_track)
@@ -172,9 +177,20 @@ def estimate_sync_and_resample_to_reference[K: TrackId](
     """
     alignments = estimate_sync_to_reference(demonstration, plan)
     sliced = demonstration.slice_time(start, stop)
+    if isinstance(demonstration, TypedDemonstration):
+        assert isinstance(sliced, TypedDemonstrationView)
+        aligned_view = TypedDemonstrationView(
+            source=sliced.source,
+            tracks=sliced._tracks,
+            alignments=alignments,
+            _generated_ids=sliced._generated_ids,
+            _schema_tracks=_rebuild_schema_tracks(sliced, demonstration._schema_tracks),
+        )
+        return aligned_view.resample_to(plan.reference)
+
     aligned_view = DemonstrationView(
         source=sliced.source,
-        tracks=sliced.tracks,
+        tracks=sliced._tracks,
         alignments=alignments,
         _generated_ids=sliced._generated_ids,
     )
