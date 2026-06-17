@@ -236,7 +236,7 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert "shoe=Segment(" in source
     assert "class GroundEstimationTracks(Tracks):" in source
     assert "build_demonstration(GroundEstimationTracks(mocap=mocap))" in source
-    assert "mocap = demo.typed_tracks.mocap" in source
+    assert 'mocap = demo.typed_tracks["mocap"]' in source
     assert "GroundEstimationTrackId" not in source
     assert 'left_shoe_track = mocap.subject("left_shoe").segment("shoe")' in source
     assert 'heel_positions = left_shoe_track.marker_positions("heel")' in source
@@ -252,3 +252,4 @@ def test_new_api_example_shows_typed_authoring_and_declaration_only_patches() ->
     assert "load_ground_estimation_demo(" not in source
     assert "shoe_spec.marker_type.heel" not in source
     assert "shoe_spec.patch_type.sole" not in source
+    assert "typed_tracks.mocap" not in source

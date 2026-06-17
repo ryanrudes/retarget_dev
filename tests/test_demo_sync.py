@@ -12,6 +12,7 @@ from retarget.core.enums import TrackId
 from retarget.core.types import FloatArray
 from retarget.demo.alignment import EnergySignal, TimelineTransform, TrackAlignment
 from retarget.demo import Tracks, build_demonstration
+from retarget.demo.authoring import TypedDemonstration
 from retarget.demo.sync import (
     SyncEdge,
     SyncPlan,
@@ -126,7 +127,7 @@ def _dummy_track(shift: float = 0.0) -> DummyTrack:
     return DummyTrack(timestamps=timestamps, values=values)
 
 
-def _typed_sync_demo() -> Demonstration[TrackId]:
+def _typed_sync_demo() -> TypedDemonstration[TypedSyncTracks]:
     return build_demonstration(
         TypedSyncTracks(
             reference=_dummy_track(shift=0.0),
@@ -496,7 +497,7 @@ def test_estimate_sync_and_resample_to_reference_preserves_typed_string_bridge()
 
     assert resampled.get_track("mocap") is resampled.get_track(mocap_id)
     assert resampled.get_track("reference") is resampled.get_track(reference_id)
-    assert resampled.typed_tracks.mocap is resampled.get_track("mocap")
+    assert resampled.typed_tracks["mocap"] is resampled.get_track("mocap")
 
 
 def test_sync_plan_rejects_duplicate_undirected_edges() -> None:

@@ -206,7 +206,7 @@ if UNBAGGED_DIR.is_dir():
     mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
     demo = build_demonstration(GroundEstimationTracks(mocap=mocap))
     # demo.get_track("mocap") remains the dynamic lookup path.
-    mocap = demo.typed_tracks.mocap
+    mocap = demo.typed_tracks["mocap"]
     left_shoe_track = mocap.subject("left_shoe").segment("shoe")
     heel_positions = left_shoe_track.marker_positions("heel")
     sole_points = left_shoe_track.patch_points("sole")

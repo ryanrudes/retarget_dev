@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import assert_type
+
 import numpy as np
 import pytest
 
@@ -8,6 +10,7 @@ from retarget.core.targets import PatchTarget
 from demo_vocab import GroundEstimationTrackId
 from retarget.demo import Tracks, build_demonstration
 from retarget.demo.contact import ContactTrack
+from retarget.demo.authoring import TypedDemonstration
 from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.mocap import MocapTrack, MocapTrackView
 from conftest import (
@@ -38,7 +41,7 @@ def _mocap_track(value: object) -> MocapTrack | MocapTrackView:
     return value
 
 
-def _typed_demo() -> Demonstration[GroundEstimationTrackId]:
+def _typed_demo() -> TypedDemonstration[GroundEstimationTracks]:
     mocap = make_mocap_track()
     contacts, _ = make_string_contact_track(target_name="contact")
     return build_demonstration(
@@ -49,7 +52,7 @@ def _typed_demo() -> Demonstration[GroundEstimationTrackId]:
     )
 
 
-def _typed_mocap_demo() -> Demonstration[GroundEstimationTrackId]:
+def _typed_mocap_demo() -> TypedDemonstration[MocapTracks]:
     return build_demonstration(
         MocapTracks(
             mocap=make_mocap_track(),
@@ -175,8 +178,10 @@ def test_typed_demonstration_compiles_track_ids_and_resolves_strings() -> None:
     contacts = demo.get_track("contacts")
     assert isinstance(mocap, MocapTrack)
     assert isinstance(contacts, ContactTrack)
-    assert demo.typed_tracks.mocap is mocap
-    assert demo.typed_tracks.contacts is contacts
+    assert_type(demo.typed_tracks["mocap"], MocapTrack)
+    assert_type(demo.typed_tracks["contacts"], ContactTrack)
+    assert demo.typed_tracks["mocap"] is mocap
+    assert demo.typed_tracks["contacts"] is contacts
     assert demo.get_track(demo._generated_ids.tracks.mocap) is mocap
     assert demo.get_track(GroundEstimationTrackId.MOCAP) is mocap
 
@@ -193,12 +198,12 @@ def test_typed_demonstration_bridge_survives_slice_and_resample() -> None:
     clip = demo.slice_time(0.0, 0.2)
 
     assert isinstance(clip.get_track("mocap"), MocapTrackView)
-    assert clip.typed_tracks.mocap is clip.get_track("mocap")
+    assert clip.typed_tracks["mocap"] is clip.get_track("mocap")
     assert clip.get_track(GroundEstimationTrackId.MOCAP) is clip.get_track("mocap")
 
     resampled = clip.resample_to("mocap")
     assert isinstance(resampled.get_track("mocap"), MocapTrackView)
-    assert resampled.typed_tracks.mocap is resampled.get_track("mocap")
+    assert resampled.typed_tracks["mocap"] is resampled.get_track("mocap")
     assert resampled.get_track(GroundEstimationTrackId.MOCAP) is resampled.get_track(
         "mocap"
     )
