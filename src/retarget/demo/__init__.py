@@ -6,6 +6,7 @@ from retarget.demo.alignment import (
     TrackAlignment,
     estimate_alignment_from_signals,
 )
+from retarget.demo.authoring import Tracks, build_demonstration
 from retarget.demo.contact import ContactTrack, ContactTrackView
 from retarget.demo.demo import Demonstration, DemonstrationView
 from retarget.demo.loaders import load_mocap_track
@@ -32,6 +33,8 @@ from retarget.demo.sync import (
 __all__ = [
     "ContactTrack",
     "ContactTrackView",
+    "Tracks",
+    "build_demonstration",
 
     # retarget.demo.demo
     "Demonstration",

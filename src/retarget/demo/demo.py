@@ -14,7 +14,7 @@ time basis before delegating interpolation/discrete sampling to each track.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 
 from retarget.core.enums import TrackId
@@ -23,11 +23,24 @@ from retarget.demo.tracks import Track
 
 
 @dataclass(frozen=True, slots=True)
+class _GeneratedTrackIds:
+    """Private runtime TrackId bridge generated from authored track names."""
+
+    tracks: type[TrackId]
+
+
+@dataclass(frozen=True, slots=True)
 class Demonstration[K: TrackId]:
     """Multimodal demonstration keyed by typed track identifiers."""
 
     tracks: Mapping[K, Track]
     alignments: tuple[TrackAlignment[K], ...] = ()
+    _generated_ids: _GeneratedTrackIds | None = field(
+        default=None,
+        repr=False,
+        compare=False,
+        kw_only=True,
+    )
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "tracks", _freeze_tracks(self.tracks))
@@ -35,8 +48,9 @@ class Demonstration[K: TrackId]:
     def __getitem__(self, track: K) -> Track:
         return self.tracks[track]
 
-    def get_track(self, track: K) -> Track:
-        return self[track]
+    def get_track(self, track: K | str) -> Track:
+        track_id = self._coerce_track_id(track)
+        return self[track_id]
 
     def slice_time(self, start: float, stop: float) -> DemonstrationView[K]:
         return DemonstrationView(
@@ -46,11 +60,12 @@ class Demonstration[K: TrackId]:
                 for track_id, track in self.tracks.items()
             },
             alignments=self.alignments,
+            _generated_ids=self._generated_ids,
         )
 
     def resample_with_alignments(
         self,
-        reference: K,
+        reference: K | str,
         alignments: tuple[TrackAlignment[K], ...],
     ) -> DemonstrationView[K]:
         """Compatibility wrapper for pairwise alignments.
@@ -61,9 +76,11 @@ class Demonstration[K: TrackId]:
         import dataclasses
         from retarget.demo.sync import compose_alignments_to_reference
 
+        reference_id = self._coerce_track_id(reference)
+
         # Keep the legacy pairwise-alignment path alive for existing callers.
         composed = compose_alignments_to_reference(
-            reference=reference,
+            reference=reference_id,
             alignments=alignments,
         )
 
@@ -75,12 +92,34 @@ class Demonstration[K: TrackId]:
                 source=self,
                 tracks=self.tracks,
                 alignments=composed,
+                _generated_ids=self._generated_ids,
             )
 
-        return view.resample_to(reference)
+        return view.resample_to(reference_id)
 
     def _view_source(self) -> Demonstration[K]:
         return self
+
+    def _coerce_track_id(self, track: K | str) -> K:
+        if isinstance(track, TrackId):
+            return track
+        if isinstance(track, str):
+            if self._generated_ids is not None:
+                try:
+                    return self._generated_ids.tracks(track)
+                except ValueError as exc:
+                    raise KeyError(
+                        f"Track {track!r} is not in this demonstration"
+                    ) from exc
+            if self._tracks_are_track_ids():
+                raise KeyError(f"Track {track!r} is not in this demonstration")
+        return track
+
+    def _tracks_are_track_ids(self) -> bool:
+        for track_id in self.tracks:
+            if not isinstance(track_id, TrackId):
+                return False
+        return True
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -92,21 +131,22 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
     def _view_source(self) -> Demonstration[K]:
         return self.source
 
-    def resample_to(self, reference: K) -> DemonstrationView[K]:
+    def resample_to(self, reference: K | str) -> DemonstrationView[K]:
         """Return a materialized view resampled onto a reference track timeline."""
-        if reference not in self.tracks:
+        reference_id = self._coerce_track_id(reference)
+        if reference_id not in self.tracks:
             raise KeyError(f"Reference track {reference!r} is not in this view")
 
-        reference_track = self[reference]
+        reference_track = self[reference_id]
         reference_timestamps = reference_track.timestamps
         alignment_by_source = _alignments_to_reference(
-            reference=reference,
+            reference=reference_id,
             alignments=self.alignments,
         )
 
         resampled_tracks: dict[K, Track] = {}
         for track_id, track in self.tracks.items():
-            if track_id == reference:
+            if track_id == reference_id:
                 resampled_tracks[track_id] = track
                 continue
 
@@ -133,6 +173,7 @@ class DemonstrationView[K: TrackId](Demonstration[K]):
             source=self.source,
             tracks=resampled_tracks,
             alignments=self.alignments,
+            _generated_ids=self._generated_ids,
         )
 
 

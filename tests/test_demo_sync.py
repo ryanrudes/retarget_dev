@@ -11,6 +11,7 @@ import pytest
 from retarget.core.enums import TrackId
 from retarget.core.types import FloatArray
 from retarget.demo.alignment import EnergySignal, TimelineTransform, TrackAlignment
+from retarget.demo import Tracks, build_demonstration
 from retarget.demo.sync import (
     SyncEdge,
     SyncPlan,
@@ -28,6 +29,11 @@ class DemoTrackId(TrackId):
     MOCAP = "mocap"
     CONTACT = "contact"
     AUX = "aux"
+
+
+class TypedSyncTracks(Tracks):
+    reference: DummyTrack
+    mocap: DummyTrack
 
 
 class DummyTrack(Track):
@@ -118,6 +124,15 @@ def _dummy_track(shift: float = 0.0) -> DummyTrack:
     timestamps = np.linspace(0.0, 2.0, 101)
     values = np.exp(-((timestamps - 1.0 - shift) ** 2) / 0.01)
     return DummyTrack(timestamps=timestamps, values=values)
+
+
+def _typed_sync_demo() -> Demonstration[TrackId]:
+    return build_demonstration(
+        TypedSyncTracks(
+            reference=_dummy_track(shift=0.0),
+            mocap=_dummy_track(shift=0.1),
+        )
+    )
 
 
 def test_sync_plan_accepts_connected_non_star_graph() -> None:
@@ -451,6 +466,36 @@ def test_estimate_sync_and_resample_to_reference_returns_reference_time_view() -
     assert len(resampled.alignments) == 1
     assert resampled.alignments[0].source == DemoTrackId.MOCAP
     assert resampled.alignments[0].reference == DemoTrackId.REFERENCE
+
+
+def test_estimate_sync_and_resample_to_reference_preserves_typed_string_bridge() -> None:
+    demo = _typed_sync_demo()
+    assert demo._generated_ids is not None
+
+    reference_id = demo._generated_ids.tracks.reference
+    mocap_id = demo._generated_ids.tracks.mocap
+    plan = SyncPlan(
+        reference=reference_id,
+        edges=(
+            SyncEdge(
+                source=mocap_id,
+                reference=reference_id,
+                source_signal=_signal,
+                reference_signal=_signal,
+                max_lag_seconds=0.5,
+            ),
+        ),
+    )
+
+    resampled = estimate_sync_and_resample_to_reference(
+        demo,
+        plan,
+        start=0.75,
+        stop=1.25,
+    )
+
+    assert resampled.get_track("mocap") is resampled.get_track(mocap_id)
+    assert resampled.get_track("reference") is resampled.get_track(reference_id)
 
 
 def test_sync_plan_rejects_duplicate_undirected_edges() -> None:

@@ -176,6 +176,7 @@ def estimate_sync_and_resample_to_reference[K: TrackId](
         source=sliced.source,
         tracks=sliced.tracks,
         alignments=alignments,
+        _generated_ids=sliced._generated_ids,
     )
     return aligned_view.resample_to(plan.reference)
 
