@@ -114,14 +114,18 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         return len(self.timestamps)
 
     @classmethod
-    def from_unbagged(
+    def from_unbagged[S: Subjects](
         cls,
         root: Path | UnbaggedDirectory,
-        subjects: SubjectsT,
+        subjects: S,
         *,
         tf_prefix: str = "vicon",
-    ) -> MocapTrack[SubjectsT]:
-        """Load a mocap track from an unbagged export directory and authored scene."""
+    ) -> MocapTrack[S]:
+        """Load a mocap track from an unbagged export directory and authored scene.
+
+        Uses a method-local type parameter (not the class ``SubjectsT``) so the
+        returned track type is inferred from ``subjects`` at the call site.
+        """
         export = root if isinstance(root, UnbaggedDirectory) else UnbaggedDirectory(root)
         state = load_scene_state(export, subjects, tf_prefix=tf_prefix)
         marker_frames = tuple(iter_vicon_marker_frames(export))
@@ -134,7 +138,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
                 "SceneState timestep count does not match marker frame count: "
                 f"{state.num_timesteps} != {len(marker_frames)}"
             )
-        return cls(
+        return MocapTrack(
             subjects=subjects,
             state=state,
             timestamps=timestamps,
