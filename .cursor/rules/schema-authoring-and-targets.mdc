@@ -33,7 +33,7 @@ class Subjects(TypedDict): ...
 
 @dataclass(frozen=True, slots=True)
 class Marker:
-    vicon_name: str
+    mocap_name: str
     position_segment: Vec3 | None = field(default=None, compare=False)
     # private non-init _binding links to loaded data
 
@@ -48,12 +48,12 @@ class Patch:
 class Segment[MarkersT: Markers, PatchesT: Patches]:
     markers: MarkersT
     patches: PatchesT
-    vicon_name: str | None = None
+    mocap_name: str | None = None
 
 @dataclass(frozen=True, slots=True)
 class Subject[SegmentsT: Segments]:
     segments: SegmentsT
-    vicon_name: str | None = None
+    mocap_name: str | None = None
 ```
 
 Use PEP 695 syntax. Do not add identifier enums or `TypeVar` aliases.

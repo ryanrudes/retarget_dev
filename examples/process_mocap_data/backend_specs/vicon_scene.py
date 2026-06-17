@@ -60,8 +60,8 @@ class GroundEstimationTracks(Tracks):
     mocap: MocapTrack[GroundEstimationSubjects]
 
 
-def _marker(vicon_name: str) -> Marker:
-    return Marker(vicon_name=vicon_name, position_segment=_MARKER_POSITIONS[vicon_name])
+def _marker(mocap_name: str) -> Marker:
+    return Marker(mocap_name=mocap_name, position_segment=_MARKER_POSITIONS[mocap_name])
 
 
 # Sole patch frame fit from the three shoe-sole plane calibration markers.
@@ -76,10 +76,10 @@ _SOLE_TRANSFORM = calibrate_patch_transform(
 
 VICON_SUBJECTS = GroundEstimationSubjects(
     left_shoe=Subject(
-        vicon_name="Left_Shoe_Improved",
+        mocap_name="Left_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
-                vicon_name="Left_Shoe_Improved",
+                mocap_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
                     heel=_marker("heel"),
                     toe=_marker("toe"),

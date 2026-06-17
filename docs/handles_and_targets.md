@@ -36,8 +36,8 @@ class MocapSubjects(Subjects):
 ```
 
 The authored field names (`"left_shoe"`, `"shoe"`, `"heel"`, `"sole"`) are the
-canonical identity. `Marker.vicon_name`, `Segment.vicon_name`, and
-`Subject.vicon_name` are external (Vicon) lookup metadata; `Patch.label` /
+canonical identity. `Marker.mocap_name`, `Segment.mocap_name`, and
+`Subject.mocap_name` are external (Vicon) lookup metadata; `Patch.label` /
 `Patch.frame` are display metadata, not identity.
 
 Structurally identical subjects (e.g. both shoes) reuse one schema.

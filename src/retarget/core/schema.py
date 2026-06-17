@@ -14,7 +14,7 @@ This module defines a single set of dual-purpose types:
 
 Authoring objects carry a private, non-init ``_binding`` that links them to
 loaded track data. It is ``None`` while authoring and ignored by equality/repr,
-so the public constructors stay pure authoring (``Marker(vicon_name=...)``).
+so the public constructors stay pure authoring (``Marker(mocap_name=...)``).
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ class _SegmentRuntime:
     """Per-segment time-series data attached to a bound segment subtree.
 
     Arrays are already materialized at the bound track's (possibly sliced) time
-    resolution. ``observed_markers`` is keyed by marker ``vicon_name`` and always
+    resolution. ``observed_markers`` is keyed by marker ``mocap_name`` and always
     contains an entry for every declared marker (NaN rows where unobserved).
     ``contacts``/``confidences`` are keyed by authored patch name.
     """
@@ -127,7 +127,7 @@ _UNBOUND_MESSAGE = (
 class Marker:
     """A marker: authoring metadata plus bound time-series queries."""
 
-    vicon_name: str
+    mocap_name: str
     position_segment: Vec3 | None = field(default=None, compare=False)
     _binding: _MarkerBinding | None = field(
         default=None, init=False, compare=False, repr=False
@@ -150,7 +150,7 @@ class Marker:
             world = np.einsum("tij,j->ti", runtime.rotations, local)
             return cast(TimeVec3, world + runtime.translations)
         try:
-            return cast(TimeVec3, runtime.observed_markers[self.vicon_name])
+            return cast(TimeVec3, runtime.observed_markers[self.mocap_name])
         except KeyError as exc:
             raise ValueError(
                 "Observed marker positions require marker_frames on the mocap track"
@@ -304,7 +304,7 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
 
     markers: MarkersT
     patches: PatchesT
-    vicon_name: str | None = None
+    mocap_name: str | None = None
     _binding: _SegmentBinding | None = field(
         default=None, init=False, compare=False, repr=False
     )
@@ -484,7 +484,7 @@ class Subject[SegmentsT: Segments]:
     """A subject: a typed mapping of named segments.
 
     ``body_model`` is an optional subject-level source of segment-frame marker
-    rest positions keyed by ``Marker.vicon_name`` (e.g. from a VSK). At bind
+    rest positions keyed by ``Marker.mocap_name`` (e.g. from a VSK). At bind
     time, any marker without an explicit ``position_segment`` inherits its
     segment-frame position from this mapping, so callers need not repeat
     ``position_segment`` on every marker. A per-marker ``position_segment``
@@ -492,7 +492,7 @@ class Subject[SegmentsT: Segments]:
     """
 
     segments: SegmentsT
-    vicon_name: str | None = None
+    mocap_name: str | None = None
     body_model: Mapping[str, Vec3] | None = field(default=None, compare=False)
     _binding: _SubjectBinding | None = field(
         default=None, init=False, compare=False, repr=False
@@ -501,12 +501,12 @@ class Subject[SegmentsT: Segments]:
     def segment_external_name(self, segment: str) -> str:
         """External (Vicon) name used by IO for one of this subject's segments."""
         seg = cast(Mapping[str, Segment[Any, Any]], self.segments)[segment]
-        return seg.vicon_name or segment
+        return seg.mocap_name or segment
 
     @property
     def external_name(self) -> str | None:
         """External (Vicon) subject name, if any."""
-        return self.vicon_name
+        return self.mocap_name
 
 
 # ---------------------------------------------------------------------------
@@ -567,7 +567,7 @@ def _bind_subject(
     }
     bound = Subject(
         segments=cast(Any, bound_segments),
-        vicon_name=subject.vicon_name,
+        mocap_name=subject.mocap_name,
         body_model=subject.body_model,
     )
     object.__setattr__(bound, "_binding", _SubjectBinding(subject=name))
@@ -606,7 +606,7 @@ def _bind_segment(
     bound = Segment(
         markers=cast(Any, bound_markers),
         patches=cast(Any, bound_patches),
-        vicon_name=segment.vicon_name,
+        mocap_name=segment.mocap_name,
     )
     object.__setattr__(
         bound,
@@ -627,9 +627,9 @@ def _bind_marker(
 ) -> Marker:
     position_segment = marker.position_segment
     if position_segment is None and body_model is not None:
-        position_segment = body_model.get(marker.vicon_name)
+        position_segment = body_model.get(marker.mocap_name)
     bound = Marker(
-        vicon_name=marker.vicon_name,
+        mocap_name=marker.mocap_name,
         position_segment=position_segment,
     )
     object.__setattr__(
@@ -684,11 +684,11 @@ def _validate_segment(
 ) -> None:
     seen_vicon: dict[str, str] = {}
     for marker_name, marker in segment.markers.items():
-        previous = seen_vicon.get(marker.vicon_name)
+        previous = seen_vicon.get(marker.mocap_name)
         if previous is not None:
             raise ValueError(
-                "Duplicate Marker.vicon_name within "
-                f"{subject_name!r}/{segment_name!r}: {marker.vicon_name!r} used by "
+                "Duplicate Marker.mocap_name within "
+                f"{subject_name!r}/{segment_name!r}: {marker.mocap_name!r} used by "
                 f"{previous!r} and {marker_name!r}"
             )
-        seen_vicon[marker.vicon_name] = marker_name
+        seen_vicon[marker.mocap_name] = marker_name

@@ -38,7 +38,7 @@ class _Subjects(Subjects):
 
 
 def _segment() -> Segment[_Markers, _Patches]:
-    return Segment(markers=_Markers(a=Marker(vicon_name="a")), patches=_Patches(p=Patch(label="p")))
+    return Segment(markers=_Markers(a=Marker(mocap_name="a")), patches=_Patches(p=Patch(label="p")))
 
 
 def _subjects() -> _Subjects:

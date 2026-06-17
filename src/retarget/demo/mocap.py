@@ -313,7 +313,7 @@ def _build_segment_runtimes(
     runtimes: dict[SegmentKey, _SegmentRuntime] = {}
     num_timesteps = len(timestamps)
     for subject_name, subject in cast(Mapping[str, Subject[Any]], subjects).items():
-        subject_external = subject.vicon_name or subject_name
+        subject_external = subject.mocap_name or subject_name
         segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
         for segment_name, segment in segments.items():
             key = SegmentKey(subject_name, segment_name)
@@ -325,7 +325,7 @@ def _build_segment_runtimes(
                 segment,
                 marker_frames,
                 subject_external=subject_external,
-                segment_external=segment.vicon_name or segment_name,
+                segment_external=segment.mocap_name or segment_name,
                 num_timesteps=num_timesteps,
             )
             contact_state, contact_confidence = _segment_contacts(
@@ -353,7 +353,7 @@ def _observed_markers(
     if marker_frames is None:
         return {}
     observed = {
-        marker.vicon_name: np.full((num_timesteps, 3), np.nan, dtype=np.float64)
+        marker.mocap_name: np.full((num_timesteps, 3), np.nan, dtype=np.float64)
         for marker in segment.markers.values()
     }
     for timestep, frame in enumerate(marker_frames):

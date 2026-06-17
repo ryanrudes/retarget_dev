@@ -56,13 +56,13 @@ def _subjects(*, with_geometry: bool = True) -> ShoeSubjects:
     )
     return ShoeSubjects(
         left_shoe=Subject(
-            vicon_name="Left_Shoe_Improved",
+            mocap_name="Left_Shoe_Improved",
             segments=ShoeSegments(
                 shoe=Segment(
-                    vicon_name="Left_Shoe_Improved",
+                    mocap_name="Left_Shoe_Improved",
                     markers=ShoeMarkers(
-                        heel=Marker(vicon_name="left_shoe_heel", position_segment=np.zeros(3)),
-                        toe=Marker(vicon_name="left_shoe_toe", position_segment=np.array([1.0, 0.0, 0.0])),
+                        heel=Marker(mocap_name="left_shoe_heel", position_segment=np.zeros(3)),
+                        toe=Marker(mocap_name="left_shoe_toe", position_segment=np.array([1.0, 0.0, 0.0])),
                     ),
                     patches=ShoePatches(sole=sole),
                 )
@@ -104,8 +104,8 @@ def test_bind_scene_exposes_targets_and_external_names() -> None:
     subject = scene["left_shoe"]
     shoe = subject.segments["shoe"]
     assert subject.external_name == "Left_Shoe_Improved"
-    assert subject.vicon_name == "Left_Shoe_Improved"
-    assert shoe.vicon_name == "Left_Shoe_Improved"
+    assert subject.mocap_name == "Left_Shoe_Improved"
+    assert shoe.mocap_name == "Left_Shoe_Improved"
     assert shoe.segment_target() == SegmentTarget("left_shoe", "shoe")
     assert shoe.marker_target("heel") == MarkerTarget("left_shoe", "shoe", "heel")
     assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
@@ -144,18 +144,18 @@ def _body_model_subjects(*, override_heel: bool = False) -> ShoeSubjects:
         "left_shoe_toe": np.array([1.0, 0.0, 0.0]),
     }
     heel = (
-        Marker(vicon_name="left_shoe_heel", position_segment=np.zeros(3))
+        Marker(mocap_name="left_shoe_heel", position_segment=np.zeros(3))
         if override_heel
-        else Marker(vicon_name="left_shoe_heel")
+        else Marker(mocap_name="left_shoe_heel")
     )
     return ShoeSubjects(
         left_shoe=Subject(
-            vicon_name="Left_Shoe_Improved",
+            mocap_name="Left_Shoe_Improved",
             body_model=body_model,
             segments=ShoeSegments(
                 shoe=Segment(
-                    vicon_name="Left_Shoe_Improved",
-                    markers=ShoeMarkers(heel=heel, toe=Marker(vicon_name="left_shoe_toe")),
+                    mocap_name="Left_Shoe_Improved",
+                    markers=ShoeMarkers(heel=heel, toe=Marker(mocap_name="left_shoe_toe")),
                     patches=ShoePatches(sole=Patch(label="sole")),
                 )
             ),
@@ -180,19 +180,19 @@ def test_explicit_position_segment_overrides_body_model() -> None:
     np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.zeros(3))
 
 
-def test_bind_scene_rejects_duplicate_vicon_name_within_segment() -> None:
+def test_bind_scene_rejects_duplicate_mocap_name_within_segment() -> None:
     subjects = ShoeSubjects(
         left_shoe=Subject(
             segments=ShoeSegments(
                 shoe=Segment(
                     markers=ShoeMarkers(
-                        heel=Marker(vicon_name="dup"),
-                        toe=Marker(vicon_name="dup"),
+                        heel=Marker(mocap_name="dup"),
+                        toe=Marker(mocap_name="dup"),
                     ),
                     patches=ShoePatches(sole=Patch(label="sole")),
                 )
             )
         )
     )
-    with pytest.raises(ValueError, match="Duplicate Marker.vicon_name"):
+    with pytest.raises(ValueError, match="Duplicate Marker.mocap_name"):
         bind_scene(subjects)

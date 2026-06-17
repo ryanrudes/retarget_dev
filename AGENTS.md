@@ -93,7 +93,7 @@ geometry inspection work) and returns the same `SubjectsT` type. Loading data
 `Marker`/`Patch`/`Segment`/`Subject` carry a private, non-init `_binding` that
 links them to loaded data. It is `None` while authoring and excluded from
 equality/repr, so the public constructors stay pure authoring
-(`Marker(vicon_name=...)`). Mutable lazy caches (if any) stay non-frozen.
+(`Marker(mocap_name=...)`). Mutable lazy caches (if any) stay non-frozen.
 
 ## Identity, targets, and runtime keys
 

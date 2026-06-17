@@ -83,15 +83,15 @@ class GroundEstimationTracks(Tracks):
 
 subjects = MocapSubjects(
     left_shoe=Subject(
-        vicon_name="Left_Shoe_Improved",
+        mocap_name="Left_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
-                vicon_name="Left_Shoe_Improved",
+                mocap_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
-                    heel=Marker(vicon_name="left_shoe_heel"),
-                    toe=Marker(vicon_name="left_shoe_toe"),
-                    lateral=Marker(vicon_name="left_shoe_lateral"),
-                    medial=Marker(vicon_name="left_shoe_medial"),
+                    heel=Marker(mocap_name="left_shoe_heel"),
+                    toe=Marker(mocap_name="left_shoe_toe"),
+                    lateral=Marker(mocap_name="left_shoe_lateral"),
+                    medial=Marker(mocap_name="left_shoe_medial"),
                 ),
                 patches=ShoePatches(
                     sole=Patch.rectangular(
@@ -114,15 +114,15 @@ subjects = MocapSubjects(
         ),
     ),
     right_shoe=Subject(
-        vicon_name="Right_Shoe_Improved",
+        mocap_name="Right_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
-                vicon_name="Right_Shoe_Improved",
+                mocap_name="Right_Shoe_Improved",
                 markers=ShoeMarkers(
-                    heel=Marker(vicon_name="right_shoe_heel"),
-                    toe=Marker(vicon_name="right_shoe_toe"),
-                    lateral=Marker(vicon_name="right_shoe_lateral"),
-                    medial=Marker(vicon_name="right_shoe_medial"),
+                    heel=Marker(mocap_name="right_shoe_heel"),
+                    toe=Marker(mocap_name="right_shoe_toe"),
+                    lateral=Marker(mocap_name="right_shoe_lateral"),
+                    medial=Marker(mocap_name="right_shoe_medial"),
                 ),
                 patches=ShoePatches(
                     sole=Patch.rectangular(
@@ -145,14 +145,14 @@ subjects = MocapSubjects(
         ),
     ),
     right_hand=Subject(
-        vicon_name="Right_Hand_Improved",
+        mocap_name="Right_Hand_Improved",
         segments=HandSegments(
             hand=Segment(
-                vicon_name="Right_Hand_Improved",
+                mocap_name="Right_Hand_Improved",
                 markers=HandMarkers(
-                    wrist=Marker(vicon_name="right_hand_wrist"),
-                    index_tip=Marker(vicon_name="right_index_tip"),
-                    thumb_tip=Marker(vicon_name="right_thumb_tip"),
+                    wrist=Marker(mocap_name="right_hand_wrist"),
+                    index_tip=Marker(mocap_name="right_index_tip"),
+                    thumb_tip=Marker(mocap_name="right_thumb_tip"),
                 ),
                 patches=HandPatches(
                     palm=Patch.rectangular(

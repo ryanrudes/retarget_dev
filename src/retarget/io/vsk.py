@@ -16,7 +16,7 @@ def read_marker_positions_from_vsk(vsk_file: Path | str) -> dict[str, Vec3]:
     """Read marker positions from a VSK file, keyed by the marker's Vicon name.
 
     Positions are converted from millimeters to meters. Callers map these
-    external Vicon names onto authored markers via ``Marker.vicon_name``.
+    external Vicon names onto authored markers via ``Marker.mocap_name``.
     """
     tree = ET.parse(vsk_file)
     root = tree.getroot()

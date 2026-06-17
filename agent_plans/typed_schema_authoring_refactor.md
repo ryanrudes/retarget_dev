@@ -28,7 +28,7 @@ class Subjects(TypedDict): ...
 
 @dataclass(frozen=True, slots=True)
 class Marker:
-    vicon_name: str
+    mocap_name: str
 
 @dataclass(frozen=True, slots=True)
 class Patch:

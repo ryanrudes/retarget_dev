@@ -99,10 +99,10 @@ class _DuplicateSubjects(Subjects):
     right_shoe: Subject[_LoadSegments]
 
 
-def _segment(vicon_name: str, marker_vicon: str) -> Segment[_LoadMarkers, _LoadPatches]:
+def _segment(mocap_name: str, marker_vicon: str) -> Segment[_LoadMarkers, _LoadPatches]:
     return Segment(
-        vicon_name=vicon_name,
-        markers=_LoadMarkers(heel=Marker(vicon_name=marker_vicon)),
+        mocap_name=mocap_name,
+        markers=_LoadMarkers(heel=Marker(mocap_name=marker_vicon)),
         patches=_LoadPatches(sole=Patch(label="sole")),
     )
 
@@ -110,7 +110,7 @@ def _segment(vicon_name: str, marker_vicon: str) -> Segment[_LoadMarkers, _LoadP
 def _single_subject() -> _LoadSubjects:
     return _LoadSubjects(
         left_shoe=Subject(
-            vicon_name=_EXTERNAL,
+            mocap_name=_EXTERNAL,
             segments=_LoadSegments(shoe=_segment(_EXTERNAL, "left_shoe_heel")),
         )
     )
@@ -119,11 +119,11 @@ def _single_subject() -> _LoadSubjects:
 def _duplicate_external_subjects() -> _DuplicateSubjects:
     return _DuplicateSubjects(
         left_shoe=Subject(
-            vicon_name=_EXTERNAL,
+            mocap_name=_EXTERNAL,
             segments=_LoadSegments(shoe=_segment(_EXTERNAL, "left_shoe_heel")),
         ),
         right_shoe=Subject(
-            vicon_name=_EXTERNAL,
+            mocap_name=_EXTERNAL,
             segments=_LoadSegments(shoe=_segment(_EXTERNAL, "right_shoe_heel")),
         ),
     )

@@ -56,8 +56,8 @@ def _track() -> MocapTrack[MySubjects]:
             segments=ShoeSegments(
                 shoe=Segment(
                     markers=ShoeMarkers(
-                        heel=Marker(vicon_name="h", position_segment=np.zeros(3)),
-                        toe=Marker(vicon_name="t", position_segment=np.array([1.0, 0.0, 0.0])),
+                        heel=Marker(mocap_name="h", position_segment=np.zeros(3)),
+                        toe=Marker(mocap_name="t", position_segment=np.array([1.0, 0.0, 0.0])),
                     ),
                     patches=ShoePatches(sole=Patch(label="sole")),
                 )

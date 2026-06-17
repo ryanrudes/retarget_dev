@@ -70,13 +70,13 @@ class ShoeSubjects(Subjects):
 
 subjects = ShoeSubjects(
     left_shoe=Subject(
-        vicon_name="Left_Shoe_Improved",
+        mocap_name="Left_Shoe_Improved",
         segments=ShoeSegments(
             shoe=Segment(
-                vicon_name="Left_Shoe_Improved",
+                mocap_name="Left_Shoe_Improved",
                 markers=ShoeMarkers(
-                    heel=Marker(vicon_name="left_shoe_heel"),
-                    toe=Marker(vicon_name="left_shoe_toe"),
+                    heel=Marker(mocap_name="left_shoe_heel"),
+                    toe=Marker(mocap_name="left_shoe_toe"),
                 ),
                 patches=ShoePatches(
                     sole=Patch.rectangular(
@@ -102,8 +102,8 @@ toe_target = shoe.patch_target("toe_contact")   # declaration-only patch is stil
 
 - `Markers`/`Patches`/`Segments`/`Subjects` are `TypedDict` bases declaring scene shape.
 - `Marker`/`Patch`/`Segment`/`Subject` are frozen dataclasses for concrete data.
-- Authored field names are the canonical identity; `Marker.vicon_name`,
-  `Segment.vicon_name`, and `Subject.vicon_name` are external/Vicon lookup metadata.
+- Authored field names are the canonical identity; `Marker.mocap_name`,
+  `Segment.mocap_name`, and `Subject.mocap_name` are external/Vicon lookup metadata.
 - `Patch(label=...)` declares a patch without geometry; `Patch.rectangular(...)`
   declares calibrated geometry.
 - `bind_scene(...)` path-binds the schema so `*_target(...)` and geometry work,

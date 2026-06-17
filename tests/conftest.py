@@ -72,9 +72,9 @@ def make_demo_subjects() -> DemoSubjects:
             segments=DemoSegments(
                 segment=Segment(
                     markers=DemoMarkers(
-                        heel=Marker(vicon_name="heel", position_segment=_MARKER_POSITIONS["heel"]),
-                        toe=Marker(vicon_name="toe", position_segment=_MARKER_POSITIONS["toe"]),
-                        mid=Marker(vicon_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
+                        heel=Marker(mocap_name="heel", position_segment=_MARKER_POSITIONS["heel"]),
+                        toe=Marker(mocap_name="toe", position_segment=_MARKER_POSITIONS["toe"]),
+                        mid=Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
                     ),
                     patches=DemoPatches(
                         sole=Patch.rectangular(

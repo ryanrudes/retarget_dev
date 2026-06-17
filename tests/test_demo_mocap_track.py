@@ -66,9 +66,9 @@ def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
             segments=_TwoPatchSegments(
                 segment=Segment(
                     markers=_TwoPatchMarkers(
-                        heel=Marker(vicon_name="heel", position_segment=_POSITIONS["heel"]),
-                        toe=Marker(vicon_name="toe", position_segment=_POSITIONS["toe"]),
-                        mid=Marker(vicon_name="mid", position_segment=_POSITIONS["mid"]),
+                        heel=Marker(mocap_name="heel", position_segment=_POSITIONS["heel"]),
+                        toe=Marker(mocap_name="toe", position_segment=_POSITIONS["toe"]),
+                        mid=Marker(mocap_name="mid", position_segment=_POSITIONS["mid"]),
                     ),
                     patches=_TwoPatchPatches(
                         sole=Patch.rectangular(label="sole", transform_segment_patch=sole, width=1.0, height=1.0),

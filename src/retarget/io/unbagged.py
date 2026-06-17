@@ -125,10 +125,10 @@ def _segment_keys_by_external_name(
     """Map (external subject name, external segment name) -> compiled SegmentKey."""
     mapping: dict[tuple[str, str], SegmentKey] = {}
     for subject_name, subject in cast(Mapping[str, Subject[Any]], subjects).items():
-        subject_external = subject.vicon_name or subject_name
+        subject_external = subject.mocap_name or subject_name
         segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
         for segment_name, segment in segments.items():
-            segment_external = segment.vicon_name or segment_name
+            segment_external = segment.mocap_name or segment_name
             key = SegmentKey(subject_name, segment_name)
             label_pair = (subject_external, segment_external)
             previous = mapping.get(label_pair)

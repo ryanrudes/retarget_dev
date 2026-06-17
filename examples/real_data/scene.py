@@ -43,29 +43,29 @@ SOLE_TRANSFORM = calibrate_patch_transform(
 
 SUBJECTS = ExampleSubjects(
     left_foot=Subject(
-        vicon_name="Left_Shoe_Improved",
+        mocap_name="Left_Shoe_Improved",
         body_model=BODY_MODEL,
         segments=LeftFootSegments(
             shoe=Segment(
-                vicon_name="Left_Shoe_Improved",
+                mocap_name="Left_Shoe_Improved",
                 markers=LeftShoeMarkers(
-                    heel=Marker(vicon_name="heel"),
-                    toe=Marker(vicon_name="toe"),
-                    heel_inner_1=Marker(vicon_name="heel_inner_1"),
-                    heel_inner_2=Marker(vicon_name="heel_inner_2"),
-                    heel_outer_1=Marker(vicon_name="heel_outer_1"),
-                    heel_outer_2=Marker(vicon_name="heel_outer_2"),
-                    toe_inner=Marker(vicon_name="toe_inner"),
-                    toe_outer=Marker(vicon_name="toe_outer"),
-                    toe_grid_1=Marker(vicon_name="toe_grid_1"),
-                    toe_grid_2=Marker(vicon_name="toe_grid_2"),
-                    toe_grid_3=Marker(vicon_name="toe_grid_3"),
-                    toe_grid_4=Marker(vicon_name="toe_grid_4"),
-                    sole_inner=Marker(vicon_name="sole_inner"),
-                    sole_outer=Marker(vicon_name="sole_outer"),
-                    plane_rear=Marker(vicon_name="plane_rear"),
-                    plane_inner=Marker(vicon_name="plane_inner"),
-                    plane_outer=Marker(vicon_name="plane_outer"),
+                    heel=Marker(mocap_name="heel"),
+                    toe=Marker(mocap_name="toe"),
+                    heel_inner_1=Marker(mocap_name="heel_inner_1"),
+                    heel_inner_2=Marker(mocap_name="heel_inner_2"),
+                    heel_outer_1=Marker(mocap_name="heel_outer_1"),
+                    heel_outer_2=Marker(mocap_name="heel_outer_2"),
+                    toe_inner=Marker(mocap_name="toe_inner"),
+                    toe_outer=Marker(mocap_name="toe_outer"),
+                    toe_grid_1=Marker(mocap_name="toe_grid_1"),
+                    toe_grid_2=Marker(mocap_name="toe_grid_2"),
+                    toe_grid_3=Marker(mocap_name="toe_grid_3"),
+                    toe_grid_4=Marker(mocap_name="toe_grid_4"),
+                    sole_inner=Marker(mocap_name="sole_inner"),
+                    sole_outer=Marker(mocap_name="sole_outer"),
+                    plane_rear=Marker(mocap_name="plane_rear"),
+                    plane_inner=Marker(mocap_name="plane_inner"),
+                    plane_outer=Marker(mocap_name="plane_outer"),
                 ),
                 patches=LeftShoePatches(
                     sole=Patch.rectangular(
