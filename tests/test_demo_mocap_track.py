@@ -196,8 +196,14 @@ def test_single_element_sequence_query_shapes() -> None:
     assert segment.patch_points([DemoPatchId.SOLE]).shape == (3, 1, 3)
     assert segment.patch_normals(DemoPatchId.SOLE).shape == (3, 3)
     assert segment.patch_normals([DemoPatchId.SOLE]).shape == (3, 1, 3)
+    assert segment.marker_positions("heel").shape == (3, 3)
+    assert segment.marker_velocities("heel").shape == (3, 3)
+    assert segment.patch_points("sole").shape == (3, 3)
+    assert segment.patch_normals("sole").shape == (3, 3)
+    assert segment.patch_velocities("sole").shape == (3, 3)
     assert segment.patch_contacts(DemoPatchId.SOLE).shape == (3,)
     assert segment.patch_contacts([DemoPatchId.SOLE]).shape == (3, 1)
+    assert segment.patch_contacts("sole").shape == (3,)
 
 
 def test_missing_observed_marker_returns_nan_rows() -> None:
@@ -231,34 +237,26 @@ def test_multiple_marker_query_and_return_dict() -> None:
     assert by_id[DemoMarkerId.HEEL].shape == (3, 3)
 
 
-def test_raw_string_marker_id_raises_type_error() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    with pytest.raises(TypeError, match="raw string"):
-        segment.marker_positions("heel")
+def test_string_subject_and_segment_queries_resolve_to_typed_ids() -> None:
+    track = make_mocap_track()
+    subject = track.subject("subject")
+    assert subject.subject_id is DemoSubjectId.SUBJECT
+    segment = subject.segment("segment")
+    assert segment.segment_view.segment_id is DemoSegmentId.SEGMENT
+    assert segment.marker_positions("heel").shape == (3, 3)
+    assert segment.patch_points("sole").shape == (3, 3)
 
 
-def test_wrong_marker_enum_class_raises_type_error() -> None:
-    class OtherMarkerId(MarkerId):
-        HEEL = "heel"
-
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    with pytest.raises(TypeError, match="DemoMarkerId"):
-        segment.marker_positions(OtherMarkerId.HEEL)
+def test_unknown_marker_string_raises_key_error() -> None:
+    segment = make_mocap_track().subject("subject").segment("segment")
+    with pytest.raises(KeyError, match="has no marker 'missing'"):
+        segment.marker_positions("missing")
 
 
-def test_raw_string_patch_id_raises_type_error() -> None:
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    with pytest.raises(TypeError, match="raw string"):
-        segment.patch_points("sole")
-
-
-def test_wrong_patch_enum_class_raises_type_error() -> None:
-    class OtherPatchId(PatchId):
-        SOLE = "sole"
-
-    segment = make_mocap_track().subject(DemoSubjectId.SUBJECT).segment(DemoSegmentId.SEGMENT)
-    with pytest.raises(TypeError, match="DemoPatchId"):
-        segment.patch_points(OtherPatchId.SOLE)
+def test_unknown_patch_string_raises_key_error() -> None:
+    segment = make_mocap_track().subject("subject").segment("segment")
+    with pytest.raises(KeyError, match="has no patch 'missing'"):
+        segment.patch_points("missing")
 
 
 def test_modeled_marker_velocity_shape() -> None:

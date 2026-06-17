@@ -213,8 +213,8 @@ def test_build_scene_uses_vicon_name_for_marker_lookup() -> None:
     subject_id = scene.generated_ids.subjects.left_shoe
     segment_id = scene.generated_ids.segments[subject_id].shoe
     marker_id = scene.generated_ids.markers[SegmentKey(subject_id, segment_id)].heel
-    segment = scene.subject("left_shoe").segment("shoe")
     scene_view = SceneView(spec=scene, state=_scene_state(subject_id, segment_id))
+    segment = scene.subject("left_shoe").segment("shoe")
     segment_view = scene_view.subject("left_shoe").segment("shoe")
     frame = ViconMarkersFrame(
         stamp_seconds=0.0,
@@ -244,8 +244,22 @@ def test_build_scene_uses_vicon_name_for_marker_lookup() -> None:
         timestamps=np.array([0.0], dtype=np.float64),
         marker_frames=(frame,),
     )
+    mocap_subject = track.subject("left_shoe")
+    assert mocap_subject.subject_id is subject_id
+    mocap_segment = mocap_subject.segment("shoe")
+    assert mocap_segment.segment_view.segment_id is segment_id
+    string_observed = mocap_segment.marker_positions("heel")
+    np.testing.assert_allclose(string_observed, expected.reshape(1, 3))
+    np.testing.assert_allclose(
+        mocap_segment.patch_points("sole")[0],
+        np.zeros(3, dtype=np.float64),
+    )
+    np.testing.assert_allclose(
+        mocap_segment.patch_normals("sole")[0],
+        np.array([0.0, 0.0, 1.0], dtype=np.float64),
+    )
     positions = track.observed_marker_positions_for_segment(
-        subject_id,
+        "left_shoe",
         segment,
     )
     np.testing.assert_allclose(positions[0, marker_id.index], expected)

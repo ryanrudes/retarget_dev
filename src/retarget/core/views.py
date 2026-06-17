@@ -21,7 +21,7 @@ class SceneView:
     spec: SceneSpec
     state: SceneState
 
-    def subject(self, subject: SubjectId | SubjectSpec) -> SubjectView:
+    def subject(self, subject: SubjectId | str | SubjectSpec) -> SubjectView:
         """Return a subject-scoped view over this scene state."""
         if isinstance(subject, SubjectSpec):
             subject_spec = subject
@@ -32,21 +32,21 @@ class SceneView:
     @overload
     def segment[M: MarkerId, P: PatchId](
         self,
-        subject: SubjectId | SubjectSpec,
-        segment: SegmentSpec[M, P],
+        subject: SubjectId | str | SubjectSpec,
+        segment: SegmentSpec[M, P] | SegmentId | str,
     ) -> SegmentView[M, P]: ...
 
     @overload
     def segment(
         self,
-        subject: SubjectId | SubjectSpec,
-        segment: SegmentId,
+        subject: SubjectId | str | SubjectSpec,
+        segment: SegmentId | str,
     ) -> SegmentView[Any, Any]: ...
 
     def segment(
         self,
-        subject: SubjectId | SubjectSpec,
-        segment: SegmentSpec[Any, Any] | SegmentId,
+        subject: SubjectId | str | SubjectSpec,
+        segment: SegmentSpec[Any, Any] | SegmentId | str,
     ) -> SegmentView[Any, Any]:
         """
         Return a segment view within a subject namespace.
@@ -72,18 +72,18 @@ class SubjectView:
     @overload
     def segment[M: MarkerId, P: PatchId](
         self,
-        segment: SegmentSpec[M, P],
+        segment: SegmentSpec[M, P] | SegmentId | str,
     ) -> SegmentView[M, P]: ...
 
     @overload
     def segment(
         self,
-        segment: SegmentId,
+        segment: SegmentId | str,
     ) -> SegmentView[Any, Any]: ...
 
     def segment(
         self,
-        segment: SegmentSpec[Any, Any] | SegmentId,
+        segment: SegmentSpec[Any, Any] | SegmentId | str,
     ) -> SegmentView[Any, Any]:
         """
         Return a segment view for this subject.

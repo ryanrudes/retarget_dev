@@ -14,7 +14,8 @@ from retarget.core import (
     Subjects,
     build_scene,
 )
-from retarget.demo import load_mocap_track
+from demo_vocab import GroundEstimationTrackId
+from retarget.demo import Demonstration, load_mocap_track
 from retarget.io import UnbaggedDirectory
 
 
@@ -171,8 +172,7 @@ shoe_spec = left_shoe_spec.segment("shoe")
 
 heel_handle = shoe_spec.marker("heel")
 sole_handle = shoe_spec.patch("sole")
-sole_id = shoe_spec.patch_type.sole
-sole_spec = shoe_spec.patch_spec(sole_id)
+sole_label = shoe_spec.patch_label("sole")
 toe_target = shoe_spec.patch_target("toe_contact")
 # shoe_spec.patch_spec("toe_contact") would raise because that patch is declaration-only.
 
@@ -181,7 +181,7 @@ heel_target = shoe_spec.marker_target("heel")
 sole_target = shoe_spec.patch_target("sole")
 
 print("Runtime handles:", heel_handle, sole_handle)
-print("Runtime patch spec:", sole_spec)
+print("Runtime patch label:", sole_label)
 print("Runtime targets:", shoe_target, heel_target, sole_target, toe_target)
 
 
@@ -198,16 +198,13 @@ if UNBAGGED_DIR.is_dir():
     # the loader.
     loadable_subjects = MocapSubjects(left_shoe=subjects["left_shoe"])
     loadable_scene = build_scene(loadable_subjects)
-    left_shoe_spec = loadable_scene.subject("left_shoe")
-    shoe_spec = left_shoe_spec.segment("shoe")
-
-    mocap = load_mocap_track(
-        UnbaggedDirectory(UNBAGGED_DIR),
-        loadable_scene,
-    ).with_rebased_time()
-    left_shoe_track = mocap.subject(left_shoe_spec.subject).segment(shoe_spec)
-    heel_positions = left_shoe_track.marker_positions(shoe_spec.marker_type.heel)
-    sole_points = left_shoe_track.patch_points(shoe_spec.patch_type.sole)
+    root = UnbaggedDirectory(UNBAGGED_DIR)
+    mocap = load_mocap_track(root, loadable_scene).with_rebased_time()
+    demo = Demonstration(tracks={GroundEstimationTrackId.MOCAP: mocap})
+    mocap = demo.get_track(GroundEstimationTrackId.MOCAP)
+    left_shoe_track = mocap.subject("left_shoe").segment("shoe")
+    heel_positions = left_shoe_track.marker_positions("heel")
+    sole_points = left_shoe_track.patch_points("sole")
     print("Loaded mocap timestamps:", mocap.timestamps[:5])
     print("Heel positions:", heel_positions[:3])
     print("Sole points:", sole_points[:3])

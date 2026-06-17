@@ -31,17 +31,14 @@ from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import TimeEntityVec3, TimeMat3, TimeQuat, TimeVec3
 from retarget.core.views import SceneView, SegmentView
-from retarget.core import segment_external_name
+from retarget.core import segment_external_name, subject_external_name
 from retarget.demo._mocap_arrays import (
     MocapArrayCache,
     pose_arrays_to_format,
     rotation_matrices_to_format,
 )
 from retarget.demo._query_utils import (
-    coerce_marker_id,
-    coerce_patch_id,
     finite_difference_velocity,
-    normalize_entity_input,
     resolve_indices,
     slice_timestamps,
     speed_from_velocity,
@@ -62,6 +59,23 @@ def _validate_timestamps(timestamps: np.ndarray) -> None:
         raise ValueError("timestamps must be a 1D array")
     if len(timestamps) > 1 and np.any(np.diff(timestamps) <= 0):
         raise ValueError("timestamps must be strictly increasing")
+
+
+def _normalize_stringable_entity_input[E](
+    entity: E | str | Sequence[E | str],
+    entity_type: type[E],
+) -> tuple[tuple[E | str, ...], bool]:
+    if isinstance(entity, entity_type):
+        return (entity,), False
+    if isinstance(entity, str):
+        return (entity,), False
+    entities = tuple(entity)
+    for item in entities:
+        if not isinstance(item, entity_type) and not isinstance(item, str):
+            raise TypeError(
+                f"Expected {entity_type.__name__} or str; got {type(item).__name__}"
+            )
+    return entities, True
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,13 +174,17 @@ class MocapTrack(Track):
     def scene(self) -> SceneView:
         return SceneView(spec=self.scene_spec, state=self.state)
 
-    def subject(self, subject: SubjectId) -> MocapSubjectTrackView:
-        return MocapSubjectTrackView(mocap=self, subject_id=subject)
+    def subject(self, subject: SubjectId | str) -> MocapSubjectTrackView:
+        subject_view = self.scene.subject(subject)
+        return MocapSubjectTrackView(
+            mocap=self,
+            subject_id=subject_view.subject_id,
+        )
 
     def segment(
         self,
-        subject: SubjectId,
-        segment: SegmentId | SegmentSpec[Any, Any],
+        subject: SubjectId | str,
+        segment: SegmentId | str | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         return self.subject(subject).segment(segment)
 
@@ -204,11 +222,12 @@ class MocapTrack(Track):
 
     def observed_marker_positions_for_segment[M: MarkerId](
         self,
-        subject: SubjectId,
+        subject: SubjectId | str,
         segment: SegmentSpec[M, Any],
     ) -> np.ndarray:
         """Return full-track observed marker positions with shape ``(T, M, 3)``."""
-        key = SegmentKey(subject, segment.segment)
+        subject_view = self.scene.subject(subject)
+        key = SegmentKey(subject_view.subject_id, segment.segment)
         cached = self._array_cache.observed_markers.get(key)
         if cached is not None:
             return cached
@@ -221,11 +240,7 @@ class MocapTrack(Track):
             np.nan,
             dtype=np.float64,
         )
-        subject_resolver = getattr(segment, "subject_external_name", None)
-        if callable(subject_resolver):
-            subject_name = subject_resolver()
-        else:
-            subject_name = subject.label
+        subject_name = subject_external_name(subject_view.subject_spec)
         segment_name = segment_external_name(segment)
         for timestep, frame in enumerate(self.marker_frames):
             for obs in frame.markers:
@@ -259,13 +274,17 @@ class MocapTrackView(TrackView[MocapTrack]):
     def scene(self) -> SceneView:
         return self.source.scene
 
-    def subject(self, subject: SubjectId) -> MocapSubjectTrackView:
-        return MocapSubjectTrackView(mocap=self, subject_id=subject)
+    def subject(self, subject: SubjectId | str) -> MocapSubjectTrackView:
+        subject_view = self.scene.subject(subject)
+        return MocapSubjectTrackView(
+            mocap=self,
+            subject_id=subject_view.subject_id,
+        )
 
     def segment(
         self,
-        subject: SubjectId,
-        segment: SegmentId | SegmentSpec[Any, Any],
+        subject: SubjectId | str,
+        segment: SegmentId | str | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         return self.subject(subject).segment(segment)
 
@@ -423,18 +442,18 @@ class MocapSubjectTrackView:
     @overload
     def segment[M: MarkerId, P: PatchId](
         self,
-        segment: SegmentSpec[M, P],
+        segment: SegmentSpec[M, P] | SegmentId | str,
     ) -> MocapSegmentTrackView[M, P]: ...
 
     @overload
     def segment(
         self,
-        segment: SegmentId,
+        segment: SegmentId | str,
     ) -> MocapSegmentTrackView[Any, Any]: ...
 
     def segment(
         self,
-        segment: SegmentId | SegmentSpec[Any, Any],
+        segment: SegmentId | str | SegmentSpec[Any, Any],
     ) -> MocapSegmentTrackView[Any, Any]:
         segment_view = self.mocap.scene.subject(self.subject_id).segment(segment)
         indices = _mocap_indices(self.mocap)
@@ -494,7 +513,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def marker_positions(
         self,
-        marker: M,
+        marker: M | str,
         *,
         modeled: bool = False,
     ) -> TimeVec3: ...
@@ -502,7 +521,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def marker_positions(
         self,
-        marker: Sequence[M],
+        marker: Sequence[M | str],
         *,
         modeled: bool = False,
         return_dict: Literal[False] = False,
@@ -511,7 +530,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
     @overload
     def marker_positions(
         self,
-        marker: Sequence[M],
+        marker: Sequence[M | str],
         *,
         modeled: bool = False,
         return_dict: Literal[True],
@@ -519,12 +538,15 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def marker_positions(
         self,
-        marker: M | Sequence[M],
+        marker: M | str | Sequence[M | str],
         *,
         modeled: bool = False,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
-        markers, is_many = normalize_entity_input(marker, self.segment_view.spec.marker_type)
+        markers, is_many = _normalize_stringable_entity_input(
+            marker,
+            self.segment_view.spec.marker_type,
+        )
         coerced = tuple(self._coerce_marker(m) for m in markers)
         if modeled:
             world = self._modeled_marker_positions_many(coerced)
@@ -538,12 +560,15 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def marker_velocities(
         self,
-        marker: M | Sequence[M],
+        marker: M | str | Sequence[M | str],
         *,
         modeled: bool = False,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[M, TimeVec3]:
-        markers, is_many = normalize_entity_input(marker, self.segment_view.spec.marker_type)
+        markers, is_many = _normalize_stringable_entity_input(
+            marker,
+            self.segment_view.spec.marker_type,
+        )
         coerced = tuple(self._coerce_marker(m) for m in markers)
         positions = self.marker_positions(marker, modeled=modeled, return_dict=False)
         velocities = self._differentiate(positions)
@@ -559,7 +584,7 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def marker_speed(
         self,
-        marker: M,
+        marker: M | str,
         *,
         modeled: bool = False,
     ) -> np.ndarray:
@@ -569,11 +594,14 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def patch_points(
         self,
-        patch: P | Sequence[P],
+        patch: P | str | Sequence[P | str],
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = _normalize_stringable_entity_input(
+            patch,
+            self.segment_view.spec.patch_type,
+        )
         coerced = tuple(self._coerce_patch(p) for p in patches)
         world = self._patch_points_many(coerced)
         if not is_many and not return_dict:
@@ -584,11 +612,14 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def patch_normals(
         self,
-        patch: P | Sequence[P],
+        patch: P | str | Sequence[P | str],
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = _normalize_stringable_entity_input(
+            patch,
+            self.segment_view.spec.patch_type,
+        )
         coerced = tuple(self._coerce_patch(p) for p in patches)
         world = self._patch_normals_many(coerced)
         if not is_many and not return_dict:
@@ -599,11 +630,14 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
 
     def patch_velocities(
         self,
-        patch: P | Sequence[P],
+        patch: P | str | Sequence[P | str],
         *,
         return_dict: bool = False,
     ) -> TimeVec3 | TimeEntityVec3 | Mapping[P, TimeVec3]:
-        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = _normalize_stringable_entity_input(
+            patch,
+            self.segment_view.spec.patch_type,
+        )
         coerced = tuple(self._coerce_patch(p) for p in patches)
         positions = self.patch_points(patch, return_dict=False)
         velocities = self._differentiate(positions)
@@ -617,19 +651,22 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             )
         return velocities
 
-    def patch_speed(self, patch: P) -> np.ndarray:
+    def patch_speed(self, patch: P | str) -> np.ndarray:
         return speed_from_velocity(self.patch_velocities(self._coerce_patch(patch)))
 
     def patch_contacts(
         self,
-        patch: P | Sequence[P],
+        patch: P | str | Sequence[P | str],
         *,
         return_dict: bool = False,
     ) -> np.ndarray | Mapping[P, np.ndarray]:
         contact_track = _contact_track(self.mocap)
         if contact_track is None:
             raise ValueError("No contact track is attached to this mocap track")
-        patches, is_many = normalize_entity_input(patch, self.segment_view.spec.patch_type)
+        patches, is_many = _normalize_stringable_entity_input(
+            patch,
+            self.segment_view.spec.patch_type,
+        )
         coerced = tuple(self._coerce_patch(p) for p in patches)
         targets = [self._patch_target(p) for p in coerced]
         sliced = _slice_contact_track(contact_track, self.mocap)
@@ -671,11 +708,35 @@ class MocapSegmentTrackView[M: MarkerId, P: PatchId]:
             return np.zeros_like(values)
         return np.gradient(values, self.timestamps, axis=0)
 
-    def _coerce_marker(self, marker: MarkerId) -> M:
-        return coerce_marker_id(marker, self.segment_view.spec.marker_type)
+    def _coerce_marker(self, marker: MarkerId | str) -> M:
+        if isinstance(marker, self.segment_view.spec.marker_type):
+            return marker
+        if isinstance(marker, str):
+            try:
+                return self.segment_view.spec.marker_type(marker)
+            except ValueError as exc:
+                raise KeyError(
+                    f"Segment {self.segment_view.spec.segment!r} has no marker {marker!r}"
+                ) from exc
+        raise TypeError(
+            f"Expected marker of type {self.segment_view.spec.marker_type.__name__} "
+            f"or str, got {type(marker).__name__}"
+        )
 
-    def _coerce_patch(self, patch: PatchId) -> P:
-        return coerce_patch_id(patch, self.segment_view.spec.patch_type)
+    def _coerce_patch(self, patch: PatchId | str) -> P:
+        if isinstance(patch, self.segment_view.spec.patch_type):
+            return patch
+        if isinstance(patch, str):
+            try:
+                return self.segment_view.spec.patch_type(patch)
+            except ValueError as exc:
+                raise KeyError(
+                    f"Segment {self.segment_view.spec.segment!r} has no patch {patch!r}"
+                ) from exc
+        raise TypeError(
+            f"Expected patch of type {self.segment_view.spec.patch_type.__name__} "
+            f"or str, got {type(patch).__name__}"
+        )
 
     def _modeled_marker_positions_many(
         self,
