@@ -7,6 +7,7 @@ from retarget.core.targets import PatchTarget
 from retarget.demo.alignment import TimelineTransform, TrackAlignment
 from retarget.demo.contact import ContactTrack
 from retarget.demo.demo import Demonstration, DemonstrationView
+from retarget.demo.resampling import ResampleMethod
 from retarget.demo.tracks import Track
 
 
@@ -133,6 +134,47 @@ def test_demonstration_view_resample_to_mocap_reference_and_contact_source() -> 
     np.testing.assert_array_equal(
         resampled["contact"].confidence(source_target),
         np.array([0.4, 0.5, 0.6], dtype=np.float64),
+    )
+
+
+def test_demonstration_view_resample_to_forwards_discrete_method() -> None:
+    reference_target = _target("reference")
+    source_target = _target("source")
+    # Reference timestamps fall between source samples so NEAREST vs PREVIOUS differ.
+    reference_track = _contact_track(
+        target=reference_target,
+        timestamps=[10.4, 11.6],
+        contacts=[True, True],
+        confidences=[0.5, 0.5],
+    )
+    source_track = _contact_track(
+        target=source_target,
+        timestamps=[0.0, 1.0, 2.0],
+        contacts=[True, False, True],
+        confidences=[0.1, 0.2, 0.3],
+    )
+    demo = Demonstration(
+        tracks={"reference": reference_track, "source": source_track},
+        alignments=(
+            TrackAlignment(
+                source="source",
+                reference="reference",
+                transform=TimelineTransform(scale=1.0, offset=10.0),
+            ),
+        ),
+    )
+    view = demo.slice_time(0.0, 13.0)
+
+    nearest = view.resample_to("reference", method=ResampleMethod.NEAREST)
+    previous = view.resample_to("reference", method=ResampleMethod.PREVIOUS)
+
+    np.testing.assert_array_equal(
+        nearest["source"].state(source_target),
+        np.array([True, True], dtype=np.bool_),
+    )
+    np.testing.assert_array_equal(
+        previous["source"].state(source_target),
+        np.array([True, False], dtype=np.bool_),
     )
 
 

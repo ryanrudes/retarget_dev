@@ -46,13 +46,17 @@ Do not reintroduce `TypedDemonstration`, `typed_tracks`, `get_track`,
 ## Track protocol
 
 ```python
-track.resample_to(timestamps, output_timestamps=None)
+track.resample_to(timestamps, output_timestamps=None, method=ResampleMethod.NEAREST)
 ```
 
 `timestamps` are sample positions in the track's native time basis;
-`output_timestamps` optionally relabels the returned track. The reference track
-in `DemonstrationView.resample_to(reference)` is preserved as-is; non-reference
-tracks must implement `resample_to`.
+`output_timestamps` optionally relabels the returned track. `method` is the
+single discrete sampling policy (`NEAREST`/`PREVIOUS`) applied to every step-like
+quantity (e.g. rotations and contact state); continuous quantities interpolate
+and ignore it. The reference track in
+`DemonstrationView.resample_to(reference, method=...)` is preserved as-is, and
+`method` is forwarded to every non-reference track; non-reference tracks must
+implement `resample_to`.
 
 ## Mocap queries
 

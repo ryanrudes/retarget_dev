@@ -203,7 +203,7 @@ if UNBAGGED_DIR.is_dir():
     # same authored schema.
     loadable_subjects = GroundEstimationSubjects(left_shoe=subjects["left_shoe"])
     root = UnbaggedDirectory(UNBAGGED_DIR)
-    mocap_track = MocapTrack.from_unbagged(root, loadable_subjects).with_rebased_time()
+    mocap_track = MocapTrack.from_unbagged(root, loadable_subjects, rebase_time=True)
     demo = Demonstration(GroundEstimationTracks(mocap=mocap_track))
 
     mocap = demo.tracks["mocap"]

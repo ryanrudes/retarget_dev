@@ -20,7 +20,7 @@ Resampling policy:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass
 from pathlib import Path
 from typing import Any, cast
 
@@ -73,9 +73,22 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
     marker_frames: tuple[ViconMarkersFrame, ...] | None = None
     contacts: ContactTrack | None = None
     nominal_hz_override: float | None = None
+    rebase_time: InitVar[bool] = False
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, rebase_time: bool = False) -> None:
         timestamps = np.asarray(self.timestamps, dtype=np.float64)
+        contacts = self.contacts
+        if rebase_time and len(timestamps) > 0:
+            offset = timestamps[0]
+            timestamps = timestamps - offset
+            if contacts is not None:
+                contacts = ContactTrack(
+                    contacts=contacts.contacts,
+                    timestamps=contacts.timestamps - offset,
+                    confidences=contacts.confidences,
+                    nominal_hz_override=contacts.nominal_hz_override,
+                )
+                object.__setattr__(self, "contacts", contacts)
         _validate_timestamps(timestamps)
         object.__setattr__(self, "timestamps", timestamps)
 
@@ -120,6 +133,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         subjects: S,
         *,
         tf_prefix: str = "vicon",
+        rebase_time: bool = False,
     ) -> MocapTrack[S]:
         """Load a mocap track from an unbagged export directory and authored scene.
 
@@ -143,6 +157,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             state=state,
             timestamps=timestamps,
             marker_frames=marker_frames,
+            rebase_time=rebase_time,
         )
 
     # -- segment-keyed array access (low level) --------------------------------
@@ -156,29 +171,6 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         return _trajectory_arrays(self.state.pose_for_key(key))[1]
 
     # -- timeline operations ---------------------------------------------------
-
-    def with_timestamps(self, timestamps: np.ndarray) -> MocapTrack[SubjectsT]:
-        new_timestamps = np.asarray(timestamps, dtype=np.float64)
-        if self.contacts is not None and not np.allclose(
-            self.contacts.timestamps, new_timestamps
-        ):
-            raise ValueError(
-                "Cannot change MocapTrack timestamps while contacts are attached; "
-                "rebase or resample contacts explicitly first."
-            )
-        return MocapTrack(
-            subjects=self.subjects,
-            state=self.state,
-            timestamps=new_timestamps,
-            marker_frames=self.marker_frames,
-            contacts=self.contacts,
-            nominal_hz_override=self.nominal_hz_override,
-        )
-
-    def with_rebased_time(self) -> MocapTrack[SubjectsT]:
-        if len(self.timestamps) == 0:
-            return self
-        return self.with_timestamps(self.timestamps - self.timestamps[0])
 
     def slice_time(self, start: float, stop: float) -> MocapTrack[SubjectsT]:
         return self._select(indices_for_time_range(self.timestamps, start, stop))
@@ -198,7 +190,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             else tuple(self.marker_frames[i] for i in idx)
         )
         sliced_contacts = (
-            None if self.contacts is None else _slice_contact_track(self.contacts, idx)
+            None if self.contacts is None else self.contacts.select_indices(indices)
         )
         return MocapTrack(
             subjects=self.subjects,
@@ -214,10 +206,14 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         timestamps: np.ndarray,
         *,
         output_timestamps: np.ndarray | None = None,
-        rotation_method: ResampleMethod | str = ResampleMethod.NEAREST,
-        contact_method: ResampleMethod | str = ResampleMethod.NEAREST,
+        method: ResampleMethod | str = ResampleMethod.NEAREST,
     ) -> MocapTrack[SubjectsT]:
-        """Return this track sampled at requested source-time timestamps."""
+        """Return this track sampled at requested source-time timestamps.
+
+        Translations are linearly interpolated; ``method`` is the discrete
+        sampling policy applied to the step-like quantities (segment rotations
+        and any attached contact state).
+        """
         sample = validate_resample_timestamps(timestamps)
         if len(sample) == 0:
             raise ValueError("cannot resample mocap track to empty timestamps")
@@ -237,7 +233,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         rotation_indices = resample_indices(
             source_timestamps=source_timestamps,
             target_timestamps=sample,
-            method=rotation_method,
+            method=method,
         )
         new_state = SceneState(
             segment_poses={
@@ -253,7 +249,7 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             else self.contacts.resample_to(
                 sample,
                 output_timestamps=result_timestamps,
-                method=contact_method,
+                method=method,
             )
         )
         return MocapTrack(
@@ -304,16 +300,6 @@ def _resample_trajectory(
             )
             for timestep, rotation_index in enumerate(rotation_indices)
         )
-    )
-
-
-def _slice_contact_track(contacts: ContactTrack, idx: list[int]) -> ContactTrack:
-    return ContactTrack(
-        timestamps=contacts.timestamps[idx],
-        contacts={target: arr[idx] for target, arr in contacts.contacts.items()},
-        confidences={
-            target: arr[idx] for target, arr in contacts.confidences.items()
-        },
     )
 
 

@@ -130,7 +130,7 @@ from retarget.io import UnbaggedDirectory
 class GroundEstimationTracks(Tracks):
     mocap: MocapTrack[ShoeSubjects]
 
-mocap = MocapTrack.from_unbagged(UnbaggedDirectory("bags/.../unbagged"), subjects).with_rebased_time()
+mocap = MocapTrack.from_unbagged(UnbaggedDirectory("bags/.../unbagged"), subjects, rebase_time=True)
 demo = Demonstration(GroundEstimationTracks(mocap=mocap))
 
 mocap = demo.tracks["mocap"]

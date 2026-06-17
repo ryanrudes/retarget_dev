@@ -10,6 +10,7 @@ from retarget.core.types import FloatArray
 from retarget.demo import Tracks
 from retarget.demo.alignment import EnergySignal, TimelineTransform, TrackAlignment
 from retarget.demo.demo import Demonstration
+from retarget.demo.resampling import ResampleMethod
 from retarget.demo.sync import (
     SyncEdge,
     SyncPlan,
@@ -54,6 +55,7 @@ class DummyTrack(Track):
         timestamps: FloatArray,
         *,
         output_timestamps: FloatArray | None = None,
+        method: ResampleMethod | str = ResampleMethod.NEAREST,
     ) -> "DummyTrack":
         sample_timestamps = np.asarray(timestamps, dtype=np.float64)
         result_timestamps = (
@@ -87,6 +89,7 @@ class DummyTrackView(TrackView[DummyTrack]):
         timestamps: FloatArray,
         *,
         output_timestamps: FloatArray | None = None,
+        method: ResampleMethod | str = ResampleMethod.NEAREST,
     ) -> DummyTrack:
         sample_timestamps = np.asarray(timestamps, dtype=np.float64)
         result_timestamps = (

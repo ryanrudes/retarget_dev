@@ -204,6 +204,23 @@ class ContactTrack(_ContactQueryMixin, Track):
     def _visible_confidences(self) -> Mapping[PatchTarget, np.ndarray]:
         return self.confidences
 
+    def select_indices(self, indices: Sequence[int]) -> ContactTrack:
+        """Return a materialized contact track at the given native-time indices.
+
+        This is the eager, index-based counterpart to :meth:`slice_time`
+        (which returns a lazy :class:`ContactTrackView`). It is used where a
+        concrete ``ContactTrack`` is required, such as the contact track
+        embedded in a materialized mocap slice. Slicing preserves the sampling
+        rate, so ``nominal_hz_override`` carries over unchanged.
+        """
+        index_tuple = tuple(int(index) for index in indices)
+        return ContactTrack(
+            timestamps=_slice_timestamps(self.timestamps, index_tuple),
+            contacts=_slice_contact_mapping(self.contacts, index_tuple),
+            confidences=_slice_contact_mapping(self.confidences, index_tuple),
+            nominal_hz_override=self.nominal_hz_override,
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class ContactTrackView(_ContactQueryMixin, TrackView[ContactTrack]):

@@ -15,6 +15,7 @@ from retarget.demo.alignment import (
     estimate_alignment_from_signals,
 )
 from retarget.demo.demo import Demonstration, DemonstrationView
+from retarget.demo.resampling import ResampleMethod
 from retarget.demo.tracks import Track
 
 type SignalExtractor = Callable[[Track], EnergySignal]
@@ -136,6 +137,7 @@ def estimate_sync_and_resample_to_reference(
     *,
     start: float,
     stop: float,
+    method: ResampleMethod | str = ResampleMethod.NEAREST,
 ) -> DemonstrationView:
     """Estimate sync, slice the demo, and resample onto the plan reference.
 
@@ -143,6 +145,9 @@ def estimate_sync_and_resample_to_reference(
     2. compose those alignments into direct transforms to ``plan.reference``;
     3. slice the demonstration to ``[start, stop)``;
     4. materialize that slice on the reference track timeline.
+
+    ``method`` is the discrete sampling policy forwarded to every non-reference
+    track during the final resample.
     """
     alignments = estimate_sync_to_reference(demonstration, plan)
     sliced = demonstration.slice_time(start, stop)
@@ -151,7 +156,7 @@ def estimate_sync_and_resample_to_reference(
         tracks=dict(sliced.tracks),
         alignments=alignments,
     )
-    return aligned.resample_to(plan.reference)
+    return aligned.resample_to(plan.reference, method=method)
 
 
 def compose_alignments_to_reference(

@@ -81,7 +81,7 @@ def test_resample_samples_rotations_discretely() -> None:
     track, _ = _mocap_track()
     resampled = track.resample_to(
         np.array([0.6, 1.6], dtype=np.float64),
-        rotation_method=ResampleMethod.PREVIOUS,
+        method=ResampleMethod.PREVIOUS,
     )
     rotations = resampled.segment_rotations(_segment_key())
     np.testing.assert_allclose(rotations[0], np.eye(3))
@@ -110,6 +110,30 @@ def test_resample_delegates_attached_contacts() -> None:
     np.testing.assert_array_equal(resampled.contacts.timestamps, np.array([10.0, 20.0]))
     np.testing.assert_array_equal(resampled.contacts.state(target), np.array([False, True]))
     np.testing.assert_allclose(resampled.contacts.confidence(target), np.array([0.1, 0.3]))
+
+
+def test_resample_method_applies_to_rotations_and_contacts() -> None:
+    # A single `method` drives every discrete quantity: rotations and contacts.
+    track, target = _mocap_track(with_contacts=True)
+    sample = np.array([0.6, 1.6], dtype=np.float64)
+
+    nearest = track.resample_to(sample)
+    previous = track.resample_to(sample, method=ResampleMethod.PREVIOUS)
+
+    assert nearest.contacts is not None
+    assert previous.contacts is not None
+    np.testing.assert_array_equal(
+        nearest.contacts.state(target), np.array([True, True], dtype=np.bool_)
+    )
+    np.testing.assert_array_equal(
+        previous.contacts.state(target), np.array([False, True], dtype=np.bool_)
+    )
+    np.testing.assert_allclose(
+        nearest.segment_rotations(_segment_key())[0], _rotation_z_90()
+    )
+    np.testing.assert_allclose(
+        previous.segment_rotations(_segment_key())[0], np.eye(3)
+    )
 
 
 def test_resample_drops_raw_marker_frames() -> None:

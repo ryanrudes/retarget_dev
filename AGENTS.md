@@ -154,12 +154,15 @@ surface.
 
 ## Mocap resampling policy
 
-`MocapTrack.resample_to(...)`:
+`MocapTrack.resample_to(timestamps, output_timestamps=None, method=...)`:
 
-- segment translations: linear interpolation;
-- segment rotations: discrete nearest/previous sampling;
-- attached contacts: delegated to `ContactTrack.resample_to(...)`;
+- segment translations: linear interpolation (ignores `method`);
+- segment rotations: discrete sampling via `method` (`NEAREST`/`PREVIOUS`);
+- attached contacts: delegated to `ContactTrack.resample_to(..., method=...)`;
 - raw marker frames: dropped on resampled output.
+
+A single `method` governs every discrete quantity; there are no separate
+`rotation_method`/`contact_method` parameters.
 
 Do not synthesize raw marker observations. Do not linearly interpolate rotation
 matrices without explicit SO(3) projection/tests.

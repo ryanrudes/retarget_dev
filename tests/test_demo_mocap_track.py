@@ -223,33 +223,35 @@ def test_unknown_marker_and_patch_names_raise() -> None:
         segment.patch_points("missing")
 
 
-def test_with_rebased_time() -> None:
+def test_rebase_time_at_construction() -> None:
     track = make_mocap_track()
-    shifted = MocapTrack(
+    rebased = MocapTrack(
         subjects=track.subjects,
         state=track.state,
         timestamps=track.timestamps + 100.0,
         marker_frames=track.marker_frames,
+        rebase_time=True,
     )
-    rebased = shifted.with_rebased_time()
     np.testing.assert_allclose(rebased.timestamps, track.timestamps)
 
 
-def test_with_timestamps_rejects_changing_time_with_contacts() -> None:
+def test_rebase_time_rebases_attached_contacts() -> None:
     track = make_mocap_track()
+    offset_timestamps = track.timestamps + 100.0
     contacts = ContactTrack(
-        timestamps=track.timestamps,
+        timestamps=offset_timestamps,
         contacts={make_demo_patch_target("sole"): np.array([True, False, True])},
     )
-    track = MocapTrack(
+    rebased = MocapTrack(
         subjects=track.subjects,
         state=track.state,
-        timestamps=track.timestamps,
+        timestamps=offset_timestamps,
         marker_frames=track.marker_frames,
         contacts=contacts,
+        rebase_time=True,
     )
-    with pytest.raises(ValueError, match="contacts are attached"):
-        track.with_timestamps(track.timestamps + 100.0)
+    np.testing.assert_allclose(rebased.timestamps, track.timestamps)
+    np.testing.assert_allclose(rebased.contacts.timestamps, track.timestamps)
 
 
 def test_patch_contacts_via_attached_contact_track() -> None:

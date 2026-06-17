@@ -69,6 +69,52 @@ def test_contact_state_lookup_and_slice() -> None:
     assert by_target[sole].shape == (2,)
 
 
+def test_select_indices_materializes_and_preserves_nominal_hz() -> None:
+    sole = make_demo_patch_target("sole")
+    track = ContactTrack(
+        timestamps=np.array([0.0, 0.1, 0.2, 0.3]),
+        contacts={sole: np.array([True, False, True, False])},
+        confidences={sole: np.array([0.1, 0.2, 0.3, 0.4])},
+        nominal_hz_override=200.0,
+    )
+
+    selected = track.select_indices((1, 3))
+
+    assert isinstance(selected, ContactTrack)
+    np.testing.assert_array_equal(selected.timestamps, np.array([0.1, 0.3]))
+    np.testing.assert_array_equal(selected.state(sole), np.array([False, False]))
+    np.testing.assert_allclose(selected.confidence(sole), np.array([0.2, 0.4]))
+    assert selected.nominal_hz_override == 200.0
+    assert selected.nominal_hz == 200.0
+
+
+def test_mocap_slice_materializes_contacts_and_preserves_nominal_hz() -> None:
+    base = make_mocap_track()
+    sole = make_demo_patch_target("sole")
+    contacts = ContactTrack(
+        timestamps=base.timestamps,
+        contacts={sole: np.array([True, False, True])},
+        confidences={sole: np.array([0.2, 0.4, 0.6])},
+        nominal_hz_override=123.0,
+    )
+    track = MocapTrack(
+        subjects=base.subjects,
+        state=base.state,
+        timestamps=base.timestamps,
+        marker_frames=base.marker_frames,
+        contacts=contacts,
+    )
+
+    clip = track.slice_time(0.0, 0.15)
+
+    assert clip.contacts is not None
+    assert isinstance(clip.contacts, ContactTrack)
+    np.testing.assert_array_equal(clip.contacts.timestamps, np.array([0.0, 0.1]))
+    np.testing.assert_array_equal(clip.contacts.state(sole), np.array([True, False]))
+    np.testing.assert_allclose(clip.contacts.confidence(sole), np.array([0.2, 0.4]))
+    assert clip.contacts.nominal_hz_override == 123.0
+
+
 def test_mocap_patch_contacts_resolves_patch_target() -> None:
     track = make_mocap_track()
     contacts = ContactTrack(

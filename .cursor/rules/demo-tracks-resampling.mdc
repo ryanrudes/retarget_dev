@@ -30,12 +30,14 @@ enums, or method-style mocap queries. Do not add `with_alignments`/`with_track`/
 ## Track protocol
 
 ```python
-track.resample_to(timestamps, output_timestamps=None)
+track.resample_to(timestamps, output_timestamps=None, method=ResampleMethod.NEAREST)
 ```
 
-Source tracks sample at transformed source times and label output with reference
-timestamps. The reference track in `DemonstrationView.resample_to(reference)` is
-preserved as-is.
+`method` is the discrete sampling policy (`NEAREST`/`PREVIOUS`) for step-like
+quantities; continuous quantities interpolate and ignore it. Source tracks
+sample at transformed source times and label output with reference timestamps.
+The reference track in `DemonstrationView.resample_to(reference, method=...)` is
+preserved as-is, and `method` is forwarded to every non-reference track.
 
 ## Contact tracks
 

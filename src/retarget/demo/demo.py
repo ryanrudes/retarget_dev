@@ -19,6 +19,7 @@ from typing import Any, TypedDict, cast
 import numpy as np
 
 from retarget.demo.alignment import TrackAlignment
+from retarget.demo.resampling import ResampleMethod
 from retarget.demo.tracks import Track
 
 
@@ -102,8 +103,17 @@ class DemonstrationView(_TrackMapping):
     def _root(self) -> Demonstration[Any]:
         return self.source
 
-    def resample_to(self, reference: str) -> DemonstrationView:
-        """Return a materialized view resampled onto a reference track timeline."""
+    def resample_to(
+        self,
+        reference: str,
+        *,
+        method: ResampleMethod | str = ResampleMethod.NEAREST,
+    ) -> DemonstrationView:
+        """Return a materialized view resampled onto a reference track timeline.
+
+        ``method`` is the discrete sampling policy forwarded to every
+        non-reference track (continuous quantities interpolate regardless).
+        """
         if reference not in self.tracks:
             raise KeyError(f"Reference track {reference!r} is not in this view")
 
@@ -131,6 +141,7 @@ class DemonstrationView(_TrackMapping):
                 resampled_tracks[name] = track.resample_to(
                     source_timestamps,
                     output_timestamps=reference_timestamps,
+                    method=method,
                 )
             except NotImplementedError as exc:
                 raise NotImplementedError(

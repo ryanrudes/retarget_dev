@@ -15,5 +15,5 @@ def load_ground_estimation_demo(
     """Load a typed ground-estimation demonstration from an unbagged export."""
     # Demonstration time is relative to the first frame so slice_time(0.0, 1.0)
     # means "the first second of the clip", not ROS epoch seconds.
-    mocap = MocapTrack.from_unbagged(root, VICON_SUBJECTS).with_rebased_time()
+    mocap = MocapTrack.from_unbagged(root, VICON_SUBJECTS, rebase_time=True)
     return Demonstration(GroundEstimationTracks(mocap=mocap))

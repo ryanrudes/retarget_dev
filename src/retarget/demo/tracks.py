@@ -7,6 +7,7 @@ from typing import Any
 import numpy as np
 
 from retarget.core.types import FloatArray
+from retarget.demo.resampling import ResampleMethod
 from retarget.utils.sampler import (
     estimate_nominal_hz,
     validate_nominal_hz,
@@ -106,6 +107,7 @@ class Track(ABC):
         timestamps: FloatArray,
         *,
         output_timestamps: FloatArray | None = None,
+        method: ResampleMethod | str = ResampleMethod.NEAREST,
     ) -> "Track":
         """Return this track resampled at requested timestamps.
 
@@ -119,9 +121,11 @@ class Track(ABC):
         timeline, while the returned track should be labeled with reference
         timestamps.
 
-        Concrete track types define their own interpolation semantics. For
-        example, continuous mocap data may use interpolation, while discrete
-        contact data may use nearest-neighbor or step-wise sampling.
+        ``method`` is the discrete sampling policy applied to step-like signals
+        (e.g. rotations, contact state). Concrete track types define their own
+        interpolation semantics: continuous quantities (e.g. translations) are
+        interpolated and ignore ``method``, while discrete quantities sample at
+        the nearest or previous source timestamp.
         """
         raise NotImplementedError(
             f"{type(self).__name__} does not implement resample_to"
