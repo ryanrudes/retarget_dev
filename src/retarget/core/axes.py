@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import IntEnum, StrEnum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -43,7 +43,7 @@ class SignedAxis:
         """Get the unit vector representation of the axis."""
         v = np.zeros(3, dtype=np.float64)
         v[int(self.axis)] = float(self.sign)
-        return v
+        return cast(Vec3, v)
 
 
 class CoordinateAxis(IntEnum):
@@ -62,7 +62,7 @@ class CoordinateAxis(IntEnum):
     Z = 2
     """The Z axis."""
 
-    def __pos__(self) -> SignedAxis:
+    def __pos__(self) -> SignedAxis:  # type: ignore[override]
         """Point the axis in the positive direction.
         
         Returns:
@@ -70,7 +70,7 @@ class CoordinateAxis(IntEnum):
         """
         return SignedAxis(axis=self, sign=+1)
 
-    def __neg__(self) -> SignedAxis:
+    def __neg__(self) -> SignedAxis:  # type: ignore[override]
         """Point the axis in the negative direction.
         
         Returns:
@@ -95,7 +95,7 @@ class SemanticAxis(StrEnum):
     UP = "up"
     """The up axis."""
 
-    def __mul__(self, distance: float) -> SemanticAxisTranslation:
+    def __mul__(self, distance: float) -> SemanticAxisTranslation:  # type: ignore[override]
         from retarget.core.translation import SemanticAxisTranslation
 
         return SemanticAxisTranslation(
@@ -103,7 +103,7 @@ class SemanticAxis(StrEnum):
             distance=float(distance),
         )
 
-    def __rmul__(self, distance: float) -> SemanticAxisTranslation:
+    def __rmul__(self, distance: float) -> SemanticAxisTranslation:  # type: ignore[override]
         return self * distance
 
     def __neg__(self) -> SemanticAxisTranslation:

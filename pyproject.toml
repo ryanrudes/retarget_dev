@@ -20,7 +20,6 @@ dependencies = [
     "rich>=15.0.0",
     "scipy>=1.17.1",
     "urdf",
-    "depend",
     "matplotlib>=3.11.0",
 ]
 
@@ -46,7 +45,6 @@ packages = ["retarget"]
 strict = true
 warn_unreachable = true
 warn_unused_ignores = true
-plugins = ["depend.mypy_plugin.plugin"]
 
 [[tool.mypy.overrides]]
 module = ["scipy.*", "networkx.*"]
@@ -60,12 +58,10 @@ pythonpath = ["src"]
 [tool.uv.workspace]
 members = [
     "vendor/urdf",
-    "vendor/depend",
 ]
 
 [tool.uv.sources]
 urdf = { workspace = true, editable = true }
-depend = { workspace = true, editable = true }
 
 [dependency-groups]
 dev = [

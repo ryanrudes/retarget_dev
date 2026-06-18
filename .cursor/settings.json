@@ -13,8 +13,9 @@
     ]
   },
   "recommendedCommands": {
-    "fullChecks": "python3 -m compileall -q src/retarget && python3 -m compileall -q examples && pytest -q",
-    "demoChecks": "pytest -q tests/test_demo_resampling.py tests/test_demo_contact.py tests/test_demo_mocap.py tests/test_demo.py tests/test_demo_container.py tests/test_demo_sync.py",
-    "typedSchemaSearch": "rg -n \"class .*Spec|SegmentKey|MarkerHandle|PatchHandle|PatchTarget|SceneSpec|SubjectSpec|SegmentSpec\" src/retarget examples tests"
+    "fullChecks": "python3 -m compileall -q src/retarget examples && uv run pytest -q && uv run mypy",
+    "typeCheck": "uv run mypy",
+    "demoChecks": "uv run pytest -q tests/test_demo_resampling.py tests/test_demo_contact.py tests/test_demo_mocap.py tests/test_demo.py tests/test_demo_container.py tests/test_demo_sync.py",
+    "forbiddenPatterns": "rg -n \"MarkerId|SegmentId|PatchId|SubjectId|TrackId|NameId|SceneSpec|SubjectSpec|SegmentSpec|SceneView|SegmentView|MarkerHandle|PatchHandle|TypedDemonstration|typed_tracks\" src/retarget examples tests"
   }
 }
