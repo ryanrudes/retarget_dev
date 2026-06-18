@@ -13,6 +13,7 @@ from retarget.demo.demo import (
     Tracks,
 )
 from retarget.demo.mocap import MocapTrack
+from retarget.demo.pose_repair import fill_pose_gaps
 from retarget.demo.tracks import (
     Track,
     TrackSyncInfo,
@@ -40,6 +41,9 @@ __all__ = [
     "Track",
     "TrackView",
     "TrackSyncInfo",
+
+    # Pose repair
+    "fill_pose_gaps",
 
     # Alignment
     "EnergySignal",

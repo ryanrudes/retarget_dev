@@ -20,9 +20,9 @@ Resampling policy:
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import InitVar, dataclass
+from dataclasses import InitVar, dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -51,6 +51,9 @@ from retarget.io import (
     load_scene_state,
 )
 
+if TYPE_CHECKING:
+    from retarget.contacts.state import SupportStateTrack
+
 
 def _validate_timestamps(timestamps: np.ndarray) -> None:
     if timestamps.ndim != 1:
@@ -73,6 +76,8 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
     marker_frames: tuple[ViconMarkersFrame, ...] | None = None
     contacts: ContactTrack | None = None
     nominal_hz_override: float | None = None
+    support_states: SupportStateTrack | None = None
+    pose_filled: Mapping[SegmentKey, np.ndarray] = field(default_factory=dict)
     rebase_time: InitVar[bool] = False
 
     def __post_init__(self, rebase_time: bool = False) -> None:
@@ -89,6 +94,22 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
                     nominal_hz_override=contacts.nominal_hz_override,
                 )
                 object.__setattr__(self, "contacts", contacts)
+            if self.support_states is not None:
+                # Lazy import: importing contacts.* at module load would cycle back here.
+                from retarget.contacts.state import SupportStateTrack
+
+                states = self.support_states
+                object.__setattr__(
+                    self,
+                    "support_states",
+                    SupportStateTrack(
+                        contacts=states.contacts,
+                        scores=states.scores,
+                        timestamps=states.timestamps - offset,
+                        invalid=states.invalid,
+                        nominal_hz_override=states.nominal_hz_override,
+                    ),
+                )
         _validate_timestamps(timestamps)
         object.__setattr__(self, "timestamps", timestamps)
 
@@ -111,6 +132,15 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
                 raise ValueError(
                     "ContactTrack timestamps must match MocapTrack timestamps"
                 )
+        if self.support_states is not None:
+            if len(self.support_states.timestamps) != len(timestamps):
+                raise ValueError(
+                    "SupportStateTrack timestamp count must match MocapTrack timestamp count"
+                )
+            if len(timestamps) and not np.allclose(self.support_states.timestamps, timestamps):
+                raise ValueError(
+                    "SupportStateTrack timestamps must match MocapTrack timestamps"
+                )
 
         runtimes = _build_segment_runtimes(
             self.subjects,
@@ -118,6 +148,8 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             timestamps,
             self.marker_frames,
             self.contacts,
+            self.support_states,
+            self.pose_filled,
         )
         object.__setattr__(
             self, "subjects", bind_subjects_runtime(self.subjects, runtimes)
@@ -160,6 +192,42 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             rebase_time=rebase_time,
         )
 
+    # -- attaching detected contacts -------------------------------------------
+
+    def with_contacts(self, contacts: ContactTrack) -> MocapTrack[SubjectsT]:
+        """Return a new track with ``contacts`` attached so ``patch.contacts()`` reads them.
+
+        Immutable: the original track is unchanged. ``contacts.timestamps`` must
+        match this track's timestamps (validated on construction).
+        """
+        return MocapTrack(
+            subjects=self.subjects,
+            state=self.state,
+            timestamps=self.timestamps,
+            marker_frames=self.marker_frames,
+            contacts=contacts,
+            nominal_hz_override=self.nominal_hz_override,
+            support_states=self.support_states,
+            pose_filled=self.pose_filled,
+        )
+
+    def with_support_states(self, support_states: SupportStateTrack) -> MocapTrack[SubjectsT]:
+        """Return a new track with ``support_states`` attached for ``patch.support_state()``.
+
+        Immutable: the original track is unchanged. ``support_states.timestamps``
+        must match this track's timestamps (validated on construction).
+        """
+        return MocapTrack(
+            subjects=self.subjects,
+            state=self.state,
+            timestamps=self.timestamps,
+            marker_frames=self.marker_frames,
+            contacts=self.contacts,
+            nominal_hz_override=self.nominal_hz_override,
+            support_states=support_states,
+            pose_filled=self.pose_filled,
+        )
+
     # -- segment-keyed array access (low level) --------------------------------
 
     def segment_translations(self, key: SegmentKey) -> np.ndarray:
@@ -192,6 +260,12 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
         sliced_contacts = (
             None if self.contacts is None else self.contacts.select_indices(indices)
         )
+        sliced_support_states = (
+            None if self.support_states is None else self.support_states.select_indices(indices)
+        )
+        sliced_pose_filled = {
+            key: np.asarray(mask)[idx] for key, mask in self.pose_filled.items()
+        }
         return MocapTrack(
             subjects=self.subjects,
             state=sliced_state,
@@ -199,6 +273,8 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             marker_frames=sliced_frames,
             contacts=sliced_contacts,
             nominal_hz_override=self.nominal_hz_override,
+            support_states=sliced_support_states,
+            pose_filled=sliced_pose_filled,
         )
 
     def resample_to(
@@ -252,6 +328,18 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
                 method=method,
             )
         )
+        new_support_states = (
+            None
+            if self.support_states is None
+            else self.support_states.resample_to(
+                sample,
+                output_timestamps=result_timestamps,
+                method=method,
+            )
+        )
+        new_pose_filled = {
+            key: np.asarray(mask)[rotation_indices] for key, mask in self.pose_filled.items()
+        }
         return MocapTrack(
             subjects=self.subjects,
             state=new_state,
@@ -259,6 +347,8 @@ class MocapTrack[SubjectsT: Subjects = Subjects](Track):
             marker_frames=None,
             contacts=new_contacts,
             nominal_hz_override=self.nominal_hz_override,
+            support_states=new_support_states,
+            pose_filled=new_pose_filled,
         )
 
 
@@ -309,6 +399,8 @@ def _build_segment_runtimes(
     timestamps: np.ndarray,
     marker_frames: tuple[ViconMarkersFrame, ...] | None,
     contacts: ContactTrack | None,
+    support_states: SupportStateTrack | None = None,
+    pose_filled: Mapping[SegmentKey, np.ndarray] | None = None,
 ) -> dict[SegmentKey, _SegmentRuntime]:
     runtimes: dict[SegmentKey, _SegmentRuntime] = {}
     num_timesteps = len(timestamps)
@@ -331,6 +423,13 @@ def _build_segment_runtimes(
             contact_state, contact_confidence = _segment_contacts(
                 contacts, subject_name, segment_name, segment
             )
+            support_contacts, support_scores, support_invalid = _segment_support_states(
+                support_states, subject_name, segment_name, segment
+            )
+            if pose_filled and key in pose_filled:
+                filled = np.asarray(pose_filled[key], dtype=np.bool_)
+            else:
+                filled = np.zeros(num_timesteps, dtype=np.bool_)
             runtimes[key] = _SegmentRuntime(
                 timestamps=timestamps,
                 translations=translations,
@@ -338,6 +437,10 @@ def _build_segment_runtimes(
                 observed_markers=observed,
                 contacts=contact_state,
                 confidences=contact_confidence,
+                support_contacts=support_contacts,
+                support_scores=support_scores,
+                support_invalid=support_invalid,
+                pose_filled=filled,
             )
     return runtimes
 
@@ -389,3 +492,29 @@ def _segment_contacts(
         if target in contacts.confidences:
             confidence_map[patch_name] = np.asarray(contacts.confidences[target])
     return state_map, confidence_map
+
+
+def _segment_support_states(
+    support_states: SupportStateTrack | None,
+    subject_name: str,
+    segment_name: str,
+    segment: Segment[Any, Any],
+) -> tuple[
+    Mapping[str, Mapping[str, np.ndarray]],
+    Mapping[str, Mapping[str, np.ndarray]],
+    Mapping[str, np.ndarray],
+]:
+    if support_states is None:
+        return {}, {}, {}
+    contacts_map: dict[str, Mapping[str, np.ndarray]] = {}
+    scores_map: dict[str, Mapping[str, np.ndarray]] = {}
+    invalid_map: dict[str, np.ndarray] = {}
+    for patch_name in segment.patches:
+        target = PatchTarget(subject=subject_name, segment=segment_name, patch=patch_name)
+        if target in support_states.contacts:
+            contacts_map[patch_name] = dict(support_states.contacts[target])
+        if target in support_states.scores:
+            scores_map[patch_name] = dict(support_states.scores[target])
+        if target in support_states.invalid:
+            invalid_map[patch_name] = np.asarray(support_states.invalid[target])
+    return contacts_map, scores_map, invalid_map

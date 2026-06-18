@@ -129,6 +129,39 @@ def make_mocap_track(
     )
 
 
+def make_descending_mocap_track(
+    *,
+    t_end: float = 3.0,
+    hz: float = 100.0,
+    descend_until: float = 0.8,
+    start_height: float = 0.5,
+) -> MocapTrack[DemoSubjects]:
+    """A mocap track whose segment (and its sole patch) descends to z=0 then rests.
+
+    Useful for contact-detection tests: the recording is mostly quiet (resting on
+    the floor) with a clear descent phase at the start.
+    """
+    n = int(round(t_end * hz)) + 1
+    timestamps = np.linspace(0.0, t_end, n)
+    z = np.where(
+        timestamps < descend_until,
+        start_height * (1.0 - timestamps / descend_until),
+        0.0,
+    )
+    poses = tuple(
+        RigidTransform.from_translation(np.array([0.0, 0.0, float(z[i])])) for i in range(n)
+    )
+    state = SceneState(
+        segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)}
+    )
+    return MocapTrack(
+        subjects=make_demo_subjects(),
+        state=state,
+        timestamps=timestamps,
+        marker_frames=None,
+    )
+
+
 def demo_segment(track: MocapTrack[Any]) -> Segment[DemoMarkers, DemoPatches]:
     """Return the canonical demo segment from a (possibly sliced) mocap track."""
     return track.subjects[SUBJECT].segments[SEGMENT]
