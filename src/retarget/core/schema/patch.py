@@ -11,6 +11,7 @@ import numpy as np
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
 from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.contact_region import ContactRegion, RectangularRegion
+from retarget.core.patch_frame import PatchExtent, PatchOrigin, fixed
 from retarget.core.formats import JumpDetector, finite_difference_velocity
 from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, priority
 from retarget.core.targets import PatchTarget
@@ -60,6 +61,8 @@ class PatchCalibration:
     marker_translations: Mapping[str, MarkerTranslation] | None = field(
         default=None, compare=False
     )
+    origin: PatchOrigin | None = field(default=None, compare=False)
+    extent: PatchExtent | None = field(default=None, compare=False)
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,8 +91,10 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         label: str,
         *,
         markers: Sequence[str],
-        width: float,
-        height: float,
+        width: float | None = None,
+        height: float | None = None,
+        origin: PatchOrigin | None = None,
+        extent: PatchExtent | None = None,
         outward_axis: SemanticAxis,
         forward_axis: SemanticAxis,
         normal_offset: float = 0.0,
@@ -99,17 +104,31 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
     ) -> Patch[RectangularRegion]:
         """Build a rectangular patch whose frame is fit from calibration markers.
 
-        ``markers`` names markers on the same segment; their segment-frame
-        positions (from the subject ``body_model`` or per-marker
-        ``position_segment``) are fit into a patch frame at bind time.
-        ``outward_axis`` fixes the normal direction and ``forward_axis`` fixes
-        the in-plane local +X direction. For the rarer case where a frame is
-        already known, construct ``Patch(..., transform_segment_patch=...,
-        region=RectangularRegion(...))`` directly.
+        ``markers`` fit the contact **plane**: their segment-frame positions (from
+        the subject ``body_model`` or per-marker ``position_segment``) give the
+        normal (``outward_axis``) and the in-plane axes (``forward_axis`` projected
+        into the plane is local +X; ``width`` runs along it, ``height`` along +Y).
+
+        ``origin`` (a :class:`~retarget.core.patch_frame.PatchOrigin`) places the
+        in-plane origin -- e.g. ``bounding_box_center("heel", "toe", ...)`` -- so the
+        plane markers (a calibration jig) need not also be the contact center.
+        Default: the plane-marker centroid.
+
+        Size comes from ``extent`` (a :class:`~retarget.core.patch_frame.PatchExtent`):
+        either ``width``/``height`` (explicit), or ``extent=bounding_box(...)`` to
+        auto-fit the rectangle to markers (which also self-centers the origin). Pass
+        exactly one of ``width``/``height`` or ``extent``.
         """
+        if extent is None:
+            if width is None or height is None:
+                raise ValueError("Patch.rectangle needs width and height, or extent=")
+            extent = fixed(width, height)
+        elif width is not None or height is not None:
+            raise ValueError("Patch.rectangle: pass width/height or extent=, not both")
+        # origin defaults (e.g. extent's bbox center) are applied at calibrate time.
         return Patch(
             label=label,
-            region=RectangularRegion(width=width, height=height),
+            region=cast(RectangularRegion, extent.static_region()),
             frame=frame,
             calibration=PatchCalibration(
                 markers=tuple(markers),
@@ -118,6 +137,8 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
                 normal_offset=normal_offset,
                 axis_convention=axis_convention,
                 marker_translations=marker_translations,
+                origin=origin,
+                extent=extent,
             ),
         )
 
@@ -340,8 +361,13 @@ def resolve_patch_calibration(
     subject: str,
     segment: str,
     patch_name: str,
-) -> RigidTransform:
-    missing = [m for m in calibration.markers if m not in marker_positions_segment]
+) -> tuple[RigidTransform, RectangularRegion]:
+    required = list(calibration.markers)
+    if calibration.origin is not None:
+        required += calibration.origin.required_markers()
+    if calibration.extent is not None:
+        required += calibration.extent.required_markers()
+    missing = [m for m in dict.fromkeys(required) if m not in marker_positions_segment]
     if missing:
         raise ValueError(
             f"Patch {patch_name!r} on {subject!r}/{segment!r} cannot calibrate: "
@@ -356,4 +382,6 @@ def resolve_patch_calibration(
         normal_offset=calibration.normal_offset,
         outward_axis=calibration.outward_axis,
         forward_axis=calibration.forward_axis,
+        origin=calibration.origin,
+        extent=calibration.extent,
     )

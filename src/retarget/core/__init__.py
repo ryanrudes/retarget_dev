@@ -39,6 +39,16 @@ from retarget.core.schema import (
     bind_scene,
 )
 from retarget.core.calibration import calibrate_patch_transform
+from retarget.core.patch_frame import (
+    FittedPlane,
+    PatchExtent,
+    PatchOrigin,
+    at_marker,
+    bounding_box,
+    bounding_box_center,
+    centroid,
+    fixed,
+)
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import (
     RigidTransform,
@@ -106,6 +116,16 @@ __all__ = [
     "ContactRegion",
     "RectangularRegion",
     "PolygonalRegion",
+
+    # Patch frame: pluggable origin + extent
+    "FittedPlane",
+    "PatchOrigin",
+    "PatchExtent",
+    "bounding_box_center",
+    "centroid",
+    "at_marker",
+    "fixed",
+    "bounding_box",
 
     # Authoring schema + bound runtime surface
     "Markers",

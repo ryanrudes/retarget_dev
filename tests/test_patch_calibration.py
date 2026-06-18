@@ -19,7 +19,7 @@ _POSITIONS = {
 
 
 def test_calibration_fits_centroid_for_planar_markers() -> None:
-    transform = calibrate_patch_transform(
+    transform, _ = calibrate_patch_transform(
         marker_positions_segment=_POSITIONS,
         markers=("a", "b", "c"),
     )
@@ -31,11 +31,11 @@ def test_calibration_fits_centroid_for_planar_markers() -> None:
 
 
 def test_normal_offset_moves_origin_along_fitted_normal() -> None:
-    base = calibrate_patch_transform(
+    base, _ = calibrate_patch_transform(
         marker_positions_segment=_POSITIONS,
         markers=("a", "b", "c"),
     )
-    offset = calibrate_patch_transform(
+    offset, _ = calibrate_patch_transform(
         marker_positions_segment=_POSITIONS,
         markers=("a", "b", "c"),
         normal_offset=0.1,
@@ -45,7 +45,7 @@ def test_normal_offset_moves_origin_along_fitted_normal() -> None:
 
 
 def test_body_frame_marker_translations_applied_before_fitting() -> None:
-    transform = calibrate_patch_transform(
+    transform, _ = calibrate_patch_transform(
         marker_positions_segment=_POSITIONS,
         markers=("a", "b", "c"),
         marker_translations={"a": BodyFrameTranslation(np.array([0.0, 0.0, 0.3]))},
@@ -55,7 +55,7 @@ def test_body_frame_marker_translations_applied_before_fitting() -> None:
 
 
 def test_semantic_axis_marker_translations_supported() -> None:
-    transform = calibrate_patch_transform(
+    transform, _ = calibrate_patch_transform(
         marker_positions_segment=_POSITIONS,
         markers=("a", "b", "c"),
         marker_translations={"a": 0.3 * SemanticAxis.UP},

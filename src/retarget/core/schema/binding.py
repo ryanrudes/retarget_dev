@@ -157,8 +157,9 @@ def _bind_patch(
     runtime: _SegmentRuntime | None,
 ) -> Patch:
     transform = patch.transform_segment_patch
+    region = patch.region
     if transform is None and patch.calibration is not None:
-        transform = resolve_patch_calibration(
+        transform, region = resolve_patch_calibration(
             patch.calibration,
             marker_positions_segment,
             subject=subject,
@@ -168,7 +169,7 @@ def _bind_patch(
     bound = Patch(
         label=patch.label,
         transform_segment_patch=transform,
-        region=patch.region,
+        region=region,
         frame=patch.frame,
         calibration=patch.calibration,
     )

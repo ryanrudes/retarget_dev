@@ -66,7 +66,8 @@ def _marker(mocap_name: str) -> Marker:
 
 
 # Sole patch frame fit from the three shoe-sole plane calibration markers.
-_SOLE_TRANSFORM = calibrate_patch_transform(
+# (calibrate_patch_transform now also returns a region; this backend sets its own.)
+_SOLE_TRANSFORM, _ = calibrate_patch_transform(
     marker_positions_segment=_MARKER_POSITIONS,
     markers=("plane_rear", "plane_inner", "plane_outer"),
     normal_offset=SOLE_PLANE_NORMAL_OFFSET,

@@ -13,6 +13,8 @@ from collections.abc import Mapping, Sequence
 import numpy as np
 
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
+from retarget.core.contact_region import RectangularRegion
+from retarget.core.patch_frame import FittedPlane, PatchExtent, PatchOrigin, fixed
 from retarget.core.transform import RigidTransform
 from retarget.core.translation import AxisResolvable, MarkerTranslation
 from retarget.core.types import Vec3
@@ -36,13 +38,18 @@ def calibrate_patch_transform(
     normal_offset: float = 0.0,
     outward_axis: SemanticAxis = SemanticAxis.UP,
     forward_axis: SemanticAxis = SemanticAxis.FORWARD,
-) -> RigidTransform:
-    """Fit a segment->patch transform from calibration markers.
+    origin: PatchOrigin | None = None,
+    extent: PatchExtent | None = None,
+) -> tuple[RigidTransform, RectangularRegion]:
+    """Fit a segment->patch transform + rectangle from calibration markers.
 
-    1. take the listed markers' segment-frame positions;
+    1. take the listed plane ``markers``' segment-frame positions;
     2. apply optional sparse ``marker_translations`` before fitting;
-    3. fit the patch frame;
-    4. apply ``normal_offset`` after fitting, along the fitted normal.
+    3. fit the patch plane (normal + in-plane axes);
+    4. place the in-plane origin via ``origin`` (default: the plane-marker centroid),
+       then apply ``normal_offset`` along the fitted normal;
+    5. size the rectangle via ``extent`` (default: a degenerate 1x1 -- pass a real
+       ``extent`` such as :func:`~retarget.core.patch_frame.bounding_box`).
     """
     if len(markers) < 3:
         raise ValueError("Patch calibration requires at least three markers")
@@ -59,15 +66,32 @@ def calibrate_patch_transform(
             points.append(position + translation.resolve(resolver))
     surface_points = np.stack(points)
 
-    transform = fit_patch_frame(
+    fitted = fit_patch_frame(
         surface_points,
         outward_hint_segment=axis_convention.vector(outward_axis),
         x_axis_hint_segment=axis_convention.vector(forward_axis),
     )
-    if normal_offset != 0.0:
-        normal = transform.rotation[:, 2]
-        transform = RigidTransform.from_rotation_translation(
-            rotation=transform.rotation,
-            translation=transform.translation + normal_offset * normal,
-        )
-    return transform
+    rotation = fitted.rotation
+    reference = fitted.translation
+    plane = FittedPlane(
+        rotation=rotation, reference=reference, marker_positions=marker_positions_segment
+    )
+
+    if origin is None and extent is not None:
+        origin = extent.default_origin()  # e.g. bounding_box -> its bbox center
+    if origin is None:
+        offset_x, offset_y = 0.0, 0.0
+    else:
+        offset_x, offset_y = (float(v) for v in origin.locate(plane))
+    translation = (
+        reference
+        + rotation[:, 0] * offset_x
+        + rotation[:, 1] * offset_y
+        + rotation[:, 2] * normal_offset
+    )
+    transform = RigidTransform.from_rotation_translation(
+        rotation=rotation, translation=translation
+    )
+
+    region = (extent if extent is not None else fixed(1.0, 1.0)).fit(plane)
+    return transform, region
