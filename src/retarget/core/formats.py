@@ -7,6 +7,7 @@ importing higher layers.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import cast
 
 import numpy as np
@@ -14,6 +15,96 @@ from scipy.spatial.transform import Rotation
 
 from retarget.core.enums import PoseFormat, RotationFormat
 from retarget.core.transform import RigidTransform
+from retarget.core.types import TimeBool
+
+type JumpDetector = Callable[[np.ndarray, np.ndarray], TimeBool]
+"""``(positions (T,D or T,), timestamps (T,)) -> (T,) bool`` garbage-sample detector.
+
+Built-ins are :func:`speed_limit` (a physical speed cap) and :func:`robust_jumps`
+(self-calibrating, no units). Any callable with this shape can be plugged in.
+"""
+
+
+def implausible_jump_mask(
+    positions: np.ndarray,
+    timestamps: np.ndarray,
+    max_speed: float | None,
+) -> TimeBool:
+    """Mask frames adjacent to an implausibly fast step (a teleport / garbage sample).
+
+    A frame is flagged when the finite-difference speed of the step into *or* out
+    of it exceeds ``max_speed`` (in position-units per second). Such samples are
+    physically impossible for the tracked body and make poor interpolation
+    anchors, so callers treat them like occlusions.
+
+    Args:
+        positions: ``(T,)`` or ``(T, D)`` positions (e.g. segment translations).
+        timestamps: Strictly increasing timestamps with shape ``(T,)``.
+        max_speed: Speed threshold; ``None`` or non-positive disables detection.
+
+    Returns:
+        Boolean mask with shape ``(T,)``.
+    """
+    pos = np.asarray(positions, dtype=np.float64)
+    t = np.asarray(timestamps, dtype=np.float64)
+    n = len(t)
+    bad = np.zeros(n, dtype=np.bool_)
+    if n < 2 or max_speed is None or max_speed <= 0.0:
+        return bad
+    dt = np.diff(t)
+    deltas = np.diff(pos, axis=0)
+    displacement = np.linalg.norm(deltas, axis=1) if pos.ndim > 1 else np.abs(deltas)
+    speed = np.where(dt > 0.0, displacement / np.where(dt > 0.0, dt, 1.0), 0.0)
+    over_speed = speed > max_speed
+    bad[:-1] |= over_speed
+    bad[1:] |= over_speed
+    return bad
+
+
+def speed_limit(max_speed: float) -> JumpDetector:
+    """A :data:`JumpDetector` that flags steps faster than ``max_speed`` (units/s).
+
+    Use when you know the physical limit of the tracked body.
+    """
+
+    def detect(positions: np.ndarray, timestamps: np.ndarray) -> TimeBool:
+        return implausible_jump_mask(positions, timestamps, max_speed)
+
+    return detect
+
+
+def robust_jumps(n_sigma: float = 6.0) -> JumpDetector:
+    """A self-calibrating :data:`JumpDetector` -- no units, works at any speed.
+
+    Flags samples that deviate from a straight line through their time-neighbours
+    by more than ``n_sigma`` robust scales (median + MAD). This is the local
+    *curvature* (≈ acceleration), so smooth motion -- however fast -- stays
+    unflagged while a teleport/discontinuity stands out. Larger ``n_sigma`` is
+    more permissive.
+    """
+
+    def detect(positions: np.ndarray, timestamps: np.ndarray) -> TimeBool:
+        pos = np.asarray(positions, dtype=np.float64)
+        if pos.ndim == 1:
+            pos = pos[:, None]
+        t = np.asarray(timestamps, dtype=np.float64)
+        n = len(t)
+        bad = np.zeros(n, dtype=np.bool_)
+        if n < 3:
+            return bad
+        span = t[2:] - t[:-2]
+        weight = np.where(span > 0.0, (t[1:-1] - t[:-2]) / np.where(span > 0.0, span, 1.0), 0.5)
+        predicted = pos[:-2] + (pos[2:] - pos[:-2]) * weight[:, None]
+        residual = np.linalg.norm(pos[1:-1] - predicted, axis=1)
+        median = float(np.median(residual))
+        mad = float(np.median(np.abs(residual - median)))
+        scale = 1.4826 * mad if mad > 1e-12 else float(np.std(residual))
+        if scale <= 1e-12:
+            return bad
+        bad[1:-1] = residual > median + n_sigma * scale
+        return bad
+
+    return detect
 
 
 def finite_difference_velocity(

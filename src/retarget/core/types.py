@@ -1,4 +1,4 @@
-from typing import Literal, Any, Callable
+from typing import Literal, Any
 
 import numpy.typing as npt
 import numpy as np
@@ -72,6 +72,12 @@ type TimeBool = np.ndarray[
     np.dtype[np.bool_],
 ]
 """Time-major boolean signal with shape ``(T,)``."""
+
+type LabelArray = np.ndarray[
+    tuple[int],
+    np.dtype[np.object_],
+]
+"""Time-major categorical-label signal with shape ``(T,)`` (e.g. ``"air"``/``"ground"``)."""
 
 type TimeEntityBool = np.ndarray[
     tuple[int, int],
