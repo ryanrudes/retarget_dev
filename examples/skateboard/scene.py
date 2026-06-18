@@ -15,6 +15,7 @@ from retarget.core import (
     Patch,
     Marker,
     SemanticAxis,
+    bounding_box,
 )
 
 from schema import (
@@ -30,7 +31,7 @@ from schema import (
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_UNBAGGED_DIR = REPO_ROOT / "bags" / "skateboard_6_tiny_foot_lifts" / "unbagged"
+DEFAULT_UNBAGGED_DIR = REPO_ROOT / "bags" / "skateboard_glide" / "unbagged"
 
 LEFT_SHOE_VSK_PATH = REPO_ROOT / "models" / "Left_Shoe_Improved.vsk"
 SKATEBOARD_VSK_PATH = REPO_ROOT / "models" / "Skateboard.vsk"
@@ -103,19 +104,30 @@ def get_skateboard_markers() -> SkateboardMarkers:
     )
 
 
-# The sole frame is fit at bind time from the three plane calibration markers
-# using their body_model segment-frame positions.
+# The sole plane is fit from the three jig "plane" markers (the shoe is stationed on a
+# flat block during calibration), but their centroid is meaningless as the patch origin
+# and size. So the origin + extent auto-fit the actual foot markers, projected onto that
+# plane: the rectangle bounds the footprint, centered on it.
+SOLE_FOOTPRINT_MARKERS = (
+    "heel",
+    "toe",
+    "sole_inner",
+    "sole_outer",
+    "heel_inner_1",
+    "heel_inner_2",
+    "heel_outer_1",
+    "heel_outer_2",
+    "toe_inner",
+    "toe_outer",
+)
+
+
 def get_left_shoe_patches() -> LeftShoePatches:
     return LeftShoePatches(
         sole=Patch.rectangle(
             label="sole",
-            markers=(
-                "plane_rear",
-                "plane_inner",
-                "plane_outer",
-            ),
-            width=0.10,
-            height=0.25,
+            markers=("plane_rear", "plane_inner", "plane_outer"),  # fit the plane only
+            extent=bounding_box(*SOLE_FOOTPRINT_MARKERS, padding=0.005),  # origin + size
             outward_axis=SemanticAxis.UP,
             forward_axis=SemanticAxis.FORWARD,
             normal_offset=SOLE_PLANE_NORMAL_OFFSET,
@@ -124,15 +136,15 @@ def get_left_shoe_patches() -> LeftShoePatches:
     )
 
 
-# The skateboard surface is a plane fit through all eight pole markers, raised
-# 35mm along the fitted upward normal to the physical standing surface.
+# The skateboard surface is a plane fit through all eight pole markers, raised 35mm along
+# the fitted upward normal to the standing surface. The rectangle auto-fits the poles'
+# footprint (the deck's standing area) instead of hand-guessed width/height.
 def get_skateboard_patches() -> SkateboardPatches:
     return SkateboardPatches(
         surface=Patch.rectangle(
             label="surface",
             markers=SKATEBOARD_POLE_MARKERS,
-            width=0.22,
-            height=0.78,
+            extent=bounding_box(*SKATEBOARD_POLE_MARKERS, padding=0.02),
             outward_axis=SemanticAxis.UP,
             forward_axis=SemanticAxis.FORWARD,
             normal_offset=SKATEBOARD_SURFACE_NORMAL_OFFSET,

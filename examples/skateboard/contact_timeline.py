@@ -56,7 +56,7 @@ def main() -> None:
         queries=(
             ContactQuery(sole, against={"ground": ground_plane(0.0), "skateboard": surface}),
         ),
-        config=ContactDetectionConfig(sensitivity=0.05, jumps=speed_limit(8.0)),
+        config=ContactDetectionConfig(sensitivity=0.1, quiet_speed=0.2, jumps=speed_limit(8.0)),
     )
     mocap = apply_contact_plan(mocap, plan)
 
