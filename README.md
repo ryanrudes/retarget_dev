@@ -16,7 +16,17 @@ source install/setup.zsh
 cd ..
 ```
 
-Unbag the ROS bag in JSON format, using the `/tf` topic as the master. Each `/vicon/markers` row is resampled to the nearest `/tf` timestamp. The `keep_non_occluded_markers` processor then replaces that row's marker list with the nearest **non-occluded** reading for **each marker name** within 0.02 seconds of that `/tf` timestamp. Translations are converted from millimeters to meters.
+Record a session as a ROS 2 bag (run from `bags/`, with the bridge running and Vicon streaming):
+
+```bash
+cd bags
+ros2 bag record -a -o stepping_on_board
+cd ..
+```
+
+`-a` records all topics. `/tf` carries **one transform per tracked Vicon subject in every message** (a 3-subject capture has 3 transforms per `/tf` message); `/vicon/markers` carries the labeled + unlabeled marker cloud.
+
+Unbag the ROS bag in JSON format, using the `/tf` topic as the master. Every subject's transform on `/tf` is exported — each record is keyed by timestamp + `child_frame_id`, so a multi-subject `/tf` is **not** collapsed to a single subject. Each `/vicon/markers` row is resampled to the nearest `/tf` timestamp. The `keep_non_occluded_markers` processor then replaces that row's marker list with the nearest **non-occluded** reading for **each marker name** within 0.02 seconds of that `/tf` timestamp. Translations are converted from millimeters to meters.
 
 At the end of export, `[WARNING]` lines summarize any `/tf` frames dropped by resampling and any per-marker omissions when `discard_eps` could not be met.
 
@@ -115,15 +125,15 @@ toe_target = shoe.patch_target("toe_contact")   # declaration-only patch is stil
 - `Markers`/`Patches`/`Segments`/`Subjects` are `TypedDict` bases declaring scene shape.
 - `Marker`/`Patch`/`Segment`/`Subject` are frozen dataclasses for concrete data.
 - Authored field names are the canonical identity; `Marker.mocap_name`,
-  `Segment.mocap_name`, and `Subject.mocap_name` are external/Vicon lookup metadata.
+`Segment.mocap_name`, and `Subject.mocap_name` are external/Vicon lookup metadata.
 - `Patch(label=...)` declares a patch without geometry;
-  `Patch.rectangle(markers=...)` fits a rectangular patch frame from calibration
-  markers at bind time. For an already-known frame, pass `transform_segment_patch`
-  and a `RectangularRegion` to the base `Patch(...)` constructor.
+`Patch.rectangle(markers=...)` fits a rectangular patch frame from calibration
+markers at bind time. For an already-known frame, pass `transform_segment_patch`
+and a `RectangularRegion` to the base `Patch(...)` constructor.
 - `Subject(body_model=...)` supplies segment-frame marker rest positions once per
-  subject so markers need not repeat `position_segment`.
+subject so markers need not repeat `position_segment`.
 - `bind_scene(...)` path-binds the schema so `*_target(...)` and geometry work,
-  and returns the same `SubjectsT` type.
+and returns the same `SubjectsT` type.
 
 ## Stable runtime keys
 
