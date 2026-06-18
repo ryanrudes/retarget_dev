@@ -11,11 +11,20 @@ import numpy as np
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
 from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.contact_region import ContactRegion, RectangularRegion
-from retarget.core.formats import finite_difference_velocity
+from retarget.core.formats import JumpDetector, finite_difference_velocity
+from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, priority
 from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.translation import MarkerTranslation
-from retarget.core.types import TimeEntityVec3, TimeMat3, TimeVec3, Vec3
+from retarget.core.types import (
+    FloatArray1D,
+    LabelArray,
+    TimeBool,
+    TimeEntityVec3,
+    TimeMat3,
+    TimeVec3,
+    Vec3,
+)
 
 if TYPE_CHECKING:
     from retarget.core.schema.segment import _SegmentRuntime
@@ -191,6 +200,100 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
             raise ValueError(
                 f"No contact confidence is attached for patch {name!r}"
             ) from exc
+
+    def support_contacts(self) -> dict[str, TimeBool]:
+        """Per-named-support boolean contact arrays for this patch (multi-contact).
+
+        Populated from an attached :class:`SupportStateTrack`; empty if none is
+        attached. Several supports may be True at the same time.
+        """
+        runtime = self._runtime()
+        name = self._require_binding().patch
+        return cast("dict[str, TimeBool]", dict(runtime.support_contacts.get(name, {})))
+
+    def support_scores(self) -> dict[str, FloatArray1D]:
+        """Per-named-support contact scores for this patch (from an attached track)."""
+        runtime = self._runtime()
+        name = self._require_binding().patch
+        return cast("dict[str, FloatArray1D]", dict(runtime.support_scores.get(name, {})))
+
+    def support_state(
+        self,
+        *,
+        resolve: SupportResolver | ResolveFn | None = None,
+        none: str | None = None,
+        unknown: str | None = None,
+    ) -> LabelArray:
+        """Per-frame categorical support label for this patch with shape ``(T,)``.
+
+        Labels are yours: the values are the support names you passed to
+        ``classify`` (``None`` where nothing is in contact, unless you pass a
+        ``none`` label). Pass ``unknown="..."`` to surface frames the detector
+        flagged as untrustworthy under that label (validity is computed for you);
+        omit it and those frames just read as ``none``. ``resolve`` overrides the
+        default :func:`~retarget.core.support_resolve.priority` reduction.
+        """
+        runtime = self._runtime()
+        name = self._require_binding().patch
+        contacts = self.support_contacts()
+        scores = self.support_scores()
+        if not contacts:
+            return cast(LabelArray, np.full(len(runtime.timestamps), none, dtype=object))
+        resolver = priority(none_label=none) if resolve is None else as_resolver(resolve)
+        labels = np.asarray(resolver(contacts, scores), dtype=object)
+        if unknown is not None:
+            invalid = runtime.support_invalid.get(name)
+            if invalid is not None:
+                labels = labels.copy()
+                labels[np.asarray(invalid, dtype=np.bool_)] = unknown
+        return cast(LabelArray, labels)
+
+    def valid(self, *, min_coverage: float = 0.5, jumps: JumpDetector | None = None) -> TimeBool:
+        """Per-frame mask of trustworthy segment pose, shape ``(T,)``.
+
+        Trustworthy where marker coverage is at least ``min_coverage`` (or the
+        pose was filled) *and*, when a ``jumps`` detector is given, the patch
+        point is not a garbage sample. Jumps are measured on the patch point, so
+        a rotation glitch is caught even though the origin barely moves.
+        """
+        coverage = np.asarray(self.pose_coverage())
+        enough = coverage >= min_coverage
+        if jumps is None:
+            jump = np.zeros(len(coverage), dtype=np.bool_)
+        else:
+            runtime = self._runtime()
+            positions = self.points() if self.has_geometry() else runtime.translations
+            jump = np.asarray(jumps(positions, runtime.timestamps))
+        return cast(TimeBool, enough & ~jump)
+
+    def pose_filled(self) -> TimeBool:
+        """Per-frame mask of poses synthesized by :func:`~retarget.demo.fill_pose_gaps`.
+
+        All False when no gaps were filled. Use it to render or exclude
+        interpolated (non-measured) frames.
+        """
+        from retarget.core.schema.segment import _pose_filled_mask
+
+        runtime = self._runtime()
+        return cast(TimeBool, _pose_filled_mask(runtime, len(runtime.timestamps)))
+
+    def pose_coverage(self) -> FloatArray1D:
+        """Fraction of the segment's markers observed per frame, shape ``(T,)``.
+
+        Frames whose pose was synthesized by :func:`~retarget.demo.fill_pose_gaps`
+        count as fully covered.
+        """
+        from retarget.core.schema.segment import _pose_filled_mask, _visible_marker_count
+
+        runtime = self._runtime()
+        num = len(runtime.timestamps)
+        filled = _pose_filled_mask(runtime, num)
+        if not runtime.observed_markers:
+            return cast(FloatArray1D, np.ones(num, dtype=np.float64))
+        coverage = _visible_marker_count(runtime.observed_markers, num).astype(np.float64) / len(
+            runtime.observed_markers
+        )
+        return cast(FloatArray1D, np.where(filled, 1.0, coverage))
 
     @property
     def target(self) -> PatchTarget:

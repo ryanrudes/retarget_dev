@@ -92,7 +92,7 @@ class Marker:
         return self._binding
 
     def _runtime(self) -> _SegmentRuntime:
-        from retarget.core.schema.segment import _SegmentRuntime, _UNBOUND_MESSAGE
+        from retarget.core.schema.segment import _UNBOUND_MESSAGE
 
         binding = self._require_binding()
         if binding.runtime is None:
