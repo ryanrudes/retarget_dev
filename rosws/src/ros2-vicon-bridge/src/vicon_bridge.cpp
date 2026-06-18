@@ -16,6 +16,10 @@ ViconBridge::ViconBridge()
   tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   // initialize the publishers
+  if (publish_markers_) {
+    marker_pub_ = this->create_publisher<vicon_bridge::msg::Markers>(
+        tf_namespace_ + "/markers", 10);
+  }
 
   // start vicon
   if (!init_vicon()) {
@@ -50,6 +54,8 @@ void ViconBridge::get_parameters() {
       this->declare_parameter<double>("expected_rate_hz", expected_rate_hz_);
   publish_specific_segment_ = this->declare_parameter<bool>(
       "publish_specific_segment", publish_specific_segment_);
+  publish_markers_ =
+      this->declare_parameter<bool>("publish_markers", publish_markers_);
   target_subject_name_ = this->declare_parameter<std::string>(
       "target_subject_name", target_subject_name_);
   target_segment_name_ = this->declare_parameter<std::string>(
@@ -117,6 +123,16 @@ bool ViconBridge::init_vicon() {
   // setup segments
   client_.EnableSegmentData();
   assert(client_.IsSegmentDataEnabled().Enabled);
+
+  // setup markers
+  if (publish_markers_) {
+    client_.EnableMarkerData();
+    if (client_.IsMarkerDataEnabled().Enabled) {
+      RCLCPP_INFO_STREAM(get_logger(), "Marker data enabled");
+    } else {
+      RCLCPP_WARN_STREAM(get_logger(), "Failed to enable marker data");
+    }
+  }
 
   // version
   Output_GetVersion _Output_GetVersion = client_.GetVersion();
@@ -218,6 +234,10 @@ void ViconBridge::process_frame(rclcpp::Time &grab_time) {
     process_all_segments(grab_time - latency);
   }
 
+  if (publish_markers_) {
+    publish_markers(grab_time - latency, frame_number);
+  }
+
   pub_freq_ptr_->tick();
 
   last_frame_number_ = frame_number;
@@ -315,6 +335,51 @@ void ViconBridge::process_all_segments(const rclcpp::Time &frame_time) {
     tf_broadcaster_->sendTransform(transforms);
     first_frame_ = false;
   }
+}
+
+void ViconBridge::publish_markers(const rclcpp::Time &frame_time,
+                                  std::size_t frame_number) {
+
+  vicon_bridge::msg::Markers markers_msg;
+  markers_msg.header.stamp = frame_time;
+  markers_msg.header.frame_id = tf_namespace_ + "/" + world_frame_id_;
+  markers_msg.frame_number = static_cast<uint32_t>(frame_number);
+
+  std::size_t n_subjects = client_.GetSubjectCount().SubjectCount;
+
+  for (std::size_t i_subject = 0; i_subject < n_subjects; ++i_subject) {
+
+    std::string subject_name = client_.GetSubjectName(i_subject).SubjectName;
+
+    std::size_t n_markers = client_.GetMarkerCount(subject_name).MarkerCount;
+
+    for (std::size_t i_marker = 0; i_marker < n_markers; ++i_marker) {
+
+      std::string marker_name =
+          client_.GetMarkerName(subject_name, i_marker).MarkerName;
+      std::string segment_name =
+          client_.GetMarkerParentName(subject_name, marker_name).SegmentName;
+
+      auto res =
+          client_.GetMarkerGlobalTranslation(subject_name, marker_name);
+      if (res.Result != Result::Success) {
+        continue;
+      }
+
+      vicon_bridge::msg::Marker marker;
+      marker.marker_name = marker_name;
+      marker.subject_name = subject_name;
+      marker.segment_name = segment_name;
+      marker.occluded = res.Occluded;
+      marker.translation.x = res.Translation[0] / 1000;
+      marker.translation.y = res.Translation[1] / 1000;
+      marker.translation.z = res.Translation[2] / 1000;
+
+      markers_msg.markers.push_back(marker);
+    }
+  }
+
+  marker_pub_->publish(markers_msg);
 }
 
 geometry_msgs::msg::PoseStamped ViconBridge::transform2pose(

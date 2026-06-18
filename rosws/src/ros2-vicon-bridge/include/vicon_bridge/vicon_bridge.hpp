@@ -11,6 +11,7 @@
 #include "geometry_msgs/msg/transform_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "tf2_ros/transform_broadcaster.h"
+#include "vicon_bridge/msg/markers.hpp"
 #include <diagnostic_updater/diagnostic_updater.hpp>
 #include <diagnostic_updater/publisher.hpp>
 
@@ -55,6 +56,8 @@ private:
   void process_frame(rclcpp::Time &grab_time);
   void process_specific_segment(const rclcpp::Time &frame_time);
   void process_all_segments(const rclcpp::Time &frame_time);
+  void publish_markers(const rclcpp::Time &frame_time,
+                       std::size_t frame_number);
   geometry_msgs::msg::PoseStamped
   transform2pose(geometry_msgs::msg::TransformStamped &transformMsg);
 
@@ -64,6 +67,7 @@ private:
   double update_rate_hz_ = 250.0;
   double expected_rate_hz_ = 100.0;
   bool publish_specific_segment_ = false;
+  bool publish_markers_ = true;
   std::string target_subject_name_ = "";
   std::string target_segment_name_ = "";
   std::string world_frame_id_ = "world";
@@ -84,6 +88,8 @@ private:
 
   SegmentMap segment_publishers_;
   boost::mutex segments_mutex_;
+
+  rclcpp::Publisher<vicon_bridge::msg::Markers>::SharedPtr marker_pub_;
 
   double tolerance_ = 0.1;
   int window_ = 100;

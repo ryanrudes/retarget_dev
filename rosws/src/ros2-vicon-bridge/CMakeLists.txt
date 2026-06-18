@@ -89,6 +89,10 @@ ament_target_dependencies(vicon_bridge_node
   diagnostic_updater
 )
 target_link_libraries(vicon_bridge_node vicon_sdk ${Boost_LIBRARIES})
+# link the locally-generated Marker/Markers message typesupport
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
+target_link_libraries(vicon_bridge_node "${cpp_typesupport_target}")
 if(APPLE)
   target_link_directories(vicon_bridge_node PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 endif()
