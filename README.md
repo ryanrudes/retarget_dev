@@ -42,6 +42,14 @@ Unbag the ROS bag in JSON format, using the `/tf` topic as the master. Every sub
 
 At the end of export, `[WARNING]` lines summarize any `/tf` frames dropped by resampling and any per-marker omissions when `discard_eps` could not be met.
 
+`scripts/unbag.sh` wraps that whole pipeline — pass a bag directory name under `bags/`:
+
+```bash
+scripts/unbag.sh ground_estimation
+```
+
+It finds `bags/<name>/<name>_*.db3`, sources the built bridge (for the `vicon_bridge/Markers` type), and writes `bags/<name>/unbagged/`. The full command it runs is:
+
 ```bash
 ros2 unbag bags/ground_estimation/ground_estimation_0.db3 \
   --output-dir bags/ground_estimation/unbagged \
