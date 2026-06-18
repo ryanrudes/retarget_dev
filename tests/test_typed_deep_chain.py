@@ -27,6 +27,7 @@ from retarget.core import (
 )
 from retarget.core.types import TimeVec3
 from retarget.demo import Demonstration, MocapTrack, Tracks
+from retarget.demo.contact import ContactTrack
 
 
 class ShoeMarkers(Markers):
@@ -93,3 +94,18 @@ def test_deep_chain_static_and_runtime_types() -> None:
     assert isinstance(heel, Marker)
     assert isinstance(segment.patches["sole"], Patch)
     np.testing.assert_allclose(heel.positions(modeled=True)[0], np.zeros(3))
+
+
+def test_with_contacts_preserves_typed_deep_chain() -> None:
+    track = _track()
+    attached = track.with_contacts(ContactTrack(timestamps=track.timestamps, contacts={}))
+
+    # Attaching contacts returns the same parametrized track type, so the typed
+    # deep chain still resolves to the authored types.
+    assert_type(attached, MocapTrack[MySubjects])
+    assert isinstance(attached, MocapTrack)
+
+    segment = attached.subjects["left_shoe"].segments["shoe"]
+    assert_type(segment, Segment[ShoeMarkers, ShoePatches])
+    assert_type(segment.patches["sole"], Patch)
+    assert isinstance(segment.patches["sole"], Patch)
