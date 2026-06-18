@@ -28,5 +28,8 @@ vendor/ros2_unbag/ros2_unbag.egg-info/
 # Unbagged bags
 bags/**/unbagged/
 
+# Example plot outputs
+contact_timeline.png
+
 # Body models
 models/
