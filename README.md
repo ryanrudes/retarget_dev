@@ -16,6 +16,18 @@ source install/setup.zsh
 cd ..
 ```
 
+Start the bridge (set your Vicon computer's IP in `vicon_computer_ip` inside
+`rosws/src/ros2-vicon-bridge/launch/all_segments.launch.py` first). In a shell where the
+workspace is sourced (`source rosws/install/setup.zsh`):
+
+```bash
+ros2 launch vicon_bridge all_segments.launch.py
+```
+
+This starts the `vicon_bridge` node with `publish_markers:=True`, broadcasting every tracked
+subject's pose on `/tf` and the marker cloud on `/vicon/markers`. Leave it running and record
+in a second sourced shell.
+
 Record a session as a ROS 2 bag (run from `bags/`, with the bridge running and Vicon streaming):
 
 ```bash
