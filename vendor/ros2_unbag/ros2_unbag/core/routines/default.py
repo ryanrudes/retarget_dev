@@ -22,6 +22,7 @@
 
 import csv
 import json
+import os
 from pathlib import Path
 
 from rosidl_runtime_py import message_to_ordereddict, message_to_yaml
@@ -89,12 +90,24 @@ def export_generic_single_file(msg, path: Path, fmt: str, metadata: ExportMetada
         payload = _serialize_message_with_timestamp(msg, "csv", timestamp)
         file_ending = ".csv"
 
+    out_path = path.with_suffix(file_ending)
+
+    # JSON is written so the file is a complete, valid object after *every*
+    # record. We do not rely on is_first/is_last (the resampling path computes a
+    # max_index from the raw bag count, so is_last may never fire, and a re-run
+    # may start at a non-zero index, leaving the file unclosed or concatenated).
+    # A single dedicated sequential worker owns each single-file output, so
+    # writes are in-order and a seek-back rewrite is safe.
+    if fmt == "text/json":
+        _append_json_record(out_path, payload)
+        return
+
     # Determine if this is the first or last message for the file
     is_first = metadata.index == 0
     is_last = metadata.index == metadata.max_index
 
     # Save the serialized message to a file - if the filename is constant, messages will be appended
-    with open(path.with_suffix(file_ending), "a+") as f:
+    with open(out_path, "a+") as f:
         if is_first:
             # clear the file if this is the first message
             f.seek(0)
@@ -115,21 +128,81 @@ def _serialize_message_with_timestamp(msg, fmt, timestamp):
     Returns:
         str: Serialized message as a string.
     """
+    # Several messages can share one export timestamp -- notably a TFMessage,
+    # which bag_reader flattens into one TransformStamped per transform, all
+    # carrying the same /tf message stamp. Single-file JSON/YAML key by timestamp,
+    # so without a disambiguator those same-stamp records collide and all but the
+    # last are lost (e.g. a 3-subject /tf collapses to 1). child_frame_id is
+    # present only on transforms, so append it to keep them distinct.
+    child_frame_id = getattr(msg, "child_frame_id", None)
+    timestamp_key = timestamp.isoformat()
+    if child_frame_id:
+        timestamp_key = f"{timestamp_key}#{child_frame_id}"
+
     if fmt == "json":
         message_dict = message_to_ordereddict(msg)
         serialized_line = json.dumps(message_dict, default=str)
-        serialized_line_with_timestamp = f'"{timestamp.isoformat()}": {serialized_line}'
+        serialized_line_with_timestamp = f'"{timestamp_key}": {serialized_line}'
         return serialized_line_with_timestamp
     elif fmt == "yaml":
         yaml_content = message_to_yaml(msg)
         indented_yaml_content = "\n".join(f"  {line}" for line in yaml_content.splitlines())
-        serialized_line_with_timestamp = f"{timestamp}:\n{indented_yaml_content}"
+        serialized_line_with_timestamp = f"{timestamp_key}:\n{indented_yaml_content}"
         return serialized_line_with_timestamp
     elif fmt == "csv":
         flat_data = _flatten(message_to_ordereddict(msg))
         header = ["timestamp", *flat_data.keys()]
         values = [str(timestamp), *flat_data.values()]
         return [header, values]
+
+
+# Single-file JSON outputs this worker process has already begun. The first
+# write to a path truncates any prior file; later writes append in place. This
+# replaces the brittle metadata.index == 0 "is_first" check.
+_json_started_paths: set = set()
+
+
+def _append_json_record(out_path, record):
+    """Append one ``"timestamp": {...}`` record to a single-file JSON export.
+
+    The file is kept a complete, valid JSON object after every call: the first
+    record writes ``{\\n<record>\\n}\\n``; each subsequent record seeks back over
+    the trailing ``}``, writes ``,\\n<record>\\n}\\n``, and truncates. An export
+    interrupted at any point (crash, Ctrl-C, wrong is_last) therefore still
+    leaves a loadable object on disk.
+
+    Args:
+        out_path: Path of the .json output file.
+        record: Serialized ``"timestamp": {...}`` record without braces/comma.
+
+    Returns:
+        None
+    """
+    out_path = Path(out_path)
+    if out_path not in _json_started_paths:
+        _json_started_paths.add(out_path)
+        with open(out_path, "w") as f:
+            f.write("{\n" + record + "\n}\n")
+        return
+
+    with open(out_path, "r+") as f:
+        f.seek(0, os.SEEK_END)
+        end = f.tell()
+        # Find the closing brace that terminates the object, scanning the tail.
+        read_size = min(end, 64)
+        f.seek(end - read_size)
+        tail = f.read(read_size)
+        brace = tail.rfind("}")
+        if brace == -1:
+            # Not a closed object (empty/corrupt) — rewrite as a fresh object.
+            f.seek(0)
+            f.truncate()
+            f.write("{\n" + record + "\n}\n")
+            return
+        # Overwrite from the closing brace onward with the new record + close.
+        f.seek(end - read_size + brace)
+        f.truncate()
+        f.write(",\n" + record + "\n}\n")
 
 
 def _write_line(file, line, filetype, is_first, is_last):
