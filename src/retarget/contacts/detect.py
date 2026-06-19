@@ -51,6 +51,7 @@ class _PatchData:
 
     target: PatchTarget
     points: FloatArray
+    sample_points: FloatArray  # (T, K, 3): footprint samples for region-aware clearance
     velocities: FloatArray
     frames: TimeMat3
     quiet: QuietResult
@@ -104,9 +105,18 @@ def _gather_patch_data(patch: Patch[Any], resolved: ResolvedConfig) -> _PatchDat
     frames = patch.frames()
     quiet = detect_quiet(points, timestamps, resolved.quiet)
     coverage = cast(FloatArray1D, np.asarray(patch.pose_coverage(), dtype=np.float64))
+    # Region-aware contact samples the rectangle's corners + center; for a planar
+    # support the closest approach is exactly at a corner. Motion features stay on
+    # the center point; only clearance uses the footprint.
+    if resolved.region_contact and patch.region is not None:
+        corners = np.asarray(patch.boundary_points(), dtype=np.float64)  # (T, 4, 3)
+        sample_points = cast(FloatArray, np.concatenate([corners, points[:, None, :]], axis=1))
+    else:
+        sample_points = points[:, None, :]
     return _PatchData(
         target=patch.target,
         points=points,
+        sample_points=sample_points,
         velocities=velocities,
         frames=frames,
         quiet=quiet,
@@ -151,21 +161,31 @@ def _resolve_support(
 
 def _evaluate_support(
     support: SupportModel | TimeIndexedSupport,
-    points: FloatArray,
+    sample_points: FloatArray,
+    center_points: FloatArray,
     target: PatchTarget,
 ) -> tuple[FloatArray, Points3]:
-    """Return ``(clearance (T,), normals (T, 3))`` of ``points`` against ``support``."""
+    """Return ``(closest-approach clearance (T,), normals (T, 3))`` of the footprint.
+
+    Clearance is the minimum over the ``K`` footprint samples in ``sample_points``
+    ``(T, K, 3)`` (the rectangle corners + center; ``K=1`` for point-based), so a
+    patch reads as touching when its nearest part does. The support normal is read at
+    ``center_points`` ``(T, 3)``.
+    """
+    n_time, n_samples, _ = sample_points.shape
     if isinstance(support, TimeIndexedSupport):
-        if len(support) != len(points):
+        if len(support) != n_time:
             raise ValueError(
                 f"moving support length {len(support)} does not match patch "
-                f"{target.patch!r} length {len(points)} (different timelines?)"
+                f"{target.patch!r} length {n_time} (different timelines?)"
             )
-        clearance = np.sum((points - support.origins) * support.normals, axis=1)
-        return cast(FloatArray, clearance), support.normals
-    clearance = support.clearance(cast(Points3, points))
-    normals = support.normals_at(cast(Points3, points))
-    return cast(FloatArray, np.asarray(clearance, dtype=np.float64)), cast(Points3, np.asarray(normals, dtype=np.float64))
+        diff = sample_points - support.origins[:, None, :]  # (T, K, 3)
+        per_sample = np.einsum("tkd,td->tk", diff, support.normals)  # (T, K)
+        return cast(FloatArray, per_sample.min(axis=1)), support.normals
+    flat = cast(Points3, sample_points.reshape(n_time * n_samples, 3))
+    per_sample = np.asarray(support.clearance(flat), dtype=np.float64).reshape(n_time, n_samples)
+    normals = np.asarray(support.normals_at(cast(Points3, center_points)), dtype=np.float64)
+    return cast(FloatArray, per_sample.min(axis=1)), cast(Points3, normals)
 
 
 def _detect_patch(
@@ -174,7 +194,7 @@ def _detect_patch(
     resolved: ResolvedConfig,
 ) -> tuple[TimeBool, FloatArray]:
     """Detect one patch against one support; return ``(contact_mask, score)``."""
-    clearance, normals = _evaluate_support(support, data.points, data.target)
+    clearance, normals = _evaluate_support(support, data.sample_points, data.points, data.target)
     angular = angular_speed_from_frames(data.frames, data.timestamps)
     features = compute_features(
         clearance=clearance,

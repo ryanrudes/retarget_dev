@@ -65,6 +65,7 @@ class ResolvedConfig:
     jumps: JumpDetector | None
     unknown_min_duration: float
     up_axis: int
+    region_contact: bool
     quiet: QuietParams
     support: SupportParams
 
@@ -88,6 +89,9 @@ class ContactDetectionConfig:
             = coverage only.
         up_axis: Semantic up direction used for the inferred floor and plane normals.
         axis_convention: Maps semantic axes to concrete world axes.
+        region_contact: Use the whole patch footprint (the rectangle's closest
+            approach to the support) rather than only the center point, so a patch
+            counts as touching when any part of it does. ``False`` = point-based.
         advanced: Full reference parameter set; rarely overridden.
     """
 
@@ -100,6 +104,7 @@ class ContactDetectionConfig:
     jumps: JumpDetector | None = None
     up_axis: SemanticAxis = SemanticAxis.UP
     axis_convention: AxisConvention = Z_UP_AXES
+    region_contact: bool = True
     advanced: _AdvancedContactConfig = field(default_factory=_AdvancedContactConfig)
 
     def __post_init__(self) -> None:
@@ -141,6 +146,7 @@ class ContactDetectionConfig:
             jumps=self.jumps,
             unknown_min_duration=advanced.unknown_min_duration,
             up_axis=up_index,
+            region_contact=self.region_contact,
             quiet=advanced.quiet,
             support=replace(advanced.support, up_axis=up_index),
         )
