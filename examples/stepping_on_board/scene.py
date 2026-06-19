@@ -15,6 +15,22 @@ from retarget.core import (
     Patch,
     Marker,
     SemanticAxis,
+    bounding_box,
+)
+
+# Foot markers whose projected footprint sizes + centers the sole patch (the three
+# "plane" markers are a calibration jig and only fit the plane).
+SOLE_FOOTPRINT_MARKERS = (
+    "heel",
+    "toe",
+    "sole_inner",
+    "sole_outer",
+    "heel_inner_1",
+    "heel_inner_2",
+    "heel_outer_1",
+    "heel_outer_2",
+    "toe_inner",
+    "toe_outer",
 )
 
 from schema import (
@@ -99,13 +115,8 @@ def get_left_shoe_patches() -> LeftShoePatches:
     return LeftShoePatches(
         sole=Patch.rectangle(
             label="sole",
-            markers=(
-                "plane_rear",
-                "plane_inner",
-                "plane_outer",
-            ),
-            width=0.10,
-            height=0.25,
+            markers=("plane_rear", "plane_inner", "plane_outer"),  # fit the plane only
+            extent=bounding_box(*SOLE_FOOTPRINT_MARKERS, padding=0.005),  # origin + size
             outward_axis=SemanticAxis.UP,
             forward_axis=SemanticAxis.FORWARD,
             normal_offset=SOLE_PLANE_NORMAL_OFFSET,
