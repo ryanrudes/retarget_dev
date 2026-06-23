@@ -37,8 +37,12 @@ contact_timeline.png
 # Archived pre-restructure examples (kept locally, not tracked)
 examples/old_examples/
 
-# Body models
-models/
+# Large body-model weights (SMPL / GVHMR etc.); the .vsk marker definitions in models/ are tracked
+models/**/*.pkl
+models/**/*.npz
+models/**/*.pt
+models/**/*.pth
+models/**/*.onnx
 
 # Claude Code local config
 .claude/

@@ -1,0 +1,523 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<KinematicModel VERSION="2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.vicon.com/Schemas/ViconVST.xsd">
+
+
+
+  <Parameters>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113139_x" PRIOR="98.0359344482422" SD="1.00000002004088e+020" VALUE="98.0359344482422"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113139_y" PRIOR="45.3199272155762" SD="1.00000002004088e+020" VALUE="45.3199272155762"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113139_z" PRIOR="13.3745985031128" SD="1.00000002004088e+020" VALUE="13.3745985031128"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113140_x" PRIOR="138.943176269531" SD="1.00000002004088e+020" VALUE="138.943176269531"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113140_y" PRIOR="1.33205723762512" SD="1.00000002004088e+020" VALUE="1.33205723762512"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113140_z" PRIOR="-7.81536197662354" SD="1.00000002004088e+020" VALUE="-7.81536197662354"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113141_x" PRIOR="120.609985351563" SD="1.00000002004088e+020" VALUE="120.609985351563"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113141_y" PRIOR="32.6082878112793" SD="1.00000002004088e+020" VALUE="32.6082878112793"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113141_z" PRIOR="18.5106925964355" SD="1.00000002004088e+020" VALUE="18.5106925964355"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113156_x" PRIOR="-88.9923858642578" SD="1.00000002004088e+020" VALUE="-88.9923858642578"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113156_y" PRIOR="57.6899528503418" SD="1.00000002004088e+020" VALUE="57.6899528503418"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113156_z" PRIOR="-7.08792591094971" SD="1.00000002004088e+020" VALUE="-7.08792591094971"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113157_x" PRIOR="-80.2754898071289" SD="1.00000002004088e+020" VALUE="-80.2754898071289"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113157_y" PRIOR="-69.4380416870117" SD="1.00000002004088e+020" VALUE="-69.4380416870117"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113157_z" PRIOR="-3.28754901885986" SD="1.00000002004088e+020" VALUE="-3.28754901885986"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113158_x" PRIOR="-177.663269042969" SD="1.00000002004088e+020" VALUE="-177.663269042969"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113158_y" PRIOR="6.87169981002808" SD="1.00000002004088e+020" VALUE="6.87169981002808"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113158_z" PRIOR="5.47901821136475" SD="1.00000002004088e+020" VALUE="5.47901821136475"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113159_x" PRIOR="-109.499382019043" SD="1.00000002004088e+020" VALUE="-109.499382019043"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113159_y" PRIOR="12.9984998703003" SD="1.00000002004088e+020" VALUE="12.9984998703003"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113159_z" PRIOR="25.8969078063965" SD="1.00000002004088e+020" VALUE="25.8969078063965"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113160_x" PRIOR="-133.53303527832" SD="1.00000002004088e+020" VALUE="-133.53303527832"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113160_y" PRIOR="-11.5297441482544" SD="1.00000002004088e+020" VALUE="-11.5297441482544"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113160_z" PRIOR="19.4630126953125" SD="1.00000002004088e+020" VALUE="19.4630126953125"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113161_x" PRIOR="-28.8215351104736" SD="1.00000002004088e+020" VALUE="-28.8215351104736"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113161_y" PRIOR="95.3081741333008" SD="1.00000002004088e+020" VALUE="95.3081741333008"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113161_z" PRIOR="-30.0339088439941" SD="1.00000002004088e+020" VALUE="-30.0339088439941"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113162_x" PRIOR="-133.047729492188" SD="1.00000002004088e+020" VALUE="-133.047729492188"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113162_y" PRIOR="13.7909650802612" SD="1.00000002004088e+020" VALUE="13.7909650802612"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113162_z" PRIOR="21.7782249450684" SD="1.00000002004088e+020" VALUE="21.7782249450684"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113163_x" PRIOR="-109.62622833252" SD="1.00000002004088e+020" VALUE="-109.62622833252"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113163_y" PRIOR="-12.9016923904419" SD="1.00000002004088e+020" VALUE="-12.9016923904419"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113163_z" PRIOR="24.3598289489746" SD="1.00000002004088e+020" VALUE="24.3598289489746"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113164_x" PRIOR="195.651458740234" SD="1.00000002004088e+020" VALUE="195.651458740234"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113164_y" PRIOR="5.24253416061401" SD="1.00000002004088e+020" VALUE="5.24253416061401"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113164_z" PRIOR="-30.8015232086182" SD="1.00000002004088e+020" VALUE="-30.8015232086182"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113165_x" PRIOR="-12.3611345291138" SD="1.00000002004088e+020" VALUE="-12.3611345291138"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113165_y" PRIOR="-99.2032089233398" SD="1.00000002004088e+020" VALUE="-99.2032089233398"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113165_z" PRIOR="-29.4864978790283" SD="1.00000002004088e+020" VALUE="-29.4864978790283"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113166_x" PRIOR="63.207576751709" SD="1.00000002004088e+020" VALUE="63.207576751709"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113166_y" PRIOR="-49.5549659729004" SD="1.00000002004088e+020" VALUE="-49.5549659729004"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113166_z" PRIOR="-23.2391147613525" SD="1.00000002004088e+020" VALUE="-23.2391147613525"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113167_x" PRIOR="100.15608215332" SD="1.00000002004088e+020" VALUE="100.15608215332"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113167_y" PRIOR="-41.9261207580566" SD="1.00000002004088e+020" VALUE="-41.9261207580566"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113167_z" PRIOR="12.1956167221069" SD="1.00000002004088e+020" VALUE="12.1956167221069"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113168_x" PRIOR="121.586311340332" SD="1.00000002004088e+020" VALUE="121.586311340332"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113168_y" PRIOR="-27.5317726135254" SD="1.00000002004088e+020" VALUE="-27.5317726135254"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113168_z" PRIOR="17.4793739318848" SD="1.00000002004088e+020" VALUE="17.4793739318848"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113169_x" PRIOR="35.6296653747559" SD="1.00000002004088e+020" VALUE="35.6296653747559"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113169_y" PRIOR="40.9234428405762" SD="1.00000002004088e+020" VALUE="40.9234428405762"/>
+
+    <Parameter HIDDEN="1" NAME="Left_Shoe_Improved_Unlabeled113169_z" PRIOR="-26.7853832244873" SD="1.00000002004088e+020" VALUE="-26.7853832244873"/>
+
+  </Parameters>
+
+
+
+  <Skeleton>
+
+    <Segment BOUNDS="-50 -50 -50 50 50 50 " CONTEXT="Left" INERTIA="0 0 0 " MASS="0 " MASS-CENTRE="0 0 0 " NAME="Left_Shoe_Improved" RGB="255 0 0">
+
+      <JointFree BOUNDS="0 0 0 0 0 0 0 0 0 0 0 0" COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" NAME="World_Left_Shoe_Improved" POST-ORIENTATION="0 0 0" POST-POSITION="0 0 0" PRE-ORIENTATION="0 0 0" PRE-POSITION="0 0 0" SIGNS="+ + + + + + " T="* * * * * * ">
+
+        <JointTemplate COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" POST-ORIENTATION="0 0 0 " POST-POSITION="0 0 0 " PRE-ORIENTATION="0 0 0 " PRE-POSITION="0 0 0 " TPOSE-COVARIANCE="0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  " TPOSE-MEAN="0 0 0 0 0 0"/>
+
+      </JointFree>
+
+    </Segment>
+
+  </Skeleton>
+
+
+
+  <MarkerSet>
+
+    <Markers>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="heel_inner_2" POSITION="98.0359 45.3199 13.3746" RADIUS="3.20000004768372" RGB="255 255 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113139_x' 'Left_Shoe_Improved_Unlabeled113139_y' 'Left_Shoe_Improved_Unlabeled113139_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="heel" POSITION="138.943 1.33206 -7.81536" RADIUS="7" RGB="170 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113140_x' 'Left_Shoe_Improved_Unlabeled113140_y' 'Left_Shoe_Improved_Unlabeled113140_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="heel_inner_1" POSITION="120.61 32.6083 18.5107" RADIUS="3.20000004768372" RGB="255 255 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113141_x' 'Left_Shoe_Improved_Unlabeled113141_y' 'Left_Shoe_Improved_Unlabeled113141_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_inner" POSITION="-88.9924 57.69 -7.08793" RADIUS="7" RGB="170 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113156_x' 'Left_Shoe_Improved_Unlabeled113156_y' 'Left_Shoe_Improved_Unlabeled113156_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_outer" POSITION="-80.2755 -69.438 -3.28755" RADIUS="7" RGB="170 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113157_x' 'Left_Shoe_Improved_Unlabeled113157_y' 'Left_Shoe_Improved_Unlabeled113157_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe" POSITION="-177.663 6.8717 5.47902" RADIUS="7.93750047683716" RGB="170 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113158_x' 'Left_Shoe_Improved_Unlabeled113158_y' 'Left_Shoe_Improved_Unlabeled113158_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_grid_4" POSITION="-109.499 12.9985 25.8969" RADIUS="3.20000004768372" RGB="0 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113159_x' 'Left_Shoe_Improved_Unlabeled113159_y' 'Left_Shoe_Improved_Unlabeled113159_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_grid_2" POSITION="-133.533 -11.5297 19.463" RADIUS="3.20000004768372" RGB="0 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113160_x' 'Left_Shoe_Improved_Unlabeled113160_y' 'Left_Shoe_Improved_Unlabeled113160_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="plane_inner" POSITION="-28.8215 95.3082 -30.0339" RADIUS="3.20000004768372" RGB="0 170 0" SEGMENT="Left_Shoe_Improved" STATUS="constraint">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113161_x' 'Left_Shoe_Improved_Unlabeled113161_y' 'Left_Shoe_Improved_Unlabeled113161_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_grid_1" POSITION="-133.048 13.791 21.7782" RADIUS="3.20000004768372" RGB="0 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113162_x' 'Left_Shoe_Improved_Unlabeled113162_y' 'Left_Shoe_Improved_Unlabeled113162_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="toe_grid_3" POSITION="-109.626 -12.9017 24.3598" RADIUS="3.20000004768372" RGB="0 85 255" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113163_x' 'Left_Shoe_Improved_Unlabeled113163_y' 'Left_Shoe_Improved_Unlabeled113163_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="plane_rear" POSITION="195.651 5.24253 -30.8015" RADIUS="3.20000004768372" RGB="0 170 0" SEGMENT="Left_Shoe_Improved" STATUS="constraint">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113164_x' 'Left_Shoe_Improved_Unlabeled113164_y' 'Left_Shoe_Improved_Unlabeled113164_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="plane_outer" POSITION="-12.3611 -99.2032 -29.4865" RADIUS="3.20000004768372" RGB="0 170 0" SEGMENT="Left_Shoe_Improved" STATUS="constraint">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113165_x' 'Left_Shoe_Improved_Unlabeled113165_y' 'Left_Shoe_Improved_Unlabeled113165_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="sole_outer" POSITION="63.2076 -49.555 -23.2391" RADIUS="4.75" RGB="255 85 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113166_x' 'Left_Shoe_Improved_Unlabeled113166_y' 'Left_Shoe_Improved_Unlabeled113166_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="heel_outer_2" POSITION="100.156 -41.9261 12.1956" RADIUS="3.20000004768372" RGB="255 255 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113167_x' 'Left_Shoe_Improved_Unlabeled113167_y' 'Left_Shoe_Improved_Unlabeled113167_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="heel_outer_1" POSITION="121.586 -27.5318 17.4794" RADIUS="3.20000004768372" RGB="255 255 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113168_x' 'Left_Shoe_Improved_Unlabeled113168_y' 'Left_Shoe_Improved_Unlabeled113168_z'"/>
+
+      </Marker>
+
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="sole_inner" POSITION="35.6297 40.9234 -26.7854" RADIUS="4.75" RGB="255 85 0" SEGMENT="Left_Shoe_Improved" STATUS="required">
+
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Left_Shoe_Improved_Unlabeled113169_x' 'Left_Shoe_Improved_Unlabeled113169_y' 'Left_Shoe_Improved_Unlabeled113169_z'"/>
+
+      </Marker>
+
+    </Markers>
+
+    <Sticks>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="heel" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="heel_inner_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_grid_4" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_grid_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="plane_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_grid_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="toe_grid_3" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="plane_rear" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="plane_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="sole_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_2" MARKER2="sole_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel" MARKER2="heel_inner_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_grid_4" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_grid_2" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="plane_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_grid_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="toe_grid_3" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="plane_rear" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="plane_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="sole_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="heel_outer_2" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="heel_outer_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel" MARKER2="sole_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_grid_4" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_grid_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="plane_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_grid_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="toe_grid_3" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="plane_rear" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="plane_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="sole_outer" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_inner_1" MARKER2="sole_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe_grid_4" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe_grid_2" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="plane_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe_grid_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="toe_grid_3" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="plane_rear" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="plane_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_inner" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="toe" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="toe_grid_4" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="toe_grid_2" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="plane_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="toe_grid_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="toe_grid_3" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="plane_rear" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="plane_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_outer" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe" MARKER2="toe_grid_4" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="toe_grid_2" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="plane_inner" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="toe_grid_1" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="toe_grid_3" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="plane_rear" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="plane_outer" RGB="170 85 255"/>
+
+      <Stick MARKER1="toe" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="toe_grid_2" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="plane_inner" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="toe_grid_1" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="toe_grid_3" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="plane_rear" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_4" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="plane_inner" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="toe_grid_1" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="toe_grid_3" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="plane_rear" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_2" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="toe_grid_1" RGB="0 170 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="toe_grid_3" RGB="0 170 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="plane_rear" RGB="0 170 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_inner" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="toe_grid_3" RGB="0 85 255"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="plane_rear" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_1" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="plane_rear" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="toe_grid_3" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_rear" MARKER2="plane_outer" RGB="0 170 0"/>
+
+      <Stick MARKER1="plane_rear" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_rear" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_rear" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_rear" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_outer" MARKER2="sole_outer" RGB="255 85 0"/>
+
+      <Stick MARKER1="plane_outer" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_outer" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="plane_outer" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="sole_outer" MARKER2="heel_outer_2" RGB="255 255 0"/>
+
+      <Stick MARKER1="sole_outer" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="sole_outer" MARKER2="sole_inner" RGB="255 85 0"/>
+
+      <Stick MARKER1="heel_outer_2" MARKER2="heel_outer_1" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_outer_2" MARKER2="sole_inner" RGB="255 255 0"/>
+
+      <Stick MARKER1="heel_outer_1" MARKER2="sole_inner" RGB="255 255 0"/>
+
+    </Sticks>
+
+  </MarkerSet>
+
+
+
+  <Alignment/>
+
+
+
+</KinematicModel>

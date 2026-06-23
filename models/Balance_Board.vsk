@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<KinematicModel VERSION="2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.vicon.com/Schemas/ViconVST.xsd">
+
+  <Parameters>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181748_x" PRIOR="-295.283905029297" SD="1.00000002004088e+020" VALUE="-295.283905029297"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181748_y" PRIOR="165.04963684082" SD="1.00000002004088e+020" VALUE="165.04963684082"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181748_z" PRIOR="4.97006177902222" SD="1.00000002004088e+020" VALUE="4.97006177902222"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181749_x" PRIOR="-326.023162841797" SD="1.00000002004088e+020" VALUE="-326.023162841797"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181749_y" PRIOR="18.3868503570557" SD="1.00000002004088e+020" VALUE="18.3868503570557"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181749_z" PRIOR="7.24210691452026" SD="1.00000002004088e+020" VALUE="7.24210691452026"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181750_x" PRIOR="-342.014526367188" SD="1.00000002004088e+020" VALUE="-342.014526367188"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181750_y" PRIOR="110.396949768066" SD="1.00000002004088e+020" VALUE="110.396949768066"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled181750_z" PRIOR="-4.93910646438599" SD="1.00000002004088e+020" VALUE="-4.93910646438599"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182358_x" PRIOR="305.201293945313" SD="1.00000002004088e+020" VALUE="305.201293945313"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182358_y" PRIOR="23.9058933258057" SD="1.00000002004088e+020" VALUE="23.9058933258057"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182358_z" PRIOR="2.54151844978333" SD="1.00000002004088e+020" VALUE="2.54151844978333"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182405_x" PRIOR="369.816131591797" SD="1.00000002004088e+020" VALUE="369.816131591797"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182405_y" PRIOR="-119.458702087402" SD="1.00000002004088e+020" VALUE="-119.458702087402"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182405_z" PRIOR="-11.5251703262329" SD="1.00000002004088e+020" VALUE="-11.5251703262329"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182450_x" PRIOR="288.304138183594" SD="1.00000002004088e+020" VALUE="288.304138183594"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182450_y" PRIOR="-198.280624389648" SD="1.00000002004088e+020" VALUE="-198.280624389648"/>
+    <Parameter HIDDEN="1" NAME="Balance_Board_Unlabeled182450_z" PRIOR="1.71058976650238" SD="1.00000002004088e+020" VALUE="1.71058976650238"/>
+  </Parameters>
+
+  <Skeleton>
+    <Segment BOUNDS="-50 -50 -50 50 50 50 " CONTEXT="General" INERTIA="0 0 0 " MASS="0 " MASS-CENTRE="0 0 0 " NAME="Balance_Board" RGB="255 164 0">
+      <JointFree BOUNDS="0 0 0 0 0 0 0 0 0 0 0 0" COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" NAME="World_Balance_Board" POST-ORIENTATION="0 0 0" POST-POSITION="0 0 0" PRE-ORIENTATION="0 0 0" PRE-POSITION="0 0 0" SIGNS="+ + + + + + " T="* * * * * * ">
+        <JointTemplate COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" POST-ORIENTATION="0 0 0 " POST-POSITION="0 0 0 " PRE-ORIENTATION="0 0 0 " PRE-POSITION="0 0 0 " TPOSE-COVARIANCE="0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  " TPOSE-MEAN="0 0 0 0 0 0"/>
+      </JointFree>
+    </Segment>
+  </Skeleton>
+
+  <MarkerSet>
+    <Markers>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Surface3" POSITION="-295.284 165.05 4.97006" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled181748_x' 'Balance_Board_Unlabeled181748_y' 'Balance_Board_Unlabeled181748_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Surface4" POSITION="-326.023 18.3869 7.24211" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled181749_x' 'Balance_Board_Unlabeled181749_y' 'Balance_Board_Unlabeled181749_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Edge2" POSITION="-342.015 110.397 -4.93911" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled181750_x' 'Balance_Board_Unlabeled181750_y' 'Balance_Board_Unlabeled181750_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Surface2" POSITION="305.201 23.9059 2.54152" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled182358_x' 'Balance_Board_Unlabeled182358_y' 'Balance_Board_Unlabeled182358_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Edge1" POSITION="369.816 -119.459 -11.5252" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled182405_x' 'Balance_Board_Unlabeled182405_y' 'Balance_Board_Unlabeled182405_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Surface1" POSITION="288.304 -198.281 1.71059" RADIUS="3.20000004768372" RGB="255 164 0" SEGMENT="Balance_Board" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Balance_Board_Unlabeled182450_x' 'Balance_Board_Unlabeled182450_y' 'Balance_Board_Unlabeled182450_z'"/>
+      </Marker>
+    </Markers>
+    <Sticks>
+      <Stick MARKER1="Surface3" MARKER2="Surface4" RGB="255 164 0"/>
+      <Stick MARKER1="Surface3" MARKER2="Edge2" RGB="255 164 0"/>
+      <Stick MARKER1="Surface3" MARKER2="Surface2" RGB="255 164 0"/>
+      <Stick MARKER1="Surface3" MARKER2="Edge1" RGB="255 164 0"/>
+      <Stick MARKER1="Surface3" MARKER2="Surface1" RGB="255 164 0"/>
+      <Stick MARKER1="Surface4" MARKER2="Edge2" RGB="255 164 0"/>
+      <Stick MARKER1="Surface4" MARKER2="Surface2" RGB="255 164 0"/>
+      <Stick MARKER1="Surface4" MARKER2="Edge1" RGB="255 164 0"/>
+      <Stick MARKER1="Surface4" MARKER2="Surface1" RGB="255 164 0"/>
+      <Stick MARKER1="Edge2" MARKER2="Surface2" RGB="255 164 0"/>
+      <Stick MARKER1="Edge2" MARKER2="Edge1" RGB="255 164 0"/>
+      <Stick MARKER1="Edge2" MARKER2="Surface1" RGB="255 164 0"/>
+      <Stick MARKER1="Surface2" MARKER2="Edge1" RGB="255 164 0"/>
+      <Stick MARKER1="Surface2" MARKER2="Surface1" RGB="255 164 0"/>
+      <Stick MARKER1="Edge1" MARKER2="Surface1" RGB="255 164 0"/>
+    </Sticks>
+  </MarkerSet>
+
+  <Alignment/>
+
+</KinematicModel>

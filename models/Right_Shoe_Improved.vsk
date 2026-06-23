@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<KinematicModel VERSION="2.5" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://www.vicon.com/Schemas/ViconVST.xsd">
+
+  <Parameters>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179766_x" PRIOR="40.9160232543945" SD="1.00000002004088e+020" VALUE="40.9160232543945"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179766_y" PRIOR="105.628814697266" SD="1.00000002004088e+020" VALUE="105.628814697266"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179766_z" PRIOR="-26.3314914703369" SD="1.00000002004088e+020" VALUE="-26.3314914703369"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179838_x" PRIOR="-145.061370849609" SD="1.00000002004088e+020" VALUE="-145.061370849609"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179838_y" PRIOR="-20.1862602233887" SD="1.00000002004088e+020" VALUE="-20.1862602233887"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179838_z" PRIOR="9.06713581085205" SD="1.00000002004088e+020" VALUE="9.06713581085205"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179839_x" PRIOR="-13.7778997421265" SD="1.00000002004088e+020" VALUE="-13.7778997421265"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179839_y" PRIOR="49.1317176818848" SD="1.00000002004088e+020" VALUE="49.1317176818848"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179839_z" PRIOR="20.1037502288818" SD="1.00000002004088e+020" VALUE="20.1037502288818"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179840_x" PRIOR="-103.040504455566" SD="1.00000002004088e+020" VALUE="-103.040504455566"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179840_y" PRIOR="39.7205238342285" SD="1.00000002004088e+020" VALUE="39.7205238342285"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179840_z" PRIOR="1.63929867744446" SD="1.00000002004088e+020" VALUE="1.63929867744446"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179841_x" PRIOR="-46.8504104614258" SD="1.00000002004088e+020" VALUE="-46.8504104614258"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179841_y" PRIOR="-68.4566192626953" SD="1.00000002004088e+020" VALUE="-68.4566192626953"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179841_z" PRIOR="-3.107088804245" SD="1.00000002004088e+020" VALUE="-3.107088804245"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179842_x" PRIOR="-94.3813858032227" SD="1.00000002004088e+020" VALUE="-94.3813858032227"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179842_y" PRIOR="-24.9498558044434" SD="1.00000002004088e+020" VALUE="-24.9498558044434"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179842_z" PRIOR="25.0289630889893" SD="1.00000002004088e+020" VALUE="25.0289630889893"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179844_x" PRIOR="-73.5586929321289" SD="1.00000002004088e+020" VALUE="-73.5586929321289"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179844_y" PRIOR="-24.0985984802246" SD="1.00000002004088e+020" VALUE="-24.0985984802246"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179844_z" PRIOR="27.4985408782959" SD="1.00000002004088e+020" VALUE="27.4985408782959"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179845_x" PRIOR="172.149475097656" SD="1.00000002004088e+020" VALUE="172.149475097656"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179845_y" PRIOR="7.55424833297729" SD="1.00000002004088e+020" VALUE="7.55424833297729"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179845_z" PRIOR="-4.29116868972778" SD="1.00000002004088e+020" VALUE="-4.29116868972778"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179846_x" PRIOR="58.5185165405273" SD="1.00000002004088e+020" VALUE="58.5185165405273"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179846_y" PRIOR="54.5304298400879" SD="1.00000002004088e+020" VALUE="54.5304298400879"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179846_z" PRIOR="-21.8777179718018" SD="1.00000002004088e+020" VALUE="-21.8777179718018"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179994_x" PRIOR="-73.6410903930664" SD="1.00000002004088e+020" VALUE="-73.6410903930664"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179994_y" PRIOR="-0.873943865299225" SD="1.00000002004088e+020" VALUE="-0.873943865299225"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled179994_z" PRIOR="26.3275508880615" SD="1.00000002004088e+020" VALUE="26.3275508880615"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180009_x" PRIOR="57.0993270874023" SD="1.00000002004088e+020" VALUE="57.0993270874023"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180009_y" PRIOR="-37.8332023620605" SD="1.00000002004088e+020" VALUE="-37.8332023620605"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180009_z" PRIOR="-23.3964061737061" SD="1.00000002004088e+020" VALUE="-23.3964061737061"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180010_x" PRIOR="-96.8943557739258" SD="1.00000002004088e+020" VALUE="-96.8943557739258"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180010_y" PRIOR="0.350100934505463" SD="1.00000002004088e+020" VALUE="0.350100934505463"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180010_z" PRIOR="24.0063228607178" SD="1.00000002004088e+020" VALUE="24.0063228607178"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180019_x" PRIOR="54.0542678833008" SD="1.00000002004088e+020" VALUE="54.0542678833008"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180019_y" PRIOR="-90.3930206298828" SD="1.00000002004088e+020" VALUE="-90.3930206298828"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180019_z" PRIOR="-26.894193649292" SD="1.00000002004088e+020" VALUE="-26.894193649292"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180081_x" PRIOR="264.468109130859" SD="1.00000002004088e+020" VALUE="264.468109130859"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180081_y" PRIOR="9.87565898895264" SD="1.00000002004088e+020" VALUE="9.87565898895264"/>
+    <Parameter HIDDEN="1" NAME="Right_Shoe_Improved_Unlabeled180081_z" PRIOR="-27.7734909057617" SD="1.00000002004088e+020" VALUE="-27.7734909057617"/>
+  </Parameters>
+
+  <Skeleton>
+    <Segment BOUNDS="-50 -50 -50 50 50 50 " CONTEXT="Right" INERTIA="0 0 0 " MASS="0 " MASS-CENTRE="0 0 0 " NAME="Right_Shoe_Improved" RGB="0 255 0">
+      <JointFree BOUNDS="0 0 0 0 0 0 0 0 0 0 0 0" COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" NAME="World_Right_Shoe_Improved" POST-ORIENTATION="0 0 0" POST-POSITION="0 0 0" PRE-ORIENTATION="0 0 0" PRE-POSITION="0 0 0" SIGNS="+ + + + + + " T="* * * * * * ">
+        <JointTemplate COVARIANCE="2.46490001678467 0 0 0 0 0  0 2.46490001678467 0 0 0 0  0 0 246.490005493164 0 0 0  0 0 0 1000000 0 0  0 0 0 0 1000000 0  0 0 0 0 0 1000000  " MEAN="0 0 0 0 0 0" POST-ORIENTATION="0 0 0 " POST-POSITION="0 0 0 " PRE-ORIENTATION="0 0 0 " PRE-POSITION="0 0 0 " TPOSE-COVARIANCE="0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  0 0 0 0 0 0  " TPOSE-MEAN="0 0 0 0 0 0"/>
+      </JointFree>
+    </Segment>
+  </Skeleton>
+
+  <MarkerSet>
+    <Markers>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179766" POSITION="40.916 105.629 -26.3315" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="required">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179766_x' 'Right_Shoe_Improved_Unlabeled179766_y' 'Right_Shoe_Improved_Unlabeled179766_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179838" POSITION="-145.061 -20.1863 9.06714" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179838_x' 'Right_Shoe_Improved_Unlabeled179838_y' 'Right_Shoe_Improved_Unlabeled179838_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179839" POSITION="-13.7779 49.1317 20.1038" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179839_x' 'Right_Shoe_Improved_Unlabeled179839_y' 'Right_Shoe_Improved_Unlabeled179839_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179840" POSITION="-103.041 39.7205 1.6393" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179840_x' 'Right_Shoe_Improved_Unlabeled179840_y' 'Right_Shoe_Improved_Unlabeled179840_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179841" POSITION="-46.8504 -68.4566 -3.10709" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179841_x' 'Right_Shoe_Improved_Unlabeled179841_y' 'Right_Shoe_Improved_Unlabeled179841_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179842" POSITION="-94.3814 -24.9499 25.029" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179842_x' 'Right_Shoe_Improved_Unlabeled179842_y' 'Right_Shoe_Improved_Unlabeled179842_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179844" POSITION="-73.5587 -24.0986 27.4985" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179844_x' 'Right_Shoe_Improved_Unlabeled179844_y' 'Right_Shoe_Improved_Unlabeled179844_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179845" POSITION="172.149 7.55425 -4.29117" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179845_x' 'Right_Shoe_Improved_Unlabeled179845_y' 'Right_Shoe_Improved_Unlabeled179845_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179846" POSITION="58.5185 54.5304 -21.8777" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179846_x' 'Right_Shoe_Improved_Unlabeled179846_y' 'Right_Shoe_Improved_Unlabeled179846_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled179994" POSITION="-73.6411 -0.873944 26.3276" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled179994_x' 'Right_Shoe_Improved_Unlabeled179994_y' 'Right_Shoe_Improved_Unlabeled179994_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled180009" POSITION="57.0993 -37.8332 -23.3964" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled180009_x' 'Right_Shoe_Improved_Unlabeled180009_y' 'Right_Shoe_Improved_Unlabeled180009_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled180010" POSITION="-96.8944 0.350101 24.0063" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled180010_x' 'Right_Shoe_Improved_Unlabeled180010_y' 'Right_Shoe_Improved_Unlabeled180010_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled180019" POSITION="54.0543 -90.393 -26.8942" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled180019_x' 'Right_Shoe_Improved_Unlabeled180019_y' 'Right_Shoe_Improved_Unlabeled180019_z'"/>
+      </Marker>
+      <Marker COVARIANCE="1 0 0 0 1 0 0 0 1 " NAME="Unlabeled180081" POSITION="264.468 9.87566 -27.7735" RADIUS="12.5" RGB="0 255 0" SEGMENT="Right_Shoe_Improved" STATUS="optional">
+        <MarkerTemplate COVARIANCE="1 0 0 0 1 0 0 0 1 " PLACEMENT-COVARIANCE="1 0 0 0 1 0 0 0 1 " POSITION="'Right_Shoe_Improved_Unlabeled180081_x' 'Right_Shoe_Improved_Unlabeled180081_y' 'Right_Shoe_Improved_Unlabeled180081_z'"/>
+      </Marker>
+    </Markers>
+    <Sticks>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179838" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179839" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179840" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179841" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179842" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179766" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179839" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179840" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179841" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179842" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179838" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179840" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179841" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179842" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179839" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179841" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179842" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179840" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled179842" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179841" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled179844" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179842" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled179845" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179844" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled179846" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179845" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179846" MARKER2="Unlabeled179994" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179846" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179846" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179846" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179846" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179994" MARKER2="Unlabeled180009" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179994" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179994" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled179994" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180009" MARKER2="Unlabeled180010" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180009" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180009" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180010" MARKER2="Unlabeled180019" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180010" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+      <Stick MARKER1="Unlabeled180019" MARKER2="Unlabeled180081" RGB="0 255 0"/>
+    </Sticks>
+  </MarkerSet>
+
+  <Alignment/>
+
+</KinematicModel>
