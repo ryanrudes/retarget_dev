@@ -24,7 +24,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
-from retarget.core.types import FloatArray, FloatArray1D, Points3, TimeVec3, Vec3
+from retarget.core.types import FloatArray, FloatArray1D, Points3, TimeMat3, TimeVec3, Vec3
 from retarget.utils.geometry import fit_patch_frame
 
 
@@ -308,11 +308,20 @@ class TimeIndexedSupport:
     ``origins`` and ``normals`` are world-frame ``(T, 3)`` arrays aligned with the
     scope's timeline. The driver evaluates a query point at frame ``t`` against
     :meth:`at` ``(t)``.
+
+    ``frames`` is the support's optional full world-frame orientation ``(T, 3, 3)``
+    -- present when the support is backed by a tracked rigid body (a deck patch or
+    segment), absent for a bare plane. It is what lets motion be measured relative to
+    the support's *rotation* as well as its translation: a patch rigidly fixed to a
+    rolling/tilting deck reads as at rest. A plane has no orientation (and never
+    moves), so ``frames is None`` is exactly the ``ω_support = 0`` case and angular
+    speed falls back to world-frame -- no separate code path, just the zero limit.
     """
 
     origins: TimeVec3
     normals: TimeVec3
     name: str = "tracked_plane"
+    frames: TimeMat3 | None = None
 
     def __post_init__(self) -> None:
         origins = np.asarray(self.origins, dtype=np.float64)
@@ -323,6 +332,11 @@ class TimeIndexedSupport:
             raise ValueError("normals must have the same shape as origins")
         object.__setattr__(self, "origins", origins)
         object.__setattr__(self, "normals", normals)
+        if self.frames is not None:
+            frames = np.asarray(self.frames, dtype=np.float64)
+            if frames.shape != (len(origins), 3, 3):
+                raise ValueError("frames must have shape (T, 3, 3) matching origins")
+            object.__setattr__(self, "frames", frames)
 
     def __len__(self) -> int:
         return len(self.origins)

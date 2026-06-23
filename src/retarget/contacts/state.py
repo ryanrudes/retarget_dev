@@ -34,6 +34,7 @@ from retarget.core.support_resolve import (
     SupportScores,
     as_resolver,
     highest_score,
+    most_confident,
     multi_label,
     priority,
 )
@@ -65,6 +66,7 @@ __all__ = [
     "SupportScores",
     "SupportResolver",
     "ResolveFn",
+    "most_confident",
     "priority",
     "highest_score",
     "multi_label",
@@ -194,7 +196,7 @@ class _SupportStateQueryMixin:
         scores = self.support_scores(key)
         if not contacts:
             return cast(LabelArray, np.full(len(self.timestamps), none, dtype=object))
-        resolver = priority(none_label=none) if resolve is None else as_resolver(resolve)
+        resolver = most_confident(none_label=none) if resolve is None else as_resolver(resolve)
         labels = np.asarray(resolver(contacts, scores), dtype=object)
         if unknown is not None:
             invalid = self._visible_invalid().get(key)

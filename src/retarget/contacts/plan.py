@@ -18,7 +18,8 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from retarget.contacts.config import ContactDetectionConfig
-from retarget.contacts.detect import ContactDetector, Scope, Support
+from retarget.contacts._scope import Scope
+from retarget.contacts.detect import ContactDetector, Support
 from retarget.contacts.state import SupportStateTrack
 from retarget.core.schema.subject import Subjects
 from retarget.core.targets import PatchTarget

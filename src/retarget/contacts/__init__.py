@@ -10,18 +10,23 @@ from __future__ import annotations
 
 from retarget.core.formats import JumpDetector, robust_jumps, speed_limit
 
-from retarget.contacts.config import ContactDetectionConfig
+from retarget.contacts.config import ConfidenceCombiner, ContactDetectionConfig
 from retarget.contacts.detect import (
+    CONTACT_CHANNELS,
     ContactDetector,
+    SupportFeatureChannels,
     classify_contacts,
+    classify_feature_channels,
     detect_contacts,
     merge_contact_tracks,
 )
+from retarget.contacts.noise import ChannelNoise, DEFAULT_NOISE, NoiseCalibration, estimate_noise
 from retarget.contacts.plan import ContactPlan, ContactQuery, apply_contact_plan
 from retarget.contacts.state import (
     SupportResolver,
     SupportStateTrack,
     highest_score,
+    most_confident,
     multi_label,
     priority,
 )
@@ -46,8 +51,17 @@ __all__ = [
     "ContactDetector",
     "detect_contacts",
     "classify_contacts",
+    "classify_feature_channels",
+    "SupportFeatureChannels",
+    "CONTACT_CHANNELS",
     "merge_contact_tracks",
     "ContactDetectionConfig",
+    "ConfidenceCombiner",
+    # noise calibration
+    "ChannelNoise",
+    "NoiseCalibration",
+    "estimate_noise",
+    "DEFAULT_NOISE",
     # declarative plan
     "ContactPlan",
     "ContactQuery",
@@ -55,6 +69,7 @@ __all__ = [
     # support state + resolvers
     "SupportStateTrack",
     "SupportResolver",
+    "most_confident",
     "priority",
     "highest_score",
     "multi_label",
