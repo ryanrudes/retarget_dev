@@ -68,12 +68,13 @@ def inspect_patch(
         cal = patch.calibration
         roles: list[tuple[str, tuple[str, ...]]] = []
         if cal is not None:
-            roles.append(("plane (tab:blue)", cal.markers))
+            roles.append(("plane (tab:blue)", cal.plane.required_markers()))
+            roles.append(("normal (tab:cyan)", cal.normal.required_markers()))
             if cal.origin is not None:
                 roles.append(("origin (tab:orange)", cal.origin.required_markers()))
-            if cal.extent is not None:
-                roles.append(("extent (tab:purple)", cal.extent.required_markers()))
+            roles.append(("extent (tab:purple)", cal.extent.required_markers()))
         colors = {"plane (tab:blue)": "tab:blue",
+                  "normal (tab:cyan)": "tab:cyan",
                   "origin (tab:orange)": "tab:orange",
                   "extent (tab:purple)": "tab:purple"}
         for label, names in roles:
