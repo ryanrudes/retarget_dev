@@ -25,11 +25,20 @@ vendor/ros2_unbag/ros2_unbag.egg-info/
 .idea/
 .cursor/hooks/
 
-# Unbagged bags
-bags/**/unbagged/
+# Recorded data: raw ROS bags and their unbagged exports (large; kept out of the repo)
+bags/
 
-# Example plot outputs
+# Generated example visualizations (rendered from the experiments, not source)
+*.mp4
+*.gif
+examples/**/*.png
 contact_timeline.png
+
+# Archived pre-restructure examples (kept locally, not tracked)
+examples/old_examples/
 
 # Body models
 models/
+
+# Claude Code local config
+.claude/
