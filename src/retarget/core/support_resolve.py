@@ -4,8 +4,10 @@ A patch may be in contact with several named supports at once. A
 :class:`SupportResolver` collapses, per frame, the set of supports in contact to
 a single categorical label (or, for :func:`multi_label`, keeps the whole set):
 
+* :func:`most_confident` -- the support with the highest contact confidence wins
+  (the default; integrates all signals, not declared order);
 * :func:`priority` -- the first support (in declared order) in contact wins;
-* :func:`highest_score` -- the strongest-scoring support in contact wins;
+* :func:`highest_score` -- alias of :func:`most_confident` (scores are confidences);
 * :func:`multi_label` -- keep the full ``frozenset`` of simultaneous contacts.
 
 Resolvers compose fluently: ``priority().where(invalid, "unknown")`` returns a
@@ -121,6 +123,16 @@ def highest_score(none_label: str | None = None) -> SupportResolver:
         return cast(LabelArray, np.where(in_contact.any(axis=1), best, none_label))
 
     return SupportResolver(resolve)
+
+
+def most_confident(none_label: str | None = None) -> SupportResolver:
+    """Resolver: among supports in contact, the highest contact confidence wins each frame.
+
+    This is the default for ``support_state(...)``. Per-support scores are calibrated
+    contact confidences (integrating clearance and motion), so the winner is the support
+    the data most supports -- not the first declared. Alias of :func:`highest_score`.
+    """
+    return highest_score(none_label)
 
 
 def multi_label() -> SupportResolver:

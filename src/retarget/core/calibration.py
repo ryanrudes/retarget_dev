@@ -2,22 +2,39 @@
 
 This produces a ``transform_segment_patch`` suitable for authoring a calibrated
 :class:`~retarget.core.schema.Patch`. It is the low-level primitive that
-``Patch.rectangle(markers=...)`` calls at bind time; backend loaders may also
-call it directly when they already hold a marker-position mapping.
+``Patch.planar(plane=...)`` calls at bind time; backend loaders may also call it
+directly when they already hold a marker-position mapping.
+
+Each independent aspect of the definition is one pluggable resolver (see
+:mod:`retarget.core.resolvers`): the ``plane`` source, the ``normal`` resolver
+(which side is outward + the contact-surface offset it carries), the ``tangential``
+orientation (in-plane +x), the ``origin`` (in-plane placement), and the ``extent``
+(rectangle size).
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
+from typing import cast
 
 import numpy as np
 
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
 from retarget.core.contact_region import RectangularRegion
-from retarget.core.patch_frame import FittedPlane, PatchExtent, PatchOrigin, fixed
+from retarget.core.resolvers import (
+    FittedPlane,
+    ExtentResolver,
+    NormalResolver,
+    OriginResolver,
+    PlaneResolver,
+    TangentialResolver,
+    along_axis,
+    axis_normal,
+    fixed,
+)
 from retarget.core.transform import RigidTransform
-from retarget.core.translation import AxisResolvable, MarkerTranslation
-from retarget.core.types import Vec3
+from retarget.core.translation import AxisResolvable
+from retarget.core.types import Mat3, Vec3
 from retarget.utils.geometry import fit_patch_frame
 
 
@@ -29,69 +46,118 @@ class _AxisResolver(AxisResolvable):
         return self._convention.vector(axis)
 
 
+def _orient_to_outward(rotation: Mat3, outward_segment: Vec3) -> Mat3:
+    """Sign-flip the fitted normal to agree with ``outward_segment``, re-orthonormalized."""
+    rot = np.asarray(rotation, dtype=np.float64)
+    normal = rot[:, 2].copy()
+    if float(np.dot(normal, np.asarray(outward_segment, dtype=np.float64))) < 0.0:
+        normal = -normal
+    x = rot[:, 0]
+    x = x - np.dot(x, normal) * normal
+    x = x / np.linalg.norm(x)
+    y = np.cross(normal, x)
+    y = y / np.linalg.norm(y)
+    x = np.cross(y, normal)
+    x = x / np.linalg.norm(x)
+    return cast(Mat3, np.column_stack([x, y, normal]))
+
+
+def _apply_tangential(
+    tangential: TangentialResolver,
+    rotation: Mat3,
+    reference: Vec3,
+    marker_positions_segment: Mapping[str, Vec3],
+    axis_convention: AxisConvention,
+) -> Mat3:
+    """Rebuild the patch rotation with an in-plane +x from ``tangential`` (normal kept)."""
+    normal = np.asarray(rotation, dtype=np.float64)[:, 2]
+    desired = np.asarray(
+        tangential.tangential_x(
+            normal=cast(Vec3, normal),
+            reference=reference,
+            marker_positions_segment=marker_positions_segment,
+            axis_convention=axis_convention,
+        ),
+        dtype=np.float64,
+    )
+    x = desired - np.dot(desired, normal) * normal
+    norm = float(np.linalg.norm(x))
+    if norm < 1e-9:
+        raise ValueError("the tangential resolver produced an axis parallel to the patch normal")
+    x = x / norm
+    y = np.cross(normal, x)
+    y = y / np.linalg.norm(y)
+    x = np.cross(y, normal)
+    x = x / np.linalg.norm(x)
+    return cast(Mat3, np.column_stack([x, y, normal]))
+
+
 def calibrate_patch_transform(
     *,
     marker_positions_segment: Mapping[str, Vec3],
-    markers: Sequence[str],
+    plane: PlaneResolver,
+    extent: ExtentResolver = fixed(1.0, 1.0),
+    normal: NormalResolver = axis_normal(),
+    tangential: TangentialResolver = along_axis(SemanticAxis.FORWARD),
+    origin: OriginResolver | None = None,
     axis_convention: AxisConvention = Z_UP_AXES,
-    marker_translations: Mapping[str, MarkerTranslation] | None = None,
-    normal_offset: float = 0.0,
-    outward_axis: SemanticAxis = SemanticAxis.UP,
-    forward_axis: SemanticAxis = SemanticAxis.FORWARD,
-    origin: PatchOrigin | None = None,
-    extent: PatchExtent | None = None,
 ) -> tuple[RigidTransform, RectangularRegion]:
     """Fit a segment->patch transform + rectangle from calibration markers.
 
-    1. take the listed plane ``markers``' segment-frame positions;
-    2. apply optional sparse ``marker_translations`` before fitting;
-    3. fit the patch plane (normal + in-plane axes);
-    4. place the in-plane origin via ``origin`` (default: the plane-marker centroid),
-       then apply ``normal_offset`` along the fitted normal;
-    5. size the rectangle via ``extent`` (default: a degenerate 1x1 -- pass a real
-       ``extent`` such as :func:`~retarget.core.patch_frame.bounding_box`).
+    Every aspect is one resolver:
+
+    1. ``plane`` supplies the (optionally pre-translated) segment-frame points;
+    2. fit the patch plane through them;
+    3. ``normal`` fixes the +normal (outward) sign and contributes the contact-surface
+       ``offset`` applied along it (+ = outward);
+    4. ``tangential`` sets the in-plane +x (default: ``along_axis(FORWARD)``);
+    5. ``origin`` places the in-plane origin (default: ``extent``'s default / the
+       plane-marker centroid), then the offset is applied along the oriented normal;
+    6. ``extent`` sizes the rectangle (default: a degenerate 1x1 -- pass a real
+       ``extent`` such as :func:`~retarget.core.resolvers.bounding_box`).
     """
-    if len(markers) < 3:
-        raise ValueError("Patch calibration requires at least three markers")
     resolver = _AxisResolver(axis_convention)
-    translations = dict(marker_translations or {})
+    surface_points = plane.surface_points(marker_positions_segment, resolver)
 
-    points: list[np.ndarray] = []
-    for marker in markers:
-        position = np.asarray(marker_positions_segment[marker], dtype=np.float64)
-        translation = translations.get(marker)
-        if translation is None:
-            points.append(position)
-        else:
-            points.append(position + translation.resolve(resolver))
-    surface_points = np.stack(points)
+    fitted = fit_patch_frame(surface_points, outward_hint_segment=None, x_axis_hint_segment=None)
+    rotation = np.asarray(fitted.rotation, dtype=np.float64)
+    reference = np.asarray(fitted.translation, dtype=np.float64)
 
-    fitted = fit_patch_frame(
-        surface_points,
-        outward_hint_segment=axis_convention.vector(outward_axis),
-        x_axis_hint_segment=axis_convention.vector(forward_axis),
+    resolution = normal.resolve(
+        plane_normal_segment=cast(Vec3, rotation[:, 2]),
+        plane_reference=cast(Vec3, reference),
+        marker_positions_segment=marker_positions_segment,
+        axis_convention=axis_convention,
     )
-    rotation = fitted.rotation
-    reference = fitted.translation
-    plane = FittedPlane(
-        rotation=rotation, reference=reference, marker_positions=marker_positions_segment
+    rotation = np.asarray(_orient_to_outward(cast(Mat3, rotation), resolution.outward_segment), dtype=np.float64)
+    rotation = np.asarray(
+        _apply_tangential(
+            tangential, cast(Mat3, rotation), cast(Vec3, reference), marker_positions_segment, axis_convention
+        ),
+        dtype=np.float64,
     )
 
-    if origin is None and extent is not None:
+    plane_ctx = FittedPlane(
+        rotation=cast(Mat3, rotation),
+        reference=cast(Vec3, reference),
+        marker_positions=marker_positions_segment,
+    )
+
+    if origin is None:
         origin = extent.default_origin()  # e.g. bounding_box -> its bbox center
     if origin is None:
         offset_x, offset_y = 0.0, 0.0
     else:
-        offset_x, offset_y = (float(v) for v in origin.locate(plane))
+        offset_x, offset_y = (float(v) for v in origin.locate(plane_ctx))
     translation = (
         reference
         + rotation[:, 0] * offset_x
         + rotation[:, 1] * offset_y
-        + rotation[:, 2] * normal_offset
+        + rotation[:, 2] * resolution.offset
     )
     transform = RigidTransform.from_rotation_translation(
-        rotation=rotation, translation=translation
+        rotation=cast(Mat3, rotation), translation=cast(Vec3, translation)
     )
 
-    region = (extent if extent is not None else fixed(1.0, 1.0)).fit(plane)
+    region = extent.fit(plane_ctx)
     return transform, region

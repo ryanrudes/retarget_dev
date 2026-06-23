@@ -106,21 +106,45 @@ class SemanticAxis(StrEnum):
     def __rmul__(self, distance: float) -> SemanticAxisTranslation:  # type: ignore[override]
         return self * distance
 
-    def __neg__(self) -> SemanticAxisTranslation:
-        from retarget.core.translation import SemanticAxisTranslation
+    def __neg__(self) -> SignedSemanticAxis:
+        return SignedSemanticAxis(axis=self, sign=-1)
 
-        return SemanticAxisTranslation(
-            axis=self,
-            distance=-1.0,
-        )
+    def __pos__(self) -> SignedSemanticAxis:
+        return SignedSemanticAxis(axis=self, sign=1)
 
-    def __pos__(self) -> SemanticAxisTranslation:
-        from retarget.core.translation import SemanticAxisTranslation
 
-        return SemanticAxisTranslation(
-            axis=self,
-            distance=1.0,
-        )
+@dataclass(frozen=True, slots=True)
+class SignedSemanticAxis:
+    """A semantic axis with a direction sign, e.g. ``+SemanticAxis.UP`` / ``-SemanticAxis.UP``.
+
+    Mirrors :class:`SignedAxis` (over concrete ``CoordinateAxis``) but stays in the
+    semantic space, so it can be resolved against any :class:`AxisConvention`.
+    """
+
+    axis: SemanticAxis
+    sign: Sign = 1
+
+    def __post_init__(self) -> None:
+        if self.sign not in {-1, 1}:
+            raise ValueError("sign must be either -1 or +1")
+
+    def __pos__(self) -> SignedSemanticAxis:
+        return SignedSemanticAxis(axis=self.axis, sign=1)
+
+    def __neg__(self) -> SignedSemanticAxis:
+        return SignedSemanticAxis(axis=self.axis, sign=-self.sign)
+
+    def vector(self, convention: AxisConvention) -> Vec3:
+        """Unit world vector for this signed semantic axis under ``convention``."""
+        return cast(Vec3, convention.vector(self.axis) * float(self.sign))
+
+
+type SignedSemanticAxisLike = SemanticAxis | SignedSemanticAxis
+
+
+def as_signed_semantic_axis(value: SignedSemanticAxisLike) -> SignedSemanticAxis:
+    """Coerce a bare ``SemanticAxis`` (positive) or ``SignedSemanticAxis`` to the latter."""
+    return value if isinstance(value, SignedSemanticAxis) else SignedSemanticAxis(axis=value)
 
 
 @dataclass(frozen=True, slots=True)

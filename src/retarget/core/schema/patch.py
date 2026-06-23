@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict, cast
 
@@ -11,12 +11,19 @@ import numpy as np
 from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
 from retarget.core.calibration import calibrate_patch_transform
 from retarget.core.contact_region import ContactRegion, RectangularRegion
-from retarget.core.patch_frame import PatchExtent, PatchOrigin, fixed
+from retarget.core.resolvers import (
+    ExtentResolver,
+    NormalResolver,
+    OriginResolver,
+    PlaneResolver,
+    TangentialResolver,
+    along_axis,
+    axis_normal,
+)
 from retarget.core.formats import JumpDetector, finite_difference_velocity
-from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, priority
+from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, most_confident
 from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
-from retarget.core.translation import MarkerTranslation
 from retarget.core.types import (
     FloatArray1D,
     LabelArray,
@@ -53,16 +60,14 @@ class PatchCalibration:
     not be precomputed during authoring.
     """
 
-    markers: tuple[str, ...]
-    outward_axis: SemanticAxis
-    forward_axis: SemanticAxis
-    normal_offset: float = 0.0
-    axis_convention: AxisConvention = Z_UP_AXES
-    marker_translations: Mapping[str, MarkerTranslation] | None = field(
-        default=None, compare=False
+    plane: PlaneResolver = field(compare=False)
+    extent: ExtentResolver = field(compare=False)
+    normal: NormalResolver = field(default_factory=axis_normal, compare=False)
+    tangential: TangentialResolver = field(
+        default_factory=lambda: along_axis(SemanticAxis.FORWARD), compare=False
     )
-    origin: PatchOrigin | None = field(default=None, compare=False)
-    extent: PatchExtent | None = field(default=None, compare=False)
+    origin: OriginResolver | None = field(default=None, compare=False)
+    axis_convention: AxisConvention = Z_UP_AXES
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,7 +76,7 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
 
     ``RegionT`` is the static type of ``region``. Authoring a patch without a
     region (declaration-only) leaves it as ``ContactRegion | None``; constructing
-    via :meth:`rectangle` (or passing a concrete ``region=...``) narrows it, so a
+    via :meth:`planar` (or passing a concrete ``region=...``) narrows it, so a
     schema declaring ``sole: Patch[RectangularRegion]`` types ``sole.region`` as
     ``RectangularRegion`` with no ``isinstance`` check.
     """
@@ -86,59 +91,49 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
     )
 
     @classmethod
-    def rectangle(
+    def planar(
         cls,
         label: str,
         *,
-        markers: Sequence[str],
-        width: float | None = None,
-        height: float | None = None,
-        origin: PatchOrigin | None = None,
-        extent: PatchExtent | None = None,
-        outward_axis: SemanticAxis,
-        forward_axis: SemanticAxis,
-        normal_offset: float = 0.0,
+        plane: PlaneResolver,
+        extent: ExtentResolver,
+        normal: NormalResolver = axis_normal(),
+        tangential: TangentialResolver = along_axis(SemanticAxis.FORWARD),
+        origin: OriginResolver | None = None,
         axis_convention: AxisConvention = Z_UP_AXES,
-        marker_translations: Mapping[str, MarkerTranslation] | None = None,
         frame: str | None = None,
     ) -> Patch[RectangularRegion]:
-        """Build a rectangular patch whose frame is fit from calibration markers.
+        """Build a planar (rectangular) patch as a composition of independent resolvers.
 
-        ``markers`` fit the contact **plane**: their segment-frame positions (from
-        the subject ``body_model`` or per-marker ``position_segment``) give the
-        normal (``outward_axis``) and the in-plane axes (``forward_axis`` projected
-        into the plane is local +X; ``width`` runs along it, ``height`` along +Y).
+        Every aspect of the definition is one resolver (see
+        :mod:`retarget.core.resolvers`); there are no mutually-exclusive arguments:
 
-        ``origin`` (a :class:`~retarget.core.patch_frame.PatchOrigin`) places the
-        in-plane origin -- e.g. ``bounding_box_center("heel", "toe", ...)`` -- so the
-        plane markers (a calibration jig) need not also be the contact center.
-        Default: the plane-marker centroid.
-
-        Size comes from ``extent`` (a :class:`~retarget.core.patch_frame.PatchExtent`):
-        either ``width``/``height`` (explicit), or ``extent=bounding_box(...)`` to
-        auto-fit the rectangle to markers (which also self-centers the origin). Pass
-        exactly one of ``width``/``height`` or ``extent``.
+        - ``plane`` (a :class:`~retarget.core.resolvers.PlaneResolver`, e.g.
+          ``plane_from("a","b","c", translations=...)``) fits the contact plane through
+          calibration markers, optionally pre-translating them.
+        - ``normal`` (a :class:`~retarget.core.resolvers.NormalResolver`, e.g.
+          ``axis_normal(offset=...)``, ``side("m", defines=-SemanticAxis.UP)``, or
+          ``winding([...], direction=...)``) fixes the +normal (outward) sign and
+          carries the contact-surface offset (+ = outward).
+        - ``tangential`` (a :class:`~retarget.core.resolvers.TangentialResolver`) sets
+          the in-plane +x; default: ``along_axis(FORWARD)``. Pair ``min_area_rectangle(*m)``
+          with ``extent=bounding_box(*m)`` for the tight, naturally-aligned rectangle.
+        - ``origin`` (a :class:`~retarget.core.resolvers.OriginResolver`) places the in-plane
+          origin; default: ``extent``'s default origin / the plane-marker centroid.
+        - ``extent`` (a :class:`~retarget.core.resolvers.ExtentResolver`, e.g. ``fixed(w,h)``
+          or ``bounding_box(*m, padding=...)``) sizes the rectangle.
         """
-        if extent is None:
-            if width is None or height is None:
-                raise ValueError("Patch.rectangle needs width and height, or extent=")
-            extent = fixed(width, height)
-        elif width is not None or height is not None:
-            raise ValueError("Patch.rectangle: pass width/height or extent=, not both")
-        # origin defaults (e.g. extent's bbox center) are applied at calibrate time.
         return Patch(
             label=label,
             region=cast(RectangularRegion, extent.static_region()),
             frame=frame,
             calibration=PatchCalibration(
-                markers=tuple(markers),
-                outward_axis=outward_axis,
-                forward_axis=forward_axis,
-                normal_offset=normal_offset,
-                axis_convention=axis_convention,
-                marker_translations=marker_translations,
-                origin=origin,
+                plane=plane,
                 extent=extent,
+                normal=normal,
+                tangential=tangential,
+                origin=origin,
+                axis_convention=axis_convention,
             ),
         )
 
@@ -260,7 +255,7 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         scores = self.support_scores()
         if not contacts:
             return cast(LabelArray, np.full(len(runtime.timestamps), none, dtype=object))
-        resolver = priority(none_label=none) if resolve is None else as_resolver(resolve)
+        resolver = most_confident(none_label=none) if resolve is None else as_resolver(resolve)
         labels = np.asarray(resolver(contacts, scores), dtype=object)
         if unknown is not None:
             invalid = runtime.support_invalid.get(name)
@@ -362,11 +357,12 @@ def resolve_patch_calibration(
     segment: str,
     patch_name: str,
 ) -> tuple[RigidTransform, RectangularRegion]:
-    required = list(calibration.markers)
+    required = list(calibration.plane.required_markers())
+    required += calibration.normal.required_markers()
+    required += calibration.tangential.required_markers()
     if calibration.origin is not None:
         required += calibration.origin.required_markers()
-    if calibration.extent is not None:
-        required += calibration.extent.required_markers()
+    required += calibration.extent.required_markers()
     missing = [m for m in dict.fromkeys(required) if m not in marker_positions_segment]
     if missing:
         raise ValueError(
@@ -376,12 +372,10 @@ def resolve_patch_calibration(
         )
     return calibrate_patch_transform(
         marker_positions_segment=marker_positions_segment,
-        markers=calibration.markers,
-        axis_convention=calibration.axis_convention,
-        marker_translations=calibration.marker_translations,
-        normal_offset=calibration.normal_offset,
-        outward_axis=calibration.outward_axis,
-        forward_axis=calibration.forward_axis,
-        origin=calibration.origin,
+        plane=calibration.plane,
         extent=calibration.extent,
+        normal=calibration.normal,
+        tangential=calibration.tangential,
+        origin=calibration.origin,
+        axis_convention=calibration.axis_convention,
     )
