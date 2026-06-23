@@ -49,15 +49,19 @@ def test_classify_returns_multi_contact_substrate() -> None:
     assert per_support["board"][rest].all()
 
 
-def test_support_state_default_priority_is_declared_order() -> None:
+def test_support_state_default_is_most_confident_not_declared_order() -> None:
     track = make_descending_mocap_track()
     t = track.timestamps
-    states = _classify_ground_and_board(track)
+    # "high" (5 cm up) is declared first but the foot rests on z=0, so the most-confident
+    # support is "ground" -- the default resolver picks it over the declared-first one.
+    states = classify_contacts(
+        _sole(track), against={"high": ground_plane(0.05), "ground": ground_plane(0.0)}
+    )
     target = make_demo_patch_target("sole")
 
     labels = states.support_state(target, none="air")
     rest = (t >= 1.2) & (t <= 2.8)
-    assert (labels[rest] == "ground").all()  # first declared wins
+    assert (labels[rest] == "ground").all()  # most confident wins, not declared order
     assert labels[np.argmin(np.abs(t - 0.3))] == "air"  # airborne during descent
 
 

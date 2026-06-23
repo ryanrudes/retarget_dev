@@ -20,9 +20,10 @@ from retarget.core import (
     SegmentKey,
     SegmentPoseTrajectory,
     Segments,
-    SemanticAxis,
     Subject,
     Subjects,
+    fixed,
+    plane_from,
 )
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
@@ -73,13 +74,10 @@ def make_demo_subjects() -> DemoSubjects:
                         mid=Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
                     ),
                     patches=DemoPatches(
-                        sole=Patch.rectangle(
+                        sole=Patch.planar(
                             label="sole",
-                            markers=("heel", "toe", "mid"),
-                            width=1.0,
-                            height=1.0,
-                            outward_axis=SemanticAxis.UP,
-                            forward_axis=SemanticAxis.FORWARD,
+                            plane=plane_from("heel", "toe", "mid"),
+                            extent=fixed(1.0, 1.0),
                         ),
                         toe=Patch(label="toe"),
                     ),
@@ -150,6 +148,40 @@ def make_descending_mocap_track(
     )
     poses = tuple(
         RigidTransform.from_translation(np.array([0.0, 0.0, float(z[i])])) for i in range(n)
+    )
+    state = SceneState(
+        segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)}
+    )
+    return MocapTrack(
+        subjects=make_demo_subjects(),
+        state=state,
+        timestamps=timestamps,
+        marker_frames=None,
+    )
+
+
+def make_gliding_mocap_track(
+    *,
+    glide_speed: float = 0.3,
+    t_end: float = 2.0,
+    hz: float = 100.0,
+    liftoff_at: float | None = None,
+) -> MocapTrack[DemoSubjects]:
+    """A segment (and its sole patch) translating horizontally at ``glide_speed`` on z=0.
+
+    Models a body riding a moving support (a shoe on a gliding skateboard): the
+    world-frame motion is large, yet relative to a support that glides with it the
+    patch is at rest. If ``liftoff_at`` is given the segment additionally rises off
+    z=0 after that time (a genuine separation from the glider).
+    """
+    n = int(round(t_end * hz)) + 1
+    timestamps = np.linspace(0.0, t_end, n)
+    x = glide_speed * timestamps
+    z = np.zeros(n)
+    if liftoff_at is not None:
+        z = 0.3 * np.clip((timestamps - liftoff_at) / 0.3, 0.0, 1.0)
+    poses = tuple(
+        RigidTransform.from_translation(np.array([float(x[i]), 0.0, float(z[i])])) for i in range(n)
     )
     state = SceneState(
         segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)}

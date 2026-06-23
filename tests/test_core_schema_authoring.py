@@ -18,10 +18,12 @@ from retarget.core import (
     SegmentPoseTrajectory,
     SegmentTarget,
     Segments,
-    SemanticAxis,
     Subject,
     Subjects,
+    axis_normal,
     bind_scene,
+    fixed,
+    plane_from,
 )
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
@@ -222,14 +224,11 @@ def _plane_subjects(*, with_body_model: bool, normal_offset: float = 0.0) -> _Pl
                         outer=marker("outer"),
                     ),
                     patches=_PlanePatches(
-                        sole=Patch.rectangle(
+                        sole=Patch.planar(
                             label="sole",
-                            markers=("rear", "inner", "outer"),
-                            width=0.10,
-                            height=0.25,
-                            outward_axis=SemanticAxis.UP,
-                            forward_axis=SemanticAxis.FORWARD,
-                            normal_offset=normal_offset,
+                            plane=plane_from("rear", "inner", "outer"),
+                            extent=fixed(0.10, 0.25),
+                            normal=axis_normal(offset=normal_offset),
                         ),
                     ),
                 )
@@ -274,13 +273,10 @@ def test_rectangle_patch_without_marker_positions_raises_at_bind_time() -> None:
                         outer=Marker(mocap_name="outer"),
                     ),
                     patches=_PlanePatches(
-                        sole=Patch.rectangle(
+                        sole=Patch.planar(
                             label="sole",
-                            markers=("rear", "inner", "outer"),
-                            width=0.1,
-                            height=0.1,
-                            outward_axis=SemanticAxis.UP,
-                            forward_axis=SemanticAxis.FORWARD,
+                            plane=plane_from("rear", "inner", "outer"),
+                            extent=fixed(0.1, 0.1),
                         ),
                     ),
                 )

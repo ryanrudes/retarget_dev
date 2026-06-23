@@ -1,4 +1,4 @@
-"""Tests for pluggable patch origin + auto-fit extent (core/patch_frame.py)."""
+"""Tests for pluggable patch plane/origin/extent (core/resolvers)."""
 
 from __future__ import annotations
 
@@ -7,18 +7,16 @@ import pytest
 
 from retarget.core import (
     Patch,
-    SemanticAxis,
     at_marker,
+    axis_normal,
     bounding_box,
     bounding_box_center,
     calibrate_patch_transform,
     centroid,
     fixed,
+    plane_from,
 )
 from retarget.core.schema.patch import resolve_patch_calibration
-
-UP = SemanticAxis.UP
-FORWARD = SemanticAxis.FORWARD
 
 # Plane markers fit the z=0 plane (normal +z); their centroid (1/3, 1/3, 0) is
 # deliberately off-center so we can prove the origin does NOT come from them.
@@ -40,9 +38,7 @@ REGION = ("r1", "r2", "r3", "r4")
 def _fit(**kwargs):
     return calibrate_patch_transform(
         marker_positions_segment=BODY,
-        markers=PLANE,
-        outward_axis=UP,
-        forward_axis=FORWARD,
+        plane=plane_from(*PLANE),
         **kwargs,
     )
 
@@ -74,11 +70,11 @@ def test_centroid_vs_bounding_box_center_differ() -> None:
         "c": np.array([0.3, 0.1, 0.1]),  # clustered toward +x,+y
     }
     bb = calibrate_patch_transform(
-        marker_positions_segment=body, markers=PLANE, outward_axis=UP, forward_axis=FORWARD,
+        marker_positions_segment=body, plane=plane_from(*PLANE),
         origin=bounding_box_center("a", "b", "c"), extent=fixed(1.0, 1.0),
     )[0].translation
     cen = calibrate_patch_transform(
-        marker_positions_segment=body, markers=PLANE, outward_axis=UP, forward_axis=FORWARD,
+        marker_positions_segment=body, plane=plane_from(*PLANE),
         origin=centroid("a", "b", "c"), extent=fixed(1.0, 1.0),
     )[0].translation
     np.testing.assert_allclose(bb, [0.15, 0.05, 0.0], atol=1e-9)          # bbox center
@@ -86,23 +82,20 @@ def test_centroid_vs_bounding_box_center_differ() -> None:
     assert not np.allclose(bb, cen)
 
 
-def test_fixed_extent_back_compat_origin_is_plane_centroid() -> None:
-    # No origin + fixed extent == the old behavior: origin = plane-marker centroid.
+def test_no_origin_with_fixed_extent_is_plane_centroid() -> None:
+    # No origin + fixed extent -> origin = plane-marker centroid.
     transform, region = _fit(extent=fixed(0.4, 0.1))
     np.testing.assert_allclose(transform.translation, [1.0 / 3.0, 1.0 / 3.0, 0.0], atol=1e-9)
     np.testing.assert_allclose([region.width, region.height], [0.4, 0.1])
 
 
-def test_normal_offset_shifts_along_normal() -> None:
-    transform, _ = _fit(extent=bounding_box(*REGION), normal_offset=0.05)
+def test_surface_offset_shifts_along_normal() -> None:
+    transform, _ = _fit(extent=bounding_box(*REGION), normal=axis_normal(offset=0.05))
     np.testing.assert_allclose(transform.translation, [0.0, 0.0, 0.05], atol=1e-9)
 
 
-def test_rectangle_resolves_region_through_calibration() -> None:
-    patch = Patch.rectangle(
-        "sole", markers=PLANE, extent=bounding_box(*REGION),
-        outward_axis=UP, forward_axis=FORWARD,
-    )
+def test_planar_resolves_region_through_calibration() -> None:
+    patch = Patch.planar("sole", plane=plane_from(*PLANE), extent=bounding_box(*REGION))
     assert patch.region is None  # auto-fit extent is deferred to bind time
     transform, region = resolve_patch_calibration(
         patch.calibration, BODY, subject="s", segment="seg", patch_name="sole"
@@ -110,30 +103,14 @@ def test_rectangle_resolves_region_through_calibration() -> None:
     np.testing.assert_allclose([region.width, region.height], [0.4, 0.1], atol=1e-9)
 
 
-def test_rectangle_width_height_back_compat_sets_region_eagerly() -> None:
-    patch = Patch.rectangle(
-        "sole", markers=PLANE, width=0.4, height=0.1,
-        outward_axis=UP, forward_axis=FORWARD,
-    )
+def test_planar_fixed_extent_sets_region_eagerly() -> None:
+    patch = Patch.planar("sole", plane=plane_from(*PLANE), extent=fixed(0.4, 0.1))
     assert patch.region is not None
     np.testing.assert_allclose([patch.region.width, patch.region.height], [0.4, 0.1])
 
 
-def test_rectangle_rejects_missing_and_double_extent() -> None:
-    with pytest.raises(ValueError):
-        Patch.rectangle("p", markers=PLANE, outward_axis=UP, forward_axis=FORWARD)
-    with pytest.raises(ValueError):
-        Patch.rectangle(
-            "p", markers=PLANE, width=1.0, height=1.0, extent=fixed(1.0, 1.0),
-            outward_axis=UP, forward_axis=FORWARD,
-        )
-
-
 def test_resolve_validates_region_marker_present() -> None:
-    patch = Patch.rectangle(
-        "sole", markers=PLANE, extent=bounding_box("missing_marker"),
-        outward_axis=UP, forward_axis=FORWARD,
-    )
+    patch = Patch.planar("sole", plane=plane_from(*PLANE), extent=bounding_box("missing_marker"))
     with pytest.raises(ValueError, match="missing_marker"):
         resolve_patch_calibration(patch.calibration, BODY, subject="s", segment="g", patch_name="sole")
 

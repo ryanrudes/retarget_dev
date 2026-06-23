@@ -22,9 +22,11 @@ from retarget.core import (
     SegmentKey,
     SegmentPoseTrajectory,
     Segments,
-    SemanticAxis,
     Subject,
     Subjects,
+    axis_normal,
+    fixed,
+    plane_from,
 )
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
@@ -67,22 +69,16 @@ def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
                         mid=Marker(mocap_name="mid", position_segment=_POSITIONS["mid"]),
                     ),
                     patches=_TwoPatchPatches(
-                        sole=Patch.rectangle(
+                        sole=Patch.planar(
                             label="sole",
-                            markers=("heel", "toe", "mid"),
-                            width=1.0,
-                            height=1.0,
-                            outward_axis=SemanticAxis.UP,
-                            forward_axis=SemanticAxis.FORWARD,
+                            plane=plane_from("heel", "toe", "mid"),
+                            extent=fixed(1.0, 1.0),
                         ),
-                        heel_cap=Patch.rectangle(
+                        heel_cap=Patch.planar(
                             label="heel_cap",
-                            markers=("heel", "toe", "mid"),
-                            width=0.5,
-                            height=0.5,
-                            outward_axis=SemanticAxis.UP,
-                            forward_axis=SemanticAxis.FORWARD,
-                            normal_offset=0.05,
+                            plane=plane_from("heel", "toe", "mid"),
+                            extent=fixed(0.5, 0.5),
+                            normal=axis_normal(offset=0.05),
                         ),
                     ),
                 )
