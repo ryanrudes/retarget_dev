@@ -18,14 +18,14 @@ dependencies = [
     "numpy>=2.4.6",
     "orjson>=3.11.9",
     "rich>=15.0.0",
-    "rich-argparse>=1.5.0",
     "scipy>=1.17.1",
     "urdf",
     "matplotlib>=3.11.0",
+    "typer>=0.26.7",
 ]
 
 [project.scripts]
-retarget = "retarget.cli:main"
+retarget = "retarget.cli:app"
 
 [project.optional-dependencies]
 dev = [
