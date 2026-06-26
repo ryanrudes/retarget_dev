@@ -617,26 +617,17 @@ wheels = [
 [[package]]
 name = "fungeom"
 version = "0.1.0"
-source = { editable = "../functional_api" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "rich" },
     { name = "scipy" },
     { name = "shapely" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
-    { name = "numpy", specifier = ">=2.4.6" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.2" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0" },
-    { name = "rich", specifier = ">=15.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.6" },
-    { name = "scipy", specifier = ">=1.17.1" },
-    { name = "shapely", specifier = ">=2.0.0" },
+sdist = { url = "https://files.pythonhosted.org/packages/ae/03/75ee2038e99a56c224f681390d1fc396993ec38bad4e3b0b599b138b1d9b/fungeom-0.1.0.tar.gz", hash = "sha256:28d892b8c302817d1074683cde678d5b14791cfa11d6ff8c39bd702e4ee9e554", size = 170649, upload-time = "2026-06-26T20:35:40.303Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/09/b103f4437d1260a3e46646d51555556bdcea32c1b18f3aed59835b43c61d/fungeom-0.1.0-py3-none-any.whl", hash = "sha256:7d57df50179f49dd0531a29fe4e4399579eba62bdd288e1d7dfda51818f24abc", size = 415674, upload-time = "2026-06-26T20:35:38.812Z" },
 ]
-provides-extras = ["dev"]
 
 [[package]]
 name = "ghp-import"
@@ -2144,7 +2135,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fungeom", editable = "../functional_api" },
+    { name = "fungeom", specifier = ">=0.1.0" },
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "networkx", specifier = ">=3.0" },
