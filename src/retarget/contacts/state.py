@@ -23,7 +23,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -53,11 +53,12 @@ if TYPE_CHECKING:
 
 # A patch query accepts either a stable PatchTarget or the bound Patch you already
 # hold (so reading off the returned track needs no re-fetch and no keys).
-type PatchLike = PatchTarget | "Patch[Any]"
+type PatchLike = PatchTarget | "Patch"
 
 
 def _target_of(target: PatchLike) -> PatchTarget:
     return target if isinstance(target, PatchTarget) else target.target
+
 
 __all__ = [
     "SupportStateTrack",
@@ -125,7 +126,9 @@ def _validate_invalid(invalid: InvalidMasks, num_timesteps: int) -> InvalidMasks
     return MappingProxyType(frozen)
 
 
-def _slice_nested(mapping: NestedContacts | NestedScores, indices: Sequence[int]) -> dict[PatchTarget, dict[str, np.ndarray]]:
+def _slice_nested(
+    mapping: NestedContacts | NestedScores, indices: Sequence[int]
+) -> dict[PatchTarget, dict[str, np.ndarray]]:
     index_list = list(indices)
     return {
         target: {name: values[index_list] for name, values in per_support.items()}
@@ -254,9 +257,7 @@ class SupportStateTrack(_SupportStateQueryMixin, Track):
         if timestamps.ndim != 1:
             raise ValueError("timestamps must be a 1D array")
         validate_strictly_increasing_timestamps(timestamps)
-        frozen_contacts, frozen_scores = _validate_support_arrays(
-            self.contacts, self.scores, len(timestamps)
-        )
+        frozen_contacts, frozen_scores = _validate_support_arrays(self.contacts, self.scores, len(timestamps))
         object.__setattr__(self, "contacts", MappingProxyType(dict(frozen_contacts)))
         object.__setattr__(self, "scores", MappingProxyType(dict(frozen_scores)))
         object.__setattr__(self, "invalid", _validate_invalid(self.invalid, len(timestamps)))

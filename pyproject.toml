@@ -20,6 +20,7 @@ dependencies = [
     "rich>=15.0.0",
     "scipy>=1.17.1",
     "urdf",
+    "fungeom",
     "matplotlib>=3.11.0",
     "typer>=0.26.7",
 ]
@@ -66,6 +67,10 @@ members = [
 
 [tool.uv.sources]
 urdf = { workspace = true, editable = true }
+# fungeom is the decidable geometry/temporal/collections backend (sibling repo,
+# github.com/ryanrudes/fungeom). Live editable path while the two repos co-evolve;
+# swap to a vendored submodule under [tool.uv.workspace] later for reproducibility.
+fungeom = { path = "../functional_api", editable = true }
 
 [dependency-groups]
 dev = [

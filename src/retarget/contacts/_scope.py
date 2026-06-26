@@ -15,29 +15,29 @@ from retarget.core.schema.segment import Segment
 from retarget.core.schema.subject import Subject
 from retarget.demo.mocap import MocapTrack
 
-Scope = Patch[Any] | Segment[Any, Any] | Subject[Any] | MocapTrack[Any] | Iterable[Patch[Any]]
+Scope = Patch | Segment[Any, Any] | Subject[Any] | MocapTrack[Any] | Iterable[Patch]
 
 
-def normalize_scope(scope: Scope) -> list[Patch[Any]]:
+def normalize_scope(scope: Scope) -> list[Patch]:
     """Resolve a scope to the geometry-bearing patches to operate on."""
     if isinstance(scope, Patch):
         if not scope.has_geometry():
             raise ValueError("the given patch has no calibrated geometry to detect on")
         return [scope]
     if isinstance(scope, Segment):
-        patches: list[Patch[Any]] = list(cast(Mapping[str, Patch[Any]], scope.patches).values())
+        patches: list[Patch] = list(cast(Mapping[str, Patch], scope.patches).values())
     elif isinstance(scope, Subject):
         patches = [
             patch
             for segment in cast(Mapping[str, Segment[Any, Any]], scope.segments).values()
-            for patch in cast(Mapping[str, Patch[Any]], segment.patches).values()
+            for patch in cast(Mapping[str, Patch], segment.patches).values()
         ]
     elif isinstance(scope, MocapTrack):
         patches = [
             patch
             for subject in cast(Mapping[str, Subject[Any]], scope.subjects).values()
             for segment in cast(Mapping[str, Segment[Any, Any]], subject.segments).values()
-            for patch in cast(Mapping[str, Patch[Any]], segment.patches).values()
+            for patch in cast(Mapping[str, Patch], segment.patches).values()
         ]
     else:
         patches = list(scope)

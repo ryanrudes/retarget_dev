@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from retarget.core.schema.marker import Marker
     from retarget.core.schema.patch import Patch
 
+
 class Segments(TypedDict):
     """Base class for typed segment schema declarations."""
 
@@ -76,9 +77,7 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
     markers: MarkersT
     patches: PatchesT
     mocap_name: str | None = None
-    _binding: _SegmentBinding | None = field(
-        default=None, init=False, compare=False, repr=False
-    )
+    _binding: _SegmentBinding | None = field(default=None, init=False, compare=False, repr=False)
 
     def translations(self) -> TimeVec3:
         """Segment-origin world translations with shape ``(T, 3)``."""
@@ -99,9 +98,7 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
     ) -> tuple[RigidTransform, ...] | np.ndarray:
         """Segment world poses in the requested representation."""
         runtime = self._runtime()
-        return pose_arrays_to_format(
-            runtime.translations, runtime.rotations, format=format
-        )
+        return pose_arrays_to_format(runtime.translations, runtime.rotations, format=format)
 
     def linear_velocities(self) -> TimeVec3:
         """Segment-origin world velocities with shape ``(T, 3)``."""
@@ -161,9 +158,7 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
         if jumps is None:
             return np.zeros(num, dtype=np.bool_)
         geometry_patches = [
-            patch
-            for patch in cast("Mapping[str, Patch[Any]]", self.patches).values()
-            if patch.has_geometry()
+            patch for patch in cast("Mapping[str, Patch]", self.patches).values() if patch.has_geometry()
         ]
         if not geometry_patches:
             return np.asarray(jumps(runtime.translations, runtime.timestamps))
@@ -189,12 +184,8 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
     ) -> np.ndarray | dict[str, TimeVec3]:
         """Batch marker positions: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
         if as_dict:
-            return {
-                name: self._marker(name).positions(modeled=modeled) for name in markers
-            }
-        return self._stack(
-            [self._marker(name).positions(modeled=modeled) for name in markers]
-        )
+            return {name: self._marker(name).positions(modeled=modeled) for name in markers}
+        return self._stack([self._marker(name).positions(modeled=modeled) for name in markers])
 
     def marker_velocities(
         self,
@@ -204,13 +195,8 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
     ) -> np.ndarray | dict[str, TimeVec3]:
         """Batch marker velocities: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
         if as_dict:
-            return {
-                name: self._marker(name).velocities(modeled=modeled)
-                for name in markers
-            }
-        return self._stack(
-            [self._marker(name).velocities(modeled=modeled) for name in markers]
-        )
+            return {name: self._marker(name).velocities(modeled=modeled) for name in markers}
+        return self._stack([self._marker(name).velocities(modeled=modeled) for name in markers])
 
     def patch_points(
         self,
@@ -265,18 +251,14 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
         binding = self._require_binding()
         if marker not in self.markers:
             raise KeyError(self._missing_marker_message(marker))
-        return MarkerTarget(
-            subject=binding.subject, segment=binding.segment, marker=marker
-        )
+        return MarkerTarget(subject=binding.subject, segment=binding.segment, marker=marker)
 
     def patch_target(self, patch: str) -> PatchTarget:
         """Stable scene-level identity for one patch on this segment."""
         binding = self._require_binding()
         if patch not in self.patches:
             raise KeyError(self._missing_patch_message(patch))
-        return PatchTarget(
-            subject=binding.subject, segment=binding.segment, patch=patch
-        )
+        return PatchTarget(subject=binding.subject, segment=binding.segment, patch=patch)
 
     def _marker(self, name: str) -> Marker:
         from retarget.core.schema.marker import Marker as MarkerCls

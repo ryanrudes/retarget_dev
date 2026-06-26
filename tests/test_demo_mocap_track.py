@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from fungeom import Face, Point3, Region2
+
 from conftest import (
     SEGMENT,
     SUBJECT,
@@ -24,13 +26,11 @@ from retarget.core import (
     Segments,
     Subject,
     Subjects,
-    axis_normal,
-    fixed,
-    plane_from,
 )
+from retarget.core.geometry import SegmentGeometry
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
-from retarget.io import MarkerObservation, ViconMarkersFrame
+from retarget.io import ViconMarkersFrame
 
 _POSITIONS = {
     "heel": np.array([0.0, 0.0, 0.0]),
@@ -58,6 +58,18 @@ class _TwoPatchSubjects(Subjects):
     subject: Subject[_TwoPatchSegments]
 
 
+def _two_sole_geometry(seg: SegmentGeometry) -> Face:
+    markers = seg.markers["heel", "toe", "mid"]
+    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
+    return Face.on(plane, Region2.rectangle(1.0, 1.0))
+
+
+def _two_heel_cap_geometry(seg: SegmentGeometry) -> Face:
+    markers = seg.markers["heel", "toe", "mid"]
+    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0)).offset(0.05)
+    return Face.on(plane, Region2.rectangle(0.5, 0.5))
+
+
 def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
     subjects = _TwoPatchSubjects(
         subject=Subject(
@@ -69,17 +81,8 @@ def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
                         mid=Marker(mocap_name="mid", position_segment=_POSITIONS["mid"]),
                     ),
                     patches=_TwoPatchPatches(
-                        sole=Patch.planar(
-                            label="sole",
-                            plane=plane_from("heel", "toe", "mid"),
-                            extent=fixed(1.0, 1.0),
-                        ),
-                        heel_cap=Patch.planar(
-                            label="heel_cap",
-                            plane=plane_from("heel", "toe", "mid"),
-                            extent=fixed(0.5, 0.5),
-                            normal=axis_normal(offset=0.05),
-                        ),
+                        sole=Patch(label="sole", geometry=_two_sole_geometry),
+                        heel_cap=Patch(label="heel_cap", geometry=_two_heel_cap_geometry),
                     ),
                 )
             )
@@ -190,10 +193,13 @@ def test_patch_points_and_normals_match_manual_formula() -> None:
     sole = segment.patches["sole"]
     rotations = segment.rotations()
     translations = segment.translations()
-    tsp = sole.transform_segment_patch
-    assert tsp is not None
-    expected_points = np.einsum("tij,j->ti", rotations, tsp.translation) + translations
-    expected_normals = np.einsum("tij,j->ti", rotations, tsp.rotation[:, 2])
+    # make_mocap_track's first frame is identity rotation + zero translation, so points()[0]
+    # and normals()[0] are the segment-local patch origin/normal; every frame must be exactly
+    # that rigidly transported by the segment pose.
+    local_point = np.asarray(sole.points()[0], dtype=np.float64)
+    local_normal = np.asarray(sole.normals()[0], dtype=np.float64)
+    expected_points = np.einsum("tij,j->ti", rotations, local_point) + translations
+    expected_normals = np.einsum("tij,j->ti", rotations, local_normal)
     np.testing.assert_allclose(sole.points(), expected_points)
     np.testing.assert_allclose(sole.normals(), expected_normals)
 

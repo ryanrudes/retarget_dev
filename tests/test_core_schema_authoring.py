@@ -3,6 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from fungeom import Direction3, Face, Plane, Region2
+
 from retarget.core import (
     Marker,
     MarkerTarget,
@@ -10,7 +12,6 @@ from retarget.core import (
     Patch,
     PatchTarget,
     Patches,
-    RectangularRegion,
     RigidTransform,
     SceneState,
     Segment,
@@ -20,11 +21,9 @@ from retarget.core import (
     Segments,
     Subject,
     Subjects,
-    axis_normal,
     bind_scene,
-    fixed,
-    plane_from,
 )
+from retarget.core.geometry import SegmentGeometry
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
 
@@ -46,16 +45,16 @@ class ShoeSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
 
 
+def _shoe_sole_geometry(seg: SegmentGeometry) -> Face:
+    # An axis-aligned patch anchored at the heel marker: plane through heel with a +z normal
+    # and a fixed 0.10 x 0.25 footprint (the open-algebra form of an identity patch frame).
+    plane = Plane.through(seg.markers["heel"], Direction3.of(0.0, 0.0, 1.0))
+    return Face.on(plane, Region2.rectangle(0.10, 0.25))
+
+
 def _subjects(*, with_geometry: bool = True) -> ShoeSubjects:
     sole = (
-        Patch(
-            label="sole",
-            transform_segment_patch=RigidTransform.identity(),
-            region=RectangularRegion(width=0.10, height=0.25),
-            frame="sole_frame",
-        )
-        if with_geometry
-        else Patch(label="sole")
+        Patch(label="sole", geometry=_shoe_sole_geometry, frame="sole_frame") if with_geometry else Patch(label="sole")
     )
     return ShoeSubjects(
         left_shoe=Subject(
@@ -76,11 +75,7 @@ def _subjects(*, with_geometry: bool = True) -> ShoeSubjects:
 
 def _track(*, with_geometry: bool = True) -> MocapTrack[ShoeSubjects]:
     state = SceneState(
-        segment_poses={
-            SegmentKey("left_shoe", "shoe"): SegmentPoseTrajectory(
-                poses=(RigidTransform.identity(),)
-            )
-        }
+        segment_poses={SegmentKey("left_shoe", "shoe"): SegmentPoseTrajectory(poses=(RigidTransform.identity(),))}
     )
     frame = ViconMarkersFrame(
         stamp_seconds=0.0,
@@ -168,123 +163,13 @@ def _body_model_subjects(*, override_heel: bool = False) -> ShoeSubjects:
 
 def test_body_model_supplies_marker_segment_positions() -> None:
     shoe = bind_scene(_body_model_subjects())["left_shoe"].segments["shoe"]
-    np.testing.assert_allclose(
-        shoe.markers["heel"].position_segment, np.array([0.5, 0.0, 0.0])
-    )
-    np.testing.assert_allclose(
-        shoe.markers["toe"].position_segment, np.array([1.0, 0.0, 0.0])
-    )
+    np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.array([0.5, 0.0, 0.0]))
+    np.testing.assert_allclose(shoe.markers["toe"].position_segment, np.array([1.0, 0.0, 0.0]))
 
 
 def test_explicit_position_segment_overrides_body_model() -> None:
-    shoe = bind_scene(_body_model_subjects(override_heel=True))["left_shoe"].segments[
-        "shoe"
-    ]
+    shoe = bind_scene(_body_model_subjects(override_heel=True))["left_shoe"].segments["shoe"]
     np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.zeros(3))
-
-
-class _PlaneMarkers(Markers):
-    rear: Marker
-    inner: Marker
-    outer: Marker
-
-
-class _PlanePatches(Patches):
-    sole: Patch
-
-
-class _PlaneSegments(Segments):
-    shoe: Segment[_PlaneMarkers, _PlanePatches]
-
-
-class _PlaneSubjects(Subjects):
-    foot: Subject[_PlaneSegments]
-
-
-def _plane_subjects(*, with_body_model: bool, normal_offset: float = 0.0) -> _PlaneSubjects:
-    positions = {
-        "rear": np.array([0.0, 0.0, 0.0]),
-        "inner": np.array([1.0, 0.0, 0.0]),
-        "outer": np.array([0.0, 1.0, 0.0]),
-    }
-
-    def marker(name: str) -> Marker:
-        if with_body_model:
-            return Marker(mocap_name=name)
-        return Marker(mocap_name=name, position_segment=positions[name])
-
-    return _PlaneSubjects(
-        foot=Subject(
-            body_model=positions if with_body_model else None,
-            segments=_PlaneSegments(
-                shoe=Segment(
-                    markers=_PlaneMarkers(
-                        rear=marker("rear"),
-                        inner=marker("inner"),
-                        outer=marker("outer"),
-                    ),
-                    patches=_PlanePatches(
-                        sole=Patch.planar(
-                            label="sole",
-                            plane=plane_from("rear", "inner", "outer"),
-                            extent=fixed(0.10, 0.25),
-                            normal=axis_normal(offset=normal_offset),
-                        ),
-                    ),
-                )
-            ),
-        )
-    )
-
-
-def test_rectangle_patch_calibrates_from_body_model_at_bind_time() -> None:
-    shoe = bind_scene(_plane_subjects(with_body_model=True))["foot"].segments["shoe"]
-    sole = shoe.patches["sole"]
-    assert sole.has_geometry()
-    transform = sole.transform_segment_patch
-    assert transform is not None
-    # Markers lie in z=0, centroid is their mean, outward normal points +z.
-    np.testing.assert_allclose(transform.translation, np.array([1.0 / 3.0, 1.0 / 3.0, 0.0]))
-    np.testing.assert_allclose(transform.rotation[:, 2], np.array([0.0, 0.0, 1.0]))
-
-
-def test_rectangle_patch_calibrates_from_explicit_positions() -> None:
-    shoe = bind_scene(_plane_subjects(with_body_model=False))["foot"].segments["shoe"]
-    assert shoe.patches["sole"].has_geometry()
-
-
-def test_rectangle_patch_normal_offset_shifts_origin_along_normal() -> None:
-    shoe = bind_scene(_plane_subjects(with_body_model=True, normal_offset=0.1))[
-        "foot"
-    ].segments["shoe"]
-    transform = shoe.patches["sole"].transform_segment_patch
-    assert transform is not None
-    np.testing.assert_allclose(transform.translation[2], 0.1)
-
-
-def test_rectangle_patch_without_marker_positions_raises_at_bind_time() -> None:
-    subjects = _PlaneSubjects(
-        foot=Subject(
-            segments=_PlaneSegments(
-                shoe=Segment(
-                    markers=_PlaneMarkers(
-                        rear=Marker(mocap_name="rear"),
-                        inner=Marker(mocap_name="inner"),
-                        outer=Marker(mocap_name="outer"),
-                    ),
-                    patches=_PlanePatches(
-                        sole=Patch.planar(
-                            label="sole",
-                            plane=plane_from("rear", "inner", "outer"),
-                            extent=fixed(0.1, 0.1),
-                        ),
-                    ),
-                )
-            )
-        )
-    )
-    with pytest.raises(ValueError, match="cannot calibrate"):
-        bind_scene(subjects)
 
 
 def test_bind_scene_rejects_duplicate_mocap_name_within_segment() -> None:

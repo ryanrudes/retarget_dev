@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from fungeom import Face, Region2
+
 from retarget.io import read_marker_positions_from_vsk
 
 from retarget.demo import (
@@ -23,12 +25,8 @@ from retarget.core import (
     Segment,
     Patch,
     Marker,
-    SemanticAxis,
-    bounding_box,
-    min_area_rectangle,
-    plane_from,
-    side,
 )
+from retarget.core.geometry import SegmentGeometry
 
 from .schema import (
     ExampleTracks,
@@ -132,39 +130,51 @@ def get_balance_board_markers() -> BalanceBoardMarkers:
 # (toe_grid_1) is on the INWARD side, so the outward normal points the other way --
 # down, toward the board the sole contacts. With "outward = toward the contact",
 # +normal_offset always nudges the plane toward the board.
+def _sole_geometry(seg: SegmentGeometry) -> Face:
+    # Fit the contact plane through the three calibration markers. The shoe body
+    # (toe_grid_1) is on the INWARD side, so the outward normal points the other way --
+    # toward the board the sole contacts; ``facing(toe_grid_1).flipped()`` orients it that
+    # way, then +offset nudges the plane toward the board. The footprint is the convex hull
+    # of the foot markers flattened into that plane, padded 5 mm.
+    plane = (
+        seg.markers["plane_rear", "plane_inner", "plane_outer"]
+        .fit_plane()
+        .facing(seg.markers["toe_grid_1"])
+        .flipped()
+        .offset(SOLE_PLANE_NORMAL_OFFSET)
+    )
+    footprint = Region2.hull(seg.markers[SOLE_FOOTPRINT_MARKERS].in_frame(plane)).offset(0.005)
+    return Face.on(plane, footprint)
+
+
 def get_left_shoe_patches() -> LeftShoePatches:
     return LeftShoePatches(
-        sole=Patch.planar(
-            label="sole",
-            plane=plane_from("plane_rear", "plane_inner", "plane_outer"),  # fit the plane only
-            extent=bounding_box(*SOLE_FOOTPRINT_MARKERS, padding=0.005),  # origin + size
-            # shoe body (toe_grid_1) is inward -> outward normal faces the board;
-            # +offset then nudges the contact plane toward the board.
-            normal=side("toe_grid_1", defines=-SemanticAxis.UP, offset=SOLE_PLANE_NORMAL_OFFSET),
-            frame="sole_frame",
-        )
+        sole=Patch(label="sole", geometry=_sole_geometry, frame="sole_frame"),
     )
 
 
-# The deck edge sits below the standing surface, so it is on the INWARD side: the
-# outward normal points up, toward the shoe. The surface markers already lie on the
-# standing surface, so no offset is needed.
-#
-# The board is not axis-aligned to the capture's FORWARD, so orient the in-plane
-# axes to the footprint's own minimum-area rectangle; bounding_box over the same
-# markers then yields that tight, naturally-aligned rectangle (not a rotated,
-# oversized axis-aligned box).
+def _surface_geometry(seg: SegmentGeometry) -> Face:
+    # Fit the deck plane through the four surface markers. The deck edge (edge1) sits below
+    # the surface (INWARD), so the outward normal points up toward the shoe;
+    # ``facing(edge1).flipped()`` orients it that way (offset is inward, negative). The hull
+    # of the footprint markers in-plane gives the tight, naturally-oriented footprint -- no
+    # explicit min-area-rectangle needed, the hull captures the orientation intrinsically.
+    plane = (
+        seg.markers["surface1", "surface2", "surface3", "surface4"]
+        .fit_plane()
+        .facing(seg.markers["edge1"])
+        .flipped()
+        .offset(BALANCE_BOARD_PLANE_NORMAL_OFFSET)
+    )
+    footprint = Region2.hull(
+        seg.markers[BALANCE_BOARD_FOOTPRINT_MARKERS].in_frame(plane)
+    ).offset(0.005)
+    return Face.on(plane, footprint)
+
+
 def get_balance_board_patches() -> BalanceBoardPatches:
     return BalanceBoardPatches(
-        surface=Patch.planar(
-            label="surface",
-            plane=plane_from("surface1", "surface2", "surface3", "surface4"),
-            tangential=min_area_rectangle(*BALANCE_BOARD_FOOTPRINT_MARKERS),
-            extent=bounding_box(*BALANCE_BOARD_FOOTPRINT_MARKERS, padding=0.005),  # origin + size
-            # deck edge sits below the surface -> outward normal faces the shoe.
-            normal=side("edge1", defines=-SemanticAxis.UP, offset=BALANCE_BOARD_PLANE_NORMAL_OFFSET),
-            frame="surface_frame",
-        )
+        surface=Patch(label="surface", geometry=_surface_geometry, frame="surface_frame"),
     )
 
 

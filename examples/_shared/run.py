@@ -27,14 +27,17 @@ def animate(demo: Demonstration[ExampleTracks]) -> None:
     sole_points = sole.points()
     sole_unit_normals = sole.normals()
 
-    # `sole.region` is now statically a `RectangularRegion` (the schema declares
-    # `sole: Patch[RectangularRegion]`), so width/height read with no isinstance check.
-    width = sole.region.width
-    height = sole.region.height
+    # The footprint is the patch's fungeom Face region; its in-plane bounding box gives a
+    # scale for the normal arrow (no RectangularRegion / width/height attribute any more).
+    bounds = sole.face().region().bounds().resolve()
+    extent = np.asarray(bounds.at("max").coord, dtype=np.float64) - np.asarray(
+        bounds.at("min").coord, dtype=np.float64
+    )
+    width, height = float(extent[0]), float(extent[1])
 
-    # The oriented rectangle comes straight from the library: `boundary_points()`
+    # The oriented footprint comes straight from the library: `boundary_points()`
     # transports the contact-region polygon into the world frame at every timestep.
-    corners_world = np.asarray(sole.boundary_points(), dtype=np.float64)  # (T, 4, 3)
+    corners_world = np.asarray(sole.boundary_points(), dtype=np.float64)  # (T, K, 3)
 
     origins = np.asarray(sole_points, dtype=np.float64)  # (T, 3)
     normals = np.asarray(sole_unit_normals, dtype=np.float64)  # (T, 3)

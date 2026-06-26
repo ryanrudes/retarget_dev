@@ -17,11 +17,6 @@ from retarget.core.enums import (
     PoseFormat,
     QuaternionOrder,
 )
-from retarget.core.contact_region import (
-    ContactRegion,
-    RectangularRegion,
-    PolygonalRegion,
-)
 from retarget.core.keys import SegmentKey
 from retarget.core.state import (
     SegmentPoseTrajectory,
@@ -31,49 +26,12 @@ from retarget.core.schema import (
     Marker,
     Markers,
     Patch,
-    PatchCalibration,
     Patches,
     Segment,
     Segments,
     Subject,
     Subjects,
     bind_scene,
-)
-from retarget.core.calibration import calibrate_patch_transform
-from retarget.core.resolvers import (
-    AlongAxis,
-    AtMarker,
-    BoundingBox,
-    BoundingBoxCenter,
-    Centroid,
-    Chirality,
-    Fixed,
-    FittedPlane,
-    MinAreaRectangle,
-    NormalResolution,
-    ExtentResolver,
-    AxisNormal,
-    NormalResolver,
-    SideNormal,
-    WindingNormal,
-    OriginResolver,
-    PlaneFromMarkers,
-    PlaneResolver,
-    TangentialResolver,
-    TowardMarker,
-    WindingDirection,
-    along_axis,
-    at_marker,
-    axis_normal,
-    bounding_box,
-    bounding_box_center,
-    centroid,
-    fixed,
-    min_area_rectangle,
-    plane_from,
-    side,
-    toward,
-    winding,
 )
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import (
@@ -106,7 +64,6 @@ __all__ = [
     "RotationFormat",
     "PoseFormat",
     "QuaternionOrder",
-
     # Axes
     "SignedAxis",
     "SignedSemanticAxis",
@@ -117,7 +74,6 @@ __all__ = [
     "Y_UP_AXES",
     "MUJOCO_AXES",
     "ISAAC_AXES",
-
     # Types
     "Vec2",
     "Vec3",
@@ -132,53 +88,10 @@ __all__ = [
     "TimeQuat",
     "TimeBool",
     "TimeEntityBool",
-
     # Transform
     "RigidTransform",
-
     # Keys
     "SegmentKey",
-
-    # Contact regions
-    "ContactRegion",
-    "RectangularRegion",
-    "PolygonalRegion",
-
-    # Patch frame: pluggable plane + normal + tangential orientation + origin + extent
-    "FittedPlane",
-    "PlaneResolver",
-    "PlaneFromMarkers",
-    "plane_from",
-    "NormalResolver",
-    "NormalResolution",
-    "AxisNormal",
-    "SideNormal",
-    "WindingNormal",
-    "axis_normal",
-    "side",
-    "winding",
-    "WindingDirection",
-    "Chirality",
-    "TangentialResolver",
-    "AlongAxis",
-    "TowardMarker",
-    "MinAreaRectangle",
-    "OriginResolver",
-    "BoundingBoxCenter",
-    "Centroid",
-    "AtMarker",
-    "ExtentResolver",
-    "BoundingBox",
-    "Fixed",
-    "along_axis",
-    "toward",
-    "min_area_rectangle",
-    "bounding_box_center",
-    "centroid",
-    "at_marker",
-    "fixed",
-    "bounding_box",
-
     # Authoring schema + bound runtime surface
     "Markers",
     "Patches",
@@ -186,23 +99,16 @@ __all__ = [
     "Subjects",
     "Marker",
     "Patch",
-    "PatchCalibration",
     "Segment",
     "Subject",
     "bind_scene",
-
-    # Calibration (backend helper)
-    "calibrate_patch_transform",
-
     # State
     "SegmentPoseTrajectory",
     "SceneState",
-
     # Targets (stable runtime keys)
     "SegmentTarget",
     "MarkerTarget",
     "PatchTarget",
-
     # Translation
     "MarkerTranslation",
     "BodyFrameTranslation",

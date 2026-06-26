@@ -1,25 +1,19 @@
-"""Patch schema declaration and bound time-series queries."""
+"""Patch schema declaration and bound time-series queries.
+
+A patch is an oriented contact surface + a bounded footprint, authored as a ``geometry``
+callable that, given the segment's :class:`~retarget.core.geometry.SegmentGeometry`, returns a
+fungeom :class:`~fungeom.Face` (an oriented ``Plane`` + a ``Region2``). At bind time the
+binding evaluates the callable and lowers the Face to a segment-local rigid frame + boundary;
+the query methods below transport those per-frame by the segment pose.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict, cast
 
 import numpy as np
 
-from retarget.core.axes import AxisConvention, SemanticAxis, Z_UP_AXES
-from retarget.core.calibration import calibrate_patch_transform
-from retarget.core.contact_region import ContactRegion, RectangularRegion
-from retarget.core.resolvers import (
-    ExtentResolver,
-    NormalResolver,
-    OriginResolver,
-    PlaneResolver,
-    TangentialResolver,
-    along_axis,
-    axis_normal,
-)
 from retarget.core.formats import JumpDetector, finite_difference_velocity
 from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, most_confident
 from retarget.core.targets import PatchTarget
@@ -31,10 +25,14 @@ from retarget.core.types import (
     TimeEntityVec3,
     TimeMat3,
     TimeVec3,
-    Vec3,
 )
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from fungeom import Face
+
+    from retarget.core.geometry import SegmentGeometry
     from retarget.core.schema.segment import _SegmentRuntime
 
 
@@ -48,94 +46,31 @@ class _PatchBinding:
     segment: str
     patch: str
     runtime: _SegmentRuntime | None
+    # segment-local geometry lowered from the patch's bound geometry callable
+    lowered_transform: RigidTransform | None = None
+    lowered_boundary: np.ndarray | None = None
+    face: Face | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class PatchCalibration:
-    """A deferred patch-frame fit from a segment's calibration markers.
+class Patch:
+    """A contact patch: an authored ``geometry`` callable plus bound time-series queries.
 
-    The ``transform_segment_patch`` is computed at bind time from the named
-    markers' segment-frame positions (which may come from the subject
-    ``body_model`` or per-marker ``position_segment``), so the patch frame need
-    not be precomputed during authoring.
-    """
+    ``geometry`` takes the segment's :class:`~retarget.core.geometry.SegmentGeometry` and
+    returns a fungeom :class:`~fungeom.Face`::
 
-    plane: PlaneResolver = field(compare=False)
-    extent: ExtentResolver = field(compare=False)
-    normal: NormalResolver = field(default_factory=axis_normal, compare=False)
-    tangential: TangentialResolver = field(
-        default_factory=lambda: along_axis(SemanticAxis.FORWARD), compare=False
-    )
-    origin: OriginResolver | None = field(default=None, compare=False)
-    axis_convention: AxisConvention = Z_UP_AXES
+        def sole(seg):
+            return Face.on(seg.markers["a", "b", "c"].fit_plane(), Region2.hull(...))
 
+        Patch(label="sole", geometry=sole)
 
-@dataclass(frozen=True, slots=True)
-class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
-    """A contact patch: authoring metadata plus bound time-series queries.
-
-    ``RegionT`` is the static type of ``region``. Authoring a patch without a
-    region (declaration-only) leaves it as ``ContactRegion | None``; constructing
-    via :meth:`planar` (or passing a concrete ``region=...``) narrows it, so a
-    schema declaring ``sole: Patch[RectangularRegion]`` types ``sole.region`` as
-    ``RectangularRegion`` with no ``isinstance`` check.
+    A declaration-only patch (no ``geometry``) is targetable but has no contact geometry.
     """
 
     label: str
-    transform_segment_patch: RigidTransform | None = field(default=None, compare=False)
-    region: RegionT = field(default=cast("RegionT", None), compare=False)
     frame: str | None = None
-    calibration: PatchCalibration | None = field(default=None, compare=False)
-    _binding: _PatchBinding | None = field(
-        default=None, init=False, compare=False, repr=False
-    )
-
-    @classmethod
-    def planar(
-        cls,
-        label: str,
-        *,
-        plane: PlaneResolver,
-        extent: ExtentResolver,
-        normal: NormalResolver = axis_normal(),
-        tangential: TangentialResolver = along_axis(SemanticAxis.FORWARD),
-        origin: OriginResolver | None = None,
-        axis_convention: AxisConvention = Z_UP_AXES,
-        frame: str | None = None,
-    ) -> Patch[RectangularRegion]:
-        """Build a planar (rectangular) patch as a composition of independent resolvers.
-
-        Every aspect of the definition is one resolver (see
-        :mod:`retarget.core.resolvers`); there are no mutually-exclusive arguments:
-
-        - ``plane`` (a :class:`~retarget.core.resolvers.PlaneResolver`, e.g.
-          ``plane_from("a","b","c", translations=...)``) fits the contact plane through
-          calibration markers, optionally pre-translating them.
-        - ``normal`` (a :class:`~retarget.core.resolvers.NormalResolver`, e.g.
-          ``axis_normal(offset=...)``, ``side("m", defines=-SemanticAxis.UP)``, or
-          ``winding([...], direction=...)``) fixes the +normal (outward) sign and
-          carries the contact-surface offset (+ = outward).
-        - ``tangential`` (a :class:`~retarget.core.resolvers.TangentialResolver`) sets
-          the in-plane +x; default: ``along_axis(FORWARD)``. Pair ``min_area_rectangle(*m)``
-          with ``extent=bounding_box(*m)`` for the tight, naturally-aligned rectangle.
-        - ``origin`` (a :class:`~retarget.core.resolvers.OriginResolver`) places the in-plane
-          origin; default: ``extent``'s default origin / the plane-marker centroid.
-        - ``extent`` (a :class:`~retarget.core.resolvers.ExtentResolver`, e.g. ``fixed(w,h)``
-          or ``bounding_box(*m, padding=...)``) sizes the rectangle.
-        """
-        return Patch(
-            label=label,
-            region=cast(RectangularRegion, extent.static_region()),
-            frame=frame,
-            calibration=PatchCalibration(
-                plane=plane,
-                extent=extent,
-                normal=normal,
-                tangential=tangential,
-                origin=origin,
-                axis_convention=axis_convention,
-            ),
-        )
+    geometry: Callable[[SegmentGeometry], Face] | None = field(default=None, compare=False, repr=False)
+    _binding: _PatchBinding | None = field(default=None, init=False, compare=False, repr=False)
 
     def points(self) -> TimeVec3:
         """World-frame patch origin/contact points with shape ``(T, 3)``."""
@@ -159,31 +94,19 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         """
         runtime = self._runtime()
         local_rotation = np.asarray(self._geometry().rotation, dtype=np.float64)
-        return cast(
-            TimeMat3, np.einsum("tij,jk->tik", runtime.rotations, local_rotation)
-        )
+        return cast(TimeMat3, np.einsum("tij,jk->tik", runtime.rotations, local_rotation))
 
     def boundary_points(self) -> TimeEntityVec3:
-        """World-frame contact-region boundary polygon with shape ``(T, K, 3)``.
+        """World-frame footprint boundary polygon with shape ``(T, K, 3)``.
 
-        The region boundary (e.g. the four corners of a ``RectangularRegion``) is
-        expressed in the patch local xy plane, then transported into the world
-        frame at every timestep, ready to draw as an oriented polygon.
+        The Face region's vertices are segment-local points on the patch plane; they are
+        transported into the world frame at every timestep, ready to draw as an oriented polygon.
         """
-        region = self.region
-        if region is None:
-            name = self._binding.patch if self._binding is not None else self.label
-            raise ValueError(
-                f"Patch {name!r} has no contact region to take a boundary from"
-            )
-        local_xy = np.asarray(region.boundary(), dtype=np.float64)
-        local_xyz = np.concatenate(
-            [local_xy, np.zeros((local_xy.shape[0], 1), dtype=np.float64)], axis=1
-        )
-        geometry = self._geometry()
-        rotation = np.asarray(geometry.rotation, dtype=np.float64)
-        translation = np.asarray(geometry.translation, dtype=np.float64)
-        boundary_segment = local_xyz @ rotation.T + translation
+        binding = self._binding
+        if binding is None or binding.lowered_boundary is None:
+            name = binding.patch if binding is not None else self.label
+            raise ValueError(f"Patch {name!r} has no contact region to take a boundary from")
+        boundary_segment = np.asarray(binding.lowered_boundary, dtype=np.float64)
         runtime = self._runtime()
         world = np.einsum("tij,kj->tki", runtime.rotations, boundary_segment)
         return cast(TimeEntityVec3, world + runtime.translations[:, None, :])
@@ -191,9 +114,7 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
     def velocities(self) -> TimeVec3:
         """World-frame patch-point velocities with shape ``(T, 3)``."""
         runtime = self._runtime()
-        return cast(
-            TimeVec3, finite_difference_velocity(self.points(), runtime.timestamps)
-        )
+        return cast(TimeVec3, finite_difference_velocity(self.points(), runtime.timestamps))
 
     def contacts(self) -> np.ndarray:
         """Boolean contact state with shape ``(T,)`` from an attached contact track."""
@@ -202,9 +123,7 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         try:
             return runtime.contacts[name]
         except KeyError as exc:
-            raise ValueError(
-                f"No contact track is attached for patch {name!r}"
-            ) from exc
+            raise ValueError(f"No contact track is attached for patch {name!r}") from exc
 
     def confidence(self) -> np.ndarray:
         """Contact confidence with shape ``(T,)`` from an attached contact track."""
@@ -213,9 +132,7 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         try:
             return runtime.confidences[name]
         except KeyError as exc:
-            raise ValueError(
-                f"No contact confidence is attached for patch {name!r}"
-            ) from exc
+            raise ValueError(f"No contact confidence is attached for patch {name!r}") from exc
 
     def support_contacts(self) -> dict[str, TimeBool]:
         """Per-named-support boolean contact arrays for this patch (multi-contact).
@@ -322,16 +239,29 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         )
 
     def has_geometry(self) -> bool:
-        """Whether this patch carries calibrated geometry."""
-        return self.transform_segment_patch is not None and self.region is not None
+        """Whether this patch was authored with a ``geometry`` callable."""
+        return self.geometry is not None
+
+    def has_region(self) -> bool:
+        """Whether this patch has a footprint boundary (for region-aware contact sampling)."""
+        return self._binding is not None and self._binding.lowered_boundary is not None
+
+    def face(self) -> Face:
+        """The bound segment-local fungeom ``Face`` for this patch.
+
+        The oriented surface (``face.plane()``) + bounded footprint (``face.region()``) in the
+        segment frame. Raises if this patch was not authored with a ``geometry`` callable.
+        """
+        binding = self._require_binding()
+        if binding.face is None:
+            raise ValueError(f"Patch {binding.patch!r} was not authored with a geometry callable")
+        return binding.face
 
     def _geometry(self) -> RigidTransform:
-        if self.transform_segment_patch is None:
-            name = self._binding.patch if self._binding is not None else self.label
-            raise ValueError(
-                f"Patch {name!r} is declared but has no calibrated geometry"
-            )
-        return self.transform_segment_patch
+        if self._binding is not None and self._binding.lowered_transform is not None:
+            return self._binding.lowered_transform
+        name = self._binding.patch if self._binding is not None else self.label
+        raise ValueError(f"Patch {name!r} is declared but has no calibrated geometry")
 
     def _require_binding(self) -> _PatchBinding:
         if self._binding is None:
@@ -347,35 +277,3 @@ class Patch[RegionT: ContactRegion | None = ContactRegion | None]:
         if binding.runtime is None:
             raise RuntimeError(_UNBOUND_MESSAGE.format(what="Patch"))
         return binding.runtime
-
-
-def resolve_patch_calibration(
-    calibration: PatchCalibration,
-    marker_positions_segment: Mapping[str, Vec3],
-    *,
-    subject: str,
-    segment: str,
-    patch_name: str,
-) -> tuple[RigidTransform, RectangularRegion]:
-    required = list(calibration.plane.required_markers())
-    required += calibration.normal.required_markers()
-    required += calibration.tangential.required_markers()
-    if calibration.origin is not None:
-        required += calibration.origin.required_markers()
-    required += calibration.extent.required_markers()
-    missing = [m for m in dict.fromkeys(required) if m not in marker_positions_segment]
-    if missing:
-        raise ValueError(
-            f"Patch {patch_name!r} on {subject!r}/{segment!r} cannot calibrate: "
-            f"no segment-frame positions for markers {missing}. Provide a subject "
-            "body_model or a per-marker position_segment for them."
-        )
-    return calibrate_patch_transform(
-        marker_positions_segment=marker_positions_segment,
-        plane=calibration.plane,
-        extent=calibration.extent,
-        normal=calibration.normal,
-        tangential=calibration.tangential,
-        origin=calibration.origin,
-        axis_convention=calibration.axis_convention,
-    )

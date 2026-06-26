@@ -18,7 +18,7 @@ so the public constructors stay pure authoring (``Marker(mocap_name=...)``).
 """
 
 from retarget.core.schema.marker import Marker, Markers
-from retarget.core.schema.patch import Patch, PatchCalibration, Patches
+from retarget.core.schema.patch import Patch, Patches
 from retarget.core.schema.segment import Segment, Segments, _SegmentRuntime
 from retarget.core.schema.binding import bind_scene, bind_subjects_runtime
 from retarget.core.schema.subject import Subject, Subjects
@@ -30,7 +30,6 @@ __all__ = [
     "Subjects",
     "Marker",
     "Patch",
-    "PatchCalibration",
     "Segment",
     "Subject",
     "bind_scene",

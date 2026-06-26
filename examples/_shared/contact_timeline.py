@@ -24,7 +24,7 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Patch as LegendPatch
 
 from retarget.contacts import CONTACT_CHANNELS, SupportFeatureChannels
-from retarget.core import Patch, RectangularRegion
+from retarget.core import Patch
 from retarget.demo import MocapTrack
 
 from .console import console
@@ -73,7 +73,7 @@ class TimelineSpec:
     """
 
     mocap: MocapTrack[ExampleSubjects]
-    patch: Patch[RectangularRegion]
+    patch: Patch
     none_label: str
     unknown_style: CategoryStyle
     categories: Sequence[CategoryStyle]

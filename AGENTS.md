@@ -176,6 +176,32 @@ links them to loaded data. It is `None` while authoring and excluded from
 equality/repr, so the public constructors stay pure authoring
 (`Marker(mocap_name=...)`). Mutable lazy caches (if any) stay non-frozen.
 
+## Patch geometry (the fungeom substrate)
+
+A patch is an **oriented contact surface + a bounded footprint**, authored as a `geometry`
+callable that, given the segment's `SegmentGeometry`, returns a fungeom `Face` (an oriented
+`Plane` + a `Region2`):
+
+```python
+from fungeom import Face, Region2
+
+def sole(seg) -> Face:                         # seg.markers[...] -> fungeom Point3 / Point3Bundle
+    plane = seg.markers["plane_rear", "plane_inner", "plane_outer"].fit_plane()
+    return Face.on(plane, Region2.hull(seg.markers["heel", "toe"].in_frame(plane)).offset(0.005))
+
+ShoePatches(sole=Patch(label="sole", geometry=sole))
+```
+
+`seg.markers[name] -> Point3` / `seg.markers[tuple] -> Point3Bundle` are the segment's marker
+rest positions as fungeom resolvers. At bind time the binding evaluates the callable and
+*lowers* the `Face` to a segment-local frame + boundary; `patch.points()/normals()/frames()/
+boundary_points()` transport those per-frame by the segment pose; `patch.face()` returns the
+bound `Face`. **fungeom (`ryanrudes/fungeom`) is retarget's geometry substrate** — geometry
+lives there, not in retarget (`retarget.core.geometry` holds the `SegmentGeometry` view +
+`lower_face`). The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
+retarget-side and *consume* fungeom values. Migration design:
+`docs/fungeom-substrate-migration.md`.
+
 ## Identity, targets, and runtime keys
 
 Identity is the authored string name. Stable runtime keys are string-based
@@ -268,10 +294,10 @@ do not mutate `Demonstration`.
 ## Backend/manual loaders
 
 Backend loaders (e.g. `examples/process_mocap_data/backend_specs/`) author the
-*same* typed `Subjects`/`Tracks` schemas, but may derive geometry from real VSK
-files via `calibrate_patch_transform(...)` and `read_marker_positions_from_vsk`.
-They return typed `Demonstration[TracksT]`. They do not use enums or private
-query helpers.
+*same* typed `Subjects`/`Tracks` schemas, deriving patch geometry from `geometry=` callables
+(fungeom `Face`s) over marker rest positions read from real VSK files via
+`read_marker_positions_from_vsk` (the subject `body_model`). They return typed
+`Demonstration[TracksT]`. They do not use enums or private query helpers.
 
 ## Forbidden patterns
 
@@ -293,6 +319,13 @@ variants:
 - **typing crutches** — codegen, dependent-typing plugins, or extra mypy plugins
   added to "improve" typing. The deep chain types via plain concrete `TypedDict`
   projection; keep it that way.
+- **the retired closed patch surface** — the `Patch[RegionT]` generic,
+  `ContactRegion`/`RectangularRegion`/`PolygonalRegion`, `calibrate_patch_transform` /
+  `PatchCalibration` / `Patch.planar`, and the `<Aspect>Resolver` menu (`PlaneResolver`/
+  `NormalResolver`/`TangentialResolver`/`OriginResolver`/`ExtentResolver` + `plane_from`/
+  `axis_normal`/`side`/`along_axis`/`min_area_rectangle`/`bounding_box`/`fixed`). Patches are
+  authored as `geometry=` callables returning a fungeom `Face`; geometry is fungeom's job, not
+  a retarget reimplementation.
 
 ## Tests
 

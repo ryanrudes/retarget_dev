@@ -5,11 +5,13 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
+from retarget.core.geometry import lower_face, segment_geometry_at
 from retarget.core.keys import SegmentKey
 from retarget.core.schema.marker import Marker, _MarkerBinding
-from retarget.core.schema.patch import Patch, _PatchBinding, resolve_patch_calibration
+from retarget.core.schema.patch import Patch, _PatchBinding
 from retarget.core.schema.segment import Segment, _SegmentBinding, _SegmentRuntime
 from retarget.core.schema.subject import Subject, Subjects, _SubjectBinding
+from retarget.core.targets import SegmentTarget
 from retarget.core.types import Vec3
 
 
@@ -56,11 +58,7 @@ def _bind_subject(
             subject=name,
             segment_name=segment_name,
             body_model=subject.body_model,
-            runtime=(
-                None
-                if runtimes is None
-                else runtimes.get(SegmentKey(name, segment_name))
-            ),
+            runtime=(None if runtimes is None else runtimes.get(SegmentKey(name, segment_name))),
         )
         for segment_name, segment in subject.segments.items()
     }
@@ -140,9 +138,7 @@ def _bind_marker(
     object.__setattr__(
         bound,
         "_binding",
-        _MarkerBinding(
-            subject=subject, segment=segment, marker=marker_name, runtime=runtime
-        ),
+        _MarkerBinding(subject=subject, segment=segment, marker=marker_name, runtime=runtime),
     )
     return bound
 
@@ -156,28 +152,27 @@ def _bind_patch(
     marker_positions_segment: Mapping[str, Vec3],
     runtime: _SegmentRuntime | None,
 ) -> Patch:
-    transform = patch.transform_segment_patch
-    region = patch.region
-    if transform is None and patch.calibration is not None:
-        transform, region = resolve_patch_calibration(
-            patch.calibration,
-            marker_positions_segment,
-            subject=subject,
-            segment=segment,
-            patch_name=patch_name,
-        )
-    bound = Patch(
-        label=patch.label,
-        transform_segment_patch=transform,
-        region=region,
-        frame=patch.frame,
-        calibration=patch.calibration,
-    )
+    lowered_transform = None
+    lowered_boundary = None
+    bound_face = None
+    if patch.geometry is not None:
+        # open patch algebra: evaluate the geometry callable over the segment's bind-time
+        # geometry and lower the resulting Face to a segment-local rigid frame + boundary.
+        seg_geometry = segment_geometry_at(SegmentTarget(subject=subject, segment=segment), marker_positions_segment)
+        bound_face = patch.geometry(seg_geometry)
+        lowered_transform, lowered_boundary = lower_face(bound_face)
+    bound = Patch(label=patch.label, frame=patch.frame, geometry=patch.geometry)
     object.__setattr__(
         bound,
         "_binding",
         _PatchBinding(
-            subject=subject, segment=segment, patch=patch_name, runtime=runtime
+            subject=subject,
+            segment=segment,
+            patch=patch_name,
+            runtime=runtime,
+            lowered_transform=lowered_transform,
+            lowered_boundary=lowered_boundary,
+            face=bound_face,
         ),
     )
     return bound

@@ -32,7 +32,6 @@ def test_public_exports_include_critical_symbols() -> None:
             "Subjects",
             "PatchTarget",
             "bind_scene",
-            "calibrate_patch_transform",
         },
         demo: {
             "Demonstration",

@@ -8,6 +8,8 @@ from typing import Any
 
 import numpy as np
 
+from fungeom import Face, Point3, Region2
+
 from retarget.core import (
     Marker,
     Markers,
@@ -22,9 +24,8 @@ from retarget.core import (
     Segments,
     Subject,
     Subjects,
-    fixed,
-    plane_from,
 )
+from retarget.core.geometry import SegmentGeometry
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
@@ -63,6 +64,17 @@ class DemoSubjects(Subjects):
     subject: Subject[DemoSegments]
 
 
+def _demo_sole_geometry(seg: SegmentGeometry) -> Face:
+    """Open-algebra equivalent of the old ``planar(plane_from(...), fixed(1, 1))`` sole.
+
+    Fits the contact plane through the three markers, pins the normal to +z (matching the
+    old ``axis_normal`` default), and gives a 1x1 rectangular footprint.
+    """
+    markers = seg.markers["heel", "toe", "mid"]
+    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
+    return Face.on(plane, Region2.rectangle(1.0, 1.0))
+
+
 def make_demo_subjects() -> DemoSubjects:
     return DemoSubjects(
         subject=Subject(
@@ -74,11 +86,7 @@ def make_demo_subjects() -> DemoSubjects:
                         mid=Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
                     ),
                     patches=DemoPatches(
-                        sole=Patch.planar(
-                            label="sole",
-                            plane=plane_from("heel", "toe", "mid"),
-                            extent=fixed(1.0, 1.0),
-                        ),
+                        sole=Patch(label="sole", geometry=_demo_sole_geometry),
                         toe=Patch(label="toe"),
                     ),
                 )
@@ -92,15 +100,8 @@ def make_mocap_track(
     num_timesteps: int = 3,
     include_markers: bool = True,
 ) -> MocapTrack[DemoSubjects]:
-    poses = tuple(
-        RigidTransform.from_translation(np.array([float(i), 0.0, 0.0]))
-        for i in range(num_timesteps)
-    )
-    state = SceneState(
-        segment_poses={
-            SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)
-        }
-    )
+    poses = tuple(RigidTransform.from_translation(np.array([float(i), 0.0, 0.0])) for i in range(num_timesteps))
+    state = SceneState(segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)})
     timestamps = np.arange(num_timesteps, dtype=np.float64) * 0.1
     marker_frames = None
     if include_markers:
@@ -146,12 +147,8 @@ def make_descending_mocap_track(
         start_height * (1.0 - timestamps / descend_until),
         0.0,
     )
-    poses = tuple(
-        RigidTransform.from_translation(np.array([0.0, 0.0, float(z[i])])) for i in range(n)
-    )
-    state = SceneState(
-        segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)}
-    )
+    poses = tuple(RigidTransform.from_translation(np.array([0.0, 0.0, float(z[i])])) for i in range(n))
+    state = SceneState(segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)})
     return MocapTrack(
         subjects=make_demo_subjects(),
         state=state,
@@ -180,12 +177,8 @@ def make_gliding_mocap_track(
     z = np.zeros(n)
     if liftoff_at is not None:
         z = 0.3 * np.clip((timestamps - liftoff_at) / 0.3, 0.0, 1.0)
-    poses = tuple(
-        RigidTransform.from_translation(np.array([float(x[i]), 0.0, float(z[i])])) for i in range(n)
-    )
-    state = SceneState(
-        segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)}
-    )
+    poses = tuple(RigidTransform.from_translation(np.array([float(x[i]), 0.0, float(z[i])])) for i in range(n))
+    state = SceneState(segment_poses={SegmentKey(SUBJECT, SEGMENT): SegmentPoseTrajectory(poses=poses)})
     return MocapTrack(
         subjects=make_demo_subjects(),
         state=state,
@@ -222,10 +215,6 @@ def make_string_contact_track(
     track = ContactTrack(
         timestamps=np.asarray(timestamps, dtype=np.float64),
         contacts={target: np.asarray(contacts, dtype=np.bool_)},
-        confidences=(
-            {target: np.asarray(confidences, dtype=np.float64)}
-            if confidences is not None
-            else {}
-        ),
+        confidences=({target: np.asarray(confidences, dtype=np.float64)} if confidences is not None else {}),
     )
     return track, target

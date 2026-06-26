@@ -46,7 +46,7 @@ from retarget.core.types import FloatArray, FloatArray1D, Points3, TimeBool, Tim
 from retarget.demo.contact import ContactTrack
 from retarget.utils.intervals import clean_mask_by_time, intervals_from_mask, mask_from_intervals
 
-Support = SupportModel | TimeIndexedSupport | Patch[Any] | Segment[Any, Any] | InferredGround
+Support = SupportModel | TimeIndexedSupport | Patch | Segment[Any, Any] | InferredGround
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,12 +63,12 @@ class _PatchData:
     timestamps: FloatArray
 
 
-def _patch_timestamps(patch: Patch[Any]) -> FloatArray:
+def _patch_timestamps(patch: Patch) -> FloatArray:
     # The bound runtime carries the (possibly sliced) mocap timeline shared by the scope.
     return cast(FloatArray, np.asarray(patch._runtime().timestamps, dtype=np.float64))
 
 
-def _gather_patch_data(patch: Patch[Any], resolved: ResolvedConfig) -> _PatchData:
+def _gather_patch_data(patch: Patch, resolved: ResolvedConfig) -> _PatchData:
     points = cast(FloatArray, np.asarray(patch.points(), dtype=np.float64))
     timestamps = _patch_timestamps(patch)
     velocities = local_polynomial_derivative(
@@ -80,8 +80,8 @@ def _gather_patch_data(patch: Patch[Any], resolved: ResolvedConfig) -> _PatchDat
     # Region-aware contact samples the rectangle's corners + center; for a planar
     # support the closest approach is exactly at a corner. Motion features stay on
     # the center point; only clearance uses the footprint.
-    if resolved.region_contact and patch.region is not None:
-        corners = np.asarray(patch.boundary_points(), dtype=np.float64)  # (T, 4, 3)
+    if resolved.region_contact and patch.has_region():
+        corners = np.asarray(patch.boundary_points(), dtype=np.float64)  # (T, K, 3)
         sample_points = cast(FloatArray, np.concatenate([corners, points[:, None, :]], axis=1))
     else:
         sample_points = points[:, None, :]
@@ -97,7 +97,7 @@ def _gather_patch_data(patch: Patch[Any], resolved: ResolvedConfig) -> _PatchDat
     )
 
 
-def _moving_support_from(against: Patch[Any] | Segment[Any, Any], up_axis: int) -> TimeIndexedSupport:
+def _moving_support_from(against: Patch | Segment[Any, Any], up_axis: int) -> TimeIndexedSupport:
     """Build a per-frame moving support from a tracked patch (deck surface) or segment pose.
 
     ``frames`` carries the backing body's full ``(T, 3, 3)`` orientation so motion can
