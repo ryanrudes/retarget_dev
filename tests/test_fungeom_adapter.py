@@ -169,8 +169,8 @@ def test_transform_bundle_signal_pose_fidelity() -> None:
     np.testing.assert_allclose(matrix[:3, :3], ROT90_Z)
     np.testing.assert_allclose(matrix[:3, 3], [1.0, 2.0, 3.0])
     np.testing.assert_allclose(matrix[3, :], [0.0, 0.0, 0.0, 1.0])
-    # the spec: TransformBundleSignal has no entity-axis key()
-    assert not hasattr(sig, "key")
+    # fungeom 0.2.0 added the entity-axis key(): pulling one segment's pose-signal out works.
+    assert hasattr(sig, "key")
 
 
 def test_transform_bundle_signal_multi_entity_distinct_rotations() -> None:

@@ -3,11 +3,16 @@
 **Status: the substrate is built, gated, adversarially reviewed, AND completeness-audited — on
 `main`.** Authored from the **fungeom** session that shipped it, for the **retarget** session to
 pick up. Every item the inventory (`docs/fungeom-needs-for-substrate.md`) listed as **B2 / B3** is
-built, plus the relevant **P** item (P3) and the **A4** philosophy call. Only **P1/P2** (a
-perf-only batch carrier) is deliberately deferred.
+built, plus the relevant **P** item (P3) and the **A4** philosophy call.
 
-- fungeom commit: **`d7fa85e`** on `main` (`ryanrudes/fungeom`).
-- **1279 tests + 10 runnable examples · 100 % line coverage · ruff clean · mypy --strict clean.**
+> **Patch *runtime* now delivered too** (the `docs/fungeom-runtime-handoff.md` ask): the **moving
+> patch** `FaceSignal`, the static/​signal transport family, `Face.frame`/`boundary`,
+> `TransformBundleSignal.key`, and the vectorized `TransformSignal.from_matrices` batch carrier are
+> all on `main` — see the **✅ DELIVERED** banner atop `docs/fungeom-runtime-handoff.md`. You can
+> drop `lower_face` and read the runtime off `FaceSignal(F, P).<…>.resolve_over(...)`.
+
+- fungeom commit: **`ccf5daf`** on `main` (`ryanrudes/fungeom`).
+- **1319 tests + 10 runnable examples · 100 % line coverage · ruff clean · mypy --strict clean.**
 - **Hardened since the first handoff:** a multi-agent adversarial review found and fixed **7 real
   correctness bugs** (see "What got fixed" below — a couple change behaviour you'll rely on), and a
   `/audit-primitives` sweep added **11 new ops** to `Region2` / `Face` / `Point2Bundle`. So the
@@ -108,7 +113,7 @@ Two runnable scripts now demonstrate the substrate surface end-to-end (in the fu
 
 ## The surface you now have (by inventory ID)
 
-All signatures are exact as of `d7fa85e`. Import facades from `fungeom`, value types from
+All signatures are exact as of `ccf5daf`. Import facades from `fungeom`, value types from
 `fungeom.values`.
 
 ### Static geometry & patch algebra (B2/B3)
@@ -220,4 +225,4 @@ contact     = clearances.min().le(0.0).when_true()   # Coverage of contact inter
    *consumes* their outputs (a `TimeMap`/`TimeWarp`/`RosterMap`), it does not fit them.
 
 *If anything in the fungeom surface is missing or you'd want it shaped differently, note it back —
-fungeom owns its side and will add rungs on demand. fungeom commit `d7fa85e`, on `main`.*
+fungeom owns its side and will add rungs on demand. fungeom commit `ccf5daf`, on `main`.*
