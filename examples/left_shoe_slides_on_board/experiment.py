@@ -42,7 +42,7 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     # garbage sample). A foot has a clear speed cap, so speed_limit(8 m/s) cleanly
     # flags teleports; they're skipped as anchors. Lower max_gap_time to leave long
     # gaps untrusted ("lost") instead of filling them.
-    mocap = fill_pose_gaps(mocap, max_gap_time=10, jumps=speed_limit(8.0))
+    mocap = fill_pose_gaps(mocap, max_gap_time=0.1, jumps=speed_limit(8.0))
 
     # Declare the whole detection at once: the sole vs the floor AND the moving
     # board surface. apply_contact_plan detects + merges + attaches in one step;
@@ -58,18 +58,28 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     # σ its clearance/motion sit from "resting contact". The shoe is ~4.4 cm above
     # the floor (tens of σ -> ~0 confidence) and ~0 from the board (high confidence),
     # so the default most-confident resolver picks "board" for any confidence level.
-    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
-    board = mocap.subjects["balance_board"].segments["board"].patches["surface"]
-    against = {"ground": ground_plane(0.0), "board": board}
+    against = dict(
+        ground = ground_plane(0.0),
+        board = mocap.subjects["balance_board"].segments["board"].patches["surface"],
+    )
+
+    queries = (
+        ContactQuery(
+            scope=mocap.subjects["left_foot"].segments["shoe"].patches["sole"],
+            against=against,
+        ),
+    )
     config = ContactDetectionConfig(jumps=speed_limit(8.0))
-    plan = ContactPlan(queries=(ContactQuery(sole, against=against),), config=config)
+    plan = ContactPlan(queries=queries, config=config)
     mocap = apply_contact_plan(mocap, plan)
+
+    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
+
     # The per-frame signals behind each decision feed the timeline's per-signal heat strips.
     signals = classify_feature_channels(sole, against=against, config=config)[sole.target]
 
     # Read the categorical state off a cheap patch view, with labels you choose,
     # and hand the shared plotter the category styling for this experiment.
-    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
     return TimelineSpec(
         mocap=mocap,
         patch=sole,

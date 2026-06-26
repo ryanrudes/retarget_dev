@@ -40,9 +40,18 @@ from _shared.schema import ExampleSubjects
 def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     # fill_pose_gaps interpolates untrustworthy pose gaps (too-few-markers OR a
     # garbage sample). A foot has a clear speed cap, so speed_limit(8 m/s) cleanly
-    # flags teleports; they're skipped as anchors. Lower max_gap_time to leave long
-    # gaps untrusted ("lost") instead of filling them.
-    mocap = fill_pose_gaps(mocap, max_gap_time=10, jumps=speed_limit(8.0))
+    # flags teleports; they're skipped as anchors and bridged across.
+    #
+    # Crucially we DO have real motion through the throw-release: every frame carries
+    # a genuine solved pose (no NaNs/holds), just from fewer markers -- median ~7 of
+    # 17, dipping toward the 3-marker minimum a rigid body needs. That sparse-but-real
+    # motion must NOT be fabricated over, so:
+    #   - min_coverage=0.15 keeps every >=3-marker solve as measured (3/17~=0.176);
+    #     only genuinely-underdetermined <=2-marker frames are treated as gaps.
+    #   - max_gap_time=0.1 means we never smooth across more than a brief blip; the
+    #     only thing actually interpolated here is the handful of physically-impossible
+    #     speed_limit spikes (one/two frames each), not the real trajectory.
+    mocap = fill_pose_gaps(mocap, max_gap_time=0.1, min_coverage=0.15, jumps=speed_limit(8.0))
 
     # Declare the whole detection at once: the sole vs the floor AND the moving
     # board surface. apply_contact_plan detects + merges + attaches in one step;
@@ -61,7 +70,12 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
     board = mocap.subjects["balance_board"].segments["board"].patches["surface"]
     against = {"ground": ground_plane(0.0), "board": board}
-    config = ContactDetectionConfig(jumps=speed_limit(8.0))
+    # min_coverage here is a SEPARATE knob from fill_pose_gaps' (this one paints the
+    # categorical "lost" band via support_invalid; that one governs interpolation).
+    # Match them at 0.15 so the real, sparsely-tracked throw-release motion isn't
+    # labelled lost -- only the <=2-marker frames, where the pose is genuinely
+    # underdetermined, read as "lost".
+    config = ContactDetectionConfig(jumps=speed_limit(8.0), min_coverage=0.15)
     plan = ContactPlan(queries=(ContactQuery(sole, against=against),), config=config)
     mocap = apply_contact_plan(mocap, plan)
     # The per-frame signals behind each decision feed the timeline's per-signal heat strips.
