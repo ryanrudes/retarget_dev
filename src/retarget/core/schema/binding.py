@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, cast
 
-from retarget.core.geometry import lower_face, segment_geometry_at
+from retarget.core.geometry import segment_geometry_at
 from retarget.core.keys import SegmentKey
 from retarget.core.schema.marker import Marker, _MarkerBinding
 from retarget.core.schema.patch import Patch, _PatchBinding
@@ -152,15 +152,12 @@ def _bind_patch(
     marker_positions_segment: Mapping[str, Vec3],
     runtime: _SegmentRuntime | None,
 ) -> Patch:
-    lowered_transform = None
-    lowered_boundary = None
     bound_face = None
     if patch.geometry is not None:
         # open patch algebra: evaluate the geometry callable over the segment's bind-time
-        # geometry and lower the resulting Face to a segment-local rigid frame + boundary.
+        # geometry; the resulting Face is the patch geometry, transported per-frame at query time.
         seg_geometry = segment_geometry_at(SegmentTarget(subject=subject, segment=segment), marker_positions_segment)
         bound_face = patch.geometry(seg_geometry)
-        lowered_transform, lowered_boundary = lower_face(bound_face)
     bound = Patch(label=patch.label, frame=patch.frame, geometry=patch.geometry)
     object.__setattr__(
         bound,
@@ -170,8 +167,6 @@ def _bind_patch(
             segment=segment,
             patch=patch_name,
             runtime=runtime,
-            lowered_transform=lowered_transform,
-            lowered_boundary=lowered_boundary,
             face=bound_face,
         ),
     )

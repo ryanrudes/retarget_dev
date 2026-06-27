@@ -1,5 +1,5 @@
-"""The bind-time geometry view a patch-region callable receives, and the lowering
-of a fungeom ``Face`` to retarget's segment-local rigid frame + boundary.
+"""The bind-time geometry view a patch callable receives, and the bridge that turns a
+bound patch + segment pose into a *moving* fungeom ``FaceSignal``.
 
 In the substrate model a patch is authored as a callable over the segment's geometry::
 
@@ -11,11 +11,12 @@ In the substrate model a patch is authored as a callable over the segment's geom
 in the segment frame and grounded at identity to world — so the static fungeom algebra
 (``fit_plane``/``offset``/``centroid``/…) resolves and yields *segment-local* geometry.
 
-At bind time the binding evaluates a patch's geometry callable and ``lower_face``s the
-resulting ``Face`` to a segment-local rigid frame (rotation columns ``[x, y, normal]``,
-translation = the region centroid) plus the region boundary as segment-local 3-D points.
-The patch query methods then transport those per-frame by the segment pose — exactly as
-``transform_segment_patch`` does today.
+At bind time the binding evaluates a patch's geometry callable to a segment-local ``Face`` and
+stores it. At query time :func:`face_signal` fixes that ``Face`` in the segment frame and
+transports it by the segment pose as a fungeom :class:`~fungeom.FaceSignal`; the patch query
+methods materialize ``frame()``/``plane()``/``boundary()`` over the track timestamps with
+:func:`sampling_at`. Geometry lives in fungeom — retarget only assembles the pose carrier and
+reads the signals back.
 """
 
 from __future__ import annotations
@@ -26,10 +27,9 @@ from typing import TYPE_CHECKING, Any, cast, overload
 
 import numpy as np
 
-from fungeom import Direction3, Point2, Point3, Point3Bundle
+from fungeom import FaceSignal, Point3, Point3Bundle, Sampling, TransformSignal
 
 from retarget.core.targets import SegmentTarget
-from retarget.core.transform import RigidTransform
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Hashable, Mapping
@@ -45,7 +45,9 @@ __all__ = [
     "segment_geometry",
     "segment_geometry_at",
     "patch_face",
-    "lower_face",
+    "face_signal",
+    "segment_pose_signal",
+    "sampling_at",
 ]
 
 
@@ -149,44 +151,42 @@ def patch_face(
     return geometry(segment_geometry(segment))
 
 
-def lower_face(face: Face) -> tuple[RigidTransform, FloatArray]:
-    """Lower a segment-local fungeom ``Face`` to a retarget rigid frame + boundary polygon.
+def segment_pose_signal(
+    timestamps: FloatArray,
+    translations: FloatArray,
+    rotations: FloatArray,
+) -> TransformSignal:
+    """The segment pose over time as a fungeom :class:`~fungeom.TransformSignal`.
 
-    Returns ``(transform, boundary)`` where ``transform`` is the segment→patch
-    :class:`~retarget.core.transform.RigidTransform` (rotation columns ``[x, y, normal]``,
-    translation = the region centroid) and ``boundary`` is the region's vertices as
-    segment-local ``(K, 3)`` points on the patch plane. The patch query methods transport
-    these per-frame by the segment pose, reproducing the legacy ``transform_segment_patch``
-    contract from the open-algebra Face.
-
-    The in-plane +x is the plane's own uv x-axis (deterministic), so the frame is a stable
-    orthonormal basis with the third column equal to the plane normal.
+    Assembles the runtime's ``(T, 3, 3)`` rotations and ``(T, 3)`` translations into a dense
+    ``(T, 4, 4)`` stack and wraps it with the vectorized ``TransformSignal.from_matrices``
+    carrier, so resolving over the track timestamps stays O(T) in numpy.
     """
-    plane = face.plane()
-    region = face.region()
-    origin = plane.embed(region.centroid())
-    base = np.asarray(plane.embed(Point2.at(0.0, 0.0)).resolve().coord, dtype=np.float64)
-    along_x = np.asarray(plane.embed(Point2.at(1.0, 0.0)).resolve().coord, dtype=np.float64)
-    tangent_vec = along_x - base
-    tangent = Direction3.of(float(tangent_vec[0]), float(tangent_vec[1]), float(tangent_vec[2]))
-    matrix = np.asarray(plane.frame(origin, tangent).resolve().matrix, dtype=np.float64)
-    transform = RigidTransform.from_rotation_translation(rotation=matrix[:3, :3], translation=matrix[:3, 3])
-    vertices = region.vertices().resolve()
-    boundary = np.array(
-        [
-            np.asarray(
-                plane.embed(
-                    Point2.at(
-                        float(vertices.at(key).coord[0]),
-                        float(vertices.at(key).coord[1]),
-                    )
-                )
-                .resolve()
-                .coord,
-                dtype=np.float64,
-            )
-            for key in vertices.roster
-        ],
-        dtype=np.float64,
-    )
-    return transform, boundary
+    times = np.asarray(timestamps, dtype=np.float64)
+    rotation = np.asarray(rotations, dtype=np.float64)
+    translation = np.asarray(translations, dtype=np.float64)
+    matrices = np.zeros((times.shape[0], 4, 4), dtype=np.float64)
+    matrices[:, :3, :3] = rotation
+    matrices[:, :3, 3] = translation
+    matrices[:, 3, 3] = 1.0
+    return TransformSignal.from_matrices(times, matrices)
+
+
+def face_signal(
+    face: Face,
+    timestamps: FloatArray,
+    translations: FloatArray,
+    rotations: FloatArray,
+) -> FaceSignal:
+    """The patch as a *moving* fungeom :class:`~fungeom.FaceSignal`.
+
+    The bind-time segment-local ``face`` fixed in the segment frame and transported by the
+    segment pose over time. ``face_signal(...).frame()/plane()/boundary()/clearance(...)`` are
+    the patch's world geometry as signals, materialized via :func:`sampling_at`.
+    """
+    return FaceSignal.of(face, segment_pose_signal(timestamps, translations, rotations))
+
+
+def sampling_at(timestamps: FloatArray) -> Sampling:
+    """A fungeom :class:`~fungeom.Sampling` at the track timestamps (for ``resolve_over``)."""
+    return Sampling.at_times(np.asarray(timestamps, dtype=np.float64))

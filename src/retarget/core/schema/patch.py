@@ -15,9 +15,9 @@ from typing import TYPE_CHECKING, TypedDict, cast
 import numpy as np
 
 from retarget.core.formats import JumpDetector, finite_difference_velocity
+from retarget.core.geometry import face_signal, sampling_at
 from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, most_confident
 from retarget.core.targets import PatchTarget
-from retarget.core.transform import RigidTransform
 from retarget.core.types import (
     FloatArray1D,
     LabelArray,
@@ -30,7 +30,7 @@ from retarget.core.types import (
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from fungeom import Face
+    from fungeom import Face, FaceSignal, Sampling
 
     from retarget.core.geometry import SegmentGeometry
     from retarget.core.schema.segment import _SegmentRuntime
@@ -46,9 +46,8 @@ class _PatchBinding:
     segment: str
     patch: str
     runtime: _SegmentRuntime | None
-    # segment-local geometry lowered from the patch's bound geometry callable
-    lowered_transform: RigidTransform | None = None
-    lowered_boundary: np.ndarray | None = None
+    # the bind-time segment-local fungeom Face (the patch geometry); transported per-frame
+    # as a FaceSignal by the segment pose at query time.
     face: Face | None = None
 
 
@@ -73,17 +72,28 @@ class Patch:
     _binding: _PatchBinding | None = field(default=None, init=False, compare=False, repr=False)
 
     def points(self) -> TimeVec3:
-        """World-frame patch origin/contact points with shape ``(T, 3)``."""
+        """World-frame patch origin/contact points with shape ``(T, 3)``.
+
+        The patch frame origin (the footprint centroid) transported by the segment pose, read
+        off the patch's :class:`~fungeom.FaceSignal` at the track timestamps.
+        """
         runtime = self._runtime()
-        local = np.asarray(self._geometry().translation, dtype=np.float64)
-        world = np.einsum("tij,j->ti", runtime.rotations, local)
-        return cast(TimeVec3, world + runtime.translations)
+        if len(runtime.timestamps) == 0:
+            return cast(TimeVec3, np.empty((0, 3), dtype=np.float64))
+        frames = np.asarray(self._face_signal().frame().resolve_over(self._sampling()), dtype=np.float64)
+        return cast(TimeVec3, frames[:, :3, 3])
 
     def normals(self) -> TimeVec3:
-        """World-frame patch normals with shape ``(T, 3)``."""
+        """World-frame patch normals with shape ``(T, 3)``.
+
+        The third column of the oriented patch frame (see :meth:`frames`), so it always agrees
+        with :meth:`frames` and resolves vectorized off the same :class:`~fungeom.FaceSignal`.
+        """
         runtime = self._runtime()
-        local_normal = np.asarray(self._geometry().rotation[:, 2], dtype=np.float64)
-        return cast(TimeVec3, np.einsum("tij,j->ti", runtime.rotations, local_normal))
+        if len(runtime.timestamps) == 0:
+            return cast(TimeVec3, np.empty((0, 3), dtype=np.float64))
+        frames = np.asarray(self._face_signal().frame().resolve_over(self._sampling()), dtype=np.float64)
+        return cast(TimeVec3, frames[:, :3, 2])
 
     def frames(self) -> TimeMat3:
         """World-frame patch orientation with shape ``(T, 3, 3)``.
@@ -93,23 +103,26 @@ class Patch:
         this is the full oriented patch frame over time.
         """
         runtime = self._runtime()
-        local_rotation = np.asarray(self._geometry().rotation, dtype=np.float64)
-        return cast(TimeMat3, np.einsum("tij,jk->tik", runtime.rotations, local_rotation))
+        if len(runtime.timestamps) == 0:
+            return cast(TimeMat3, np.empty((0, 3, 3), dtype=np.float64))
+        frames = np.asarray(self._face_signal().frame().resolve_over(self._sampling()), dtype=np.float64)
+        return cast(TimeMat3, frames[:, :3, :3])
 
     def boundary_points(self) -> TimeEntityVec3:
         """World-frame footprint boundary polygon with shape ``(T, K, 3)``.
 
-        The Face region's vertices are segment-local points on the patch plane; they are
-        transported into the world frame at every timestep, ready to draw as an oriented polygon.
+        The Face region's vertices, transported into the world frame at every timestep (via the
+        patch :class:`~fungeom.FaceSignal`), ready to draw as an oriented polygon.
         """
-        binding = self._binding
-        if binding is None or binding.lowered_boundary is None:
-            name = binding.patch if binding is not None else self.label
-            raise ValueError(f"Patch {name!r} has no contact region to take a boundary from")
-        boundary_segment = np.asarray(binding.lowered_boundary, dtype=np.float64)
+        binding = self._require_binding()
+        if binding.face is None:
+            raise ValueError(f"Patch {binding.patch!r} has no contact region to take a boundary from")
         runtime = self._runtime()
-        world = np.einsum("tij,kj->tki", runtime.rotations, boundary_segment)
-        return cast(TimeEntityVec3, world + runtime.translations[:, None, :])
+        if len(runtime.timestamps) == 0:
+            num_vertices = len(binding.face.boundary().resolve().roster)
+            return cast(TimeEntityVec3, np.empty((0, num_vertices, 3), dtype=np.float64))
+        vertices, _present = self._face_signal().boundary().resolve_over(self._sampling())
+        return cast(TimeEntityVec3, np.asarray(vertices, dtype=np.float64))
 
     def velocities(self) -> TimeVec3:
         """World-frame patch-point velocities with shape ``(T, 3)``."""
@@ -244,7 +257,7 @@ class Patch:
 
     def has_region(self) -> bool:
         """Whether this patch has a footprint boundary (for region-aware contact sampling)."""
-        return self._binding is not None and self._binding.lowered_boundary is not None
+        return self._binding is not None and self._binding.face is not None
 
     def face(self) -> Face:
         """The bound segment-local fungeom ``Face`` for this patch.
@@ -257,11 +270,15 @@ class Patch:
             raise ValueError(f"Patch {binding.patch!r} was not authored with a geometry callable")
         return binding.face
 
-    def _geometry(self) -> RigidTransform:
-        if self._binding is not None and self._binding.lowered_transform is not None:
-            return self._binding.lowered_transform
-        name = self._binding.patch if self._binding is not None else self.label
-        raise ValueError(f"Patch {name!r} is declared but has no calibrated geometry")
+    def _face_signal(self) -> FaceSignal:
+        binding = self._require_binding()
+        if binding.face is None:
+            raise ValueError(f"Patch {binding.patch!r} is declared but has no calibrated geometry")
+        runtime = self._runtime()
+        return face_signal(binding.face, runtime.timestamps, runtime.translations, runtime.rotations)
+
+    def _sampling(self) -> Sampling:
+        return sampling_at(self._runtime().timestamps)
 
     def _require_binding(self) -> _PatchBinding:
         if self._binding is None:

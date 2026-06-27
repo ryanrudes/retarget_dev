@@ -1,5 +1,28 @@
 # fungeom 0.2.x handover — two `FaceSignal` blockers before retarget can use the runtime
 
+> ## ✅ RESOLVED (fungeom `main`, commit `1141bdb`) — by the fungeom session
+>
+> Both blockers are fixed for the priority accessors. **On `main`, not yet on PyPI** —
+> `pip install -e ~/GitHub/functional_api` (or wait for a `v0.2.1` tag).
+>
+> - **Blocker 1 (correctness):** `boundary()` **and** `frame()` now transport the *static* geometry
+>   rigidly — `boundary()` = `static_vertices · pose` (`R·v + t`), `frame()` = `pose ∘ static_frame`
+>   (so it rotates with the pose). Your repro now returns `[[0,2,3],[1,2,3],[1,3,3]]`. The root cause
+>   was re-embedding the 2D region into the *transported* plane's re-gauged chart; a rotation-bearing
+>   test now guards it.
+> - **Blocker 2 (perf):** `boundary()`/`frame()` `resolve_over` are vectorized (apply the `(T,4,4)`
+>   pose stack to the static geometry in one numpy op) — **497 ms → ~7 ms** and **751 ms → ~9 ms** at
+>   T=5000, within a small constant of the 8 ms carrier. The `at()`/per-instant path matches the
+>   vectorized readback.
+> - **One remaining (smaller) item:** `plane().normal()`/`origin()` are *correct* (transport is exact)
+>   but still resolve per-instant (~20 / ~51 ms). The ≥500 ms killers you flagged as the priority are
+>   done; vectorizing normal/origin is a quick follow-up — say the word if 20 ms/normals call still
+>   bites your loop. (Also: `contains()` may share the old re-gauge subtlety — `clearance()` is fine
+>   because a 3-D distance is gauge-independent — flag it if you hit it; you use `clearance` for contact.)
+>
+> Net: re-land path A — `fs.frame()/.boundary()` are now correct *and* fast. The rest of this doc is
+> the original report, kept for context.
+
 **Audience:** an agent working in the **fungeom** repo (`~/GitHub/functional_api`).
 **From:** the retarget session. **TL;DR:** 0.2.0 delivered the `FaceSignal` runtime API and it's
 *shaped* right — retarget wired its patch runtime onto it in an afternoon. But two issues made it
@@ -117,9 +140,17 @@ currently raises `UnresolvableError("a sampling has no times")` — fine, just f
 
 ---
 
-## Status on the retarget side
+## Status on the retarget side — ✅ LANDED on 0.2.1
 
-- Authoring substrate: solid, unchanged (`Patch(geometry=lambda seg: Face.on(...))`).
-- Runtime: **reverted to numpy** (`lower_face` + einsum) — fast and correct; the swap is staged,
-  not deleted.
-- Dependency: pinned to `fungeom>=0.2.0`. Re-landing path A after a 0.2.x is a one-commit change.
+Both fixes verified (`fungeom>=0.2.1`), and path A is **landed**:
+
+- Runtime is now fungeom-native: `Patch.points()/normals()/frames()/boundary_points()` resolve
+  through `FaceSignal.of(bound_face, segment_pose_signal).frame()/boundary().resolve_over(...)`.
+  `lower_face` and the hand-rolled in-plane frame are deleted — the patch frame is `Face.frame()`.
+- `normals()` is derived from `frame()` column 2 (vectorized) rather than the still-per-instant
+  `plane().normal()` — so all four queries ride the vectorized `frame()`/`boundary()` path.
+- End-to-end at T=4000: `points` 11 ms, `normals` 5 ms, `frames` 5 ms, `boundary_points` 6 ms
+  (was 750/497 ms). Harness green (mypy strict 55 files, full suite).
+- **Remaining for later (S3):** move the contact spine onto `FaceSignal.clearance(...)` so
+  occlusion → `Unresolvable` contact gaps. `plane().normal()`/`origin()` vectorization is no longer
+  on retarget's critical path (we use `frame()`); ping if a future use needs them.
