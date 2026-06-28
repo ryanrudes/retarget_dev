@@ -92,6 +92,32 @@ def test_off_edge_footprint_follows_support_pose() -> None:
     assert clr_stays[1] > 5.0  # left behind the moved support
 
 
+def test_respects_in_plane_rotation_of_support() -> None:
+    # A support spun about its own normal must rotate its footprint, not just re-centre it. The
+    # 2x2 square spun 45 deg becomes a diamond reaching sqrt(2)~1.414 on the x-axis, so a query at
+    # x=1.2 (plane height) is INSIDE it -> ~0 clearance; x=1.5 is just past the rotated vertex -> a
+    # small gap. (Against the un-rotated square x=1.2 would be a ~0.2 lateral gap -- the fungeom
+    # 0.2.2 transformed_by rotation fix is what makes this correct.)
+    c = s = np.cos(np.pi / 4)
+    rotation = np.array([[c, -s, 0.0], [s, c, 0.0], [0.0, 0.0, 1.0]])[None]
+    support = _FaceSupport(
+        face=_square_face(),
+        timestamps=np.array([0.0]),
+        translations=np.zeros((1, 3)),
+        rotations=rotation,
+        origins=np.zeros((1, 3)),
+        normals=np.array([[0.0, 0.0, 1.0]]),
+        frames=rotation,
+        name="surface",
+    )
+    inside = np.array([[[1.2, 0.0, 0.0]]])
+    outside = np.array([[[1.5, 0.0, 0.0]]])
+    clr_inside, _ = _evaluate_support(support, inside, inside[:, 0], TARGET)
+    clr_outside, _ = _evaluate_support(support, outside, outside[:, 0], TARGET)
+    np.testing.assert_allclose(clr_inside, 0.0, atol=1e-6)
+    assert clr_outside[0] == pytest.approx(1.5 - np.sqrt(2.0), abs=1e-3)  # distance to the rotated vertex
+
+
 def test_occluded_sample_drops_out() -> None:
     # A footprint sample that is NaN (occluded) at a frame cannot be the closest approach; the
     # remaining samples decide. A frame where *every* sample is occluded is NaN (honest gap).
