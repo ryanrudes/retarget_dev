@@ -1,5 +1,15 @@
 # fungeom handover (round 2) — vectorize `FaceSignal.clearance` + the plane accessors
 
+> ## ✅ RESOLVED in fungeom 0.2.2, and bounded clearance is LANDED on retarget `master`.
+>
+> 0.2.2 vectorized the readback: at T=5000,K=5 `FaceSignal.clearance` **2651ms → 206ms** and
+> `plane().signed_distance` **142ms → 22ms**, both still correct (clearance unsigned, signed_distance
+> signed). retarget now uses **bounded clearance for patch supports**: `_FaceSupport` in
+> `contacts/detect.py` re-signs branch-free (`perp + sqrt(max(0, bounded² − perp²))`, nanmin over the
+> footprint), so a foot off a deck edge reads as a gap, not contact. Inside the footprint it equals
+> the old infinite-plane clearance exactly. Fitted ground/heightmap/segment supports stay numeric.
+> Tests: `tests/test_face_support_clearance.py`. The rest of this doc is the original ask.
+
 **Audience:** the **fungeom** repo (`~/GitHub/functional_api`). **From:** the retarget session.
 **Context:** the 0.2.1 fix vectorized `FaceSignal.frame()`/`.boundary()` (thank you — path A landed).
 The next retarget step — **bounded contact clearance** (a footprint vs another segment's Face-backed

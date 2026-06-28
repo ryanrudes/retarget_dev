@@ -616,7 +616,7 @@ wheels = [
 
 [[package]]
 name = "fungeom"
-version = "0.2.1"
+version = "0.2.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
@@ -624,9 +624,9 @@ dependencies = [
     { name = "scipy" },
     { name = "shapely" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/0d/75/d8821baf0faa3f6a9e7aa9fe0cf3ce8f3e9fbf5952a535bac6a44fa1cfd6/fungeom-0.2.1.tar.gz", hash = "sha256:8b65bcea79448835d2c9b87d58cc3490441c39bb0366d2cac371ea08ffa0bd26", size = 176895, upload-time = "2026-06-27T00:07:51.855Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a3/92/ffa6569639baecd559429a4ab16797ad9136fc18606c4d44e41bc3bc4816/fungeom-0.2.2.tar.gz", hash = "sha256:e269dad96ae3d11125603f1b846d0ed4bbea732c8d20f3304a437f6521958a26", size = 180975, upload-time = "2026-06-27T23:34:29.284Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a7/15/223476c385a068e8bf66042580573f77e600dec6705e6050873ef1cc25bb/fungeom-0.2.1-py3-none-any.whl", hash = "sha256:2fb70af070d7325261fe1fc0df4522bd7810cc49e47ffbd3f4ef3e621428ef25", size = 423843, upload-time = "2026-06-27T00:07:50.303Z" },
+    { url = "https://files.pythonhosted.org/packages/4d/8f/12f32d3a29f638c80a2945c6d0730c60687648a1c4e175cf82e701649e22/fungeom-0.2.2-py3-none-any.whl", hash = "sha256:2a7c5190bc346d501d0f9a7f24be72c1f0468d46aaf4ee8e2f8ac61f2f861bc7", size = 427384, upload-time = "2026-06-27T23:34:27.624Z" },
 ]
 
 [[package]]
@@ -2135,7 +2135,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "fungeom", specifier = ">=0.2.1" },
+    { name = "fungeom", specifier = ">=0.2.2" },
     { name = "matplotlib", specifier = ">=3.11.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.11" },
     { name = "networkx", specifier = ">=3.0" },

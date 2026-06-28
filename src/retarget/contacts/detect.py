@@ -20,7 +20,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -39,14 +39,44 @@ from retarget.contacts.supports import (
     infer_ground,
     infer_support_surface,
 )
+from retarget.core.geometry import face_signal, sampling_at
 from retarget.core.schema.patch import Patch
 from retarget.core.schema.segment import Segment
 from retarget.core.targets import PatchTarget
 from retarget.core.types import FloatArray, FloatArray1D, Points3, TimeBool, TimeMat3, TimeVec3
 from retarget.demo.contact import ContactTrack
+from retarget.fungeom.signals import point_bundle_signal
 from retarget.utils.intervals import clean_mask_by_time, intervals_from_mask, mask_from_intervals
 
+if TYPE_CHECKING:
+    from fungeom import Face
+
 Support = SupportModel | TimeIndexedSupport | Patch | Segment[Any, Any] | InferredGround
+
+
+@dataclass(frozen=True, slots=True)
+class _FaceSupport:
+    """A moving patch support that carries its fungeom ``Face`` for *bounded* clearance.
+
+    Unlike :class:`~retarget.contacts.supports.TimeIndexedSupport` (an infinite plane per
+    frame), the support's footprint edge is respected: a query point off the edge reads as a
+    gap, not contact. ``origins``/``normals``/``frames`` mirror ``TimeIndexedSupport`` so
+    support-relative motion/spin are computed identically; only clearance differs.
+    """
+
+    face: Face
+    timestamps: FloatArray
+    translations: TimeVec3
+    rotations: TimeMat3
+    origins: TimeVec3
+    normals: TimeVec3
+    frames: TimeMat3
+    name: str
+
+
+# A support resolved to its per-detection form: a static model, a moving plane, or a moving
+# Face (bounded). Motion treats the two moving forms alike; only clearance distinguishes them.
+_ResolvedSupport = SupportModel | TimeIndexedSupport | _FaceSupport
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,33 +127,42 @@ def _gather_patch_data(patch: Patch, resolved: ResolvedConfig) -> _PatchData:
     )
 
 
-def _moving_support_from(against: Patch | Segment[Any, Any], up_axis: int) -> TimeIndexedSupport:
+def _moving_support_from(against: Patch | Segment[Any, Any], up_axis: int) -> _ResolvedSupport:
     """Build a per-frame moving support from a tracked patch (deck surface) or segment pose.
 
-    ``frames`` carries the backing body's full ``(T, 3, 3)`` orientation so motion can
-    be measured relative to the support's rotation, not just its translation (see
+    A :class:`~retarget.core.schema.patch.Patch` support carries its fungeom ``Face`` as a
+    :class:`_FaceSupport` so clearance respects the footprint edge; a ``Segment`` support has no
+    Face and becomes a moving plane (:class:`~retarget.contacts.supports.TimeIndexedSupport`). In
+    both cases ``frames`` is the backing body's full ``(T, 3, 3)`` orientation, so motion can be
+    measured relative to the support's rotation, not just its translation (see
     :func:`_support_relative_angular_speed`).
     """
     if isinstance(against, Patch):
-        origins = cast(TimeVec3, np.asarray(against.points(), dtype=np.float64))
-        normals = cast(TimeVec3, np.asarray(against.normals(), dtype=np.float64))
-        frames = cast(TimeMat3, np.asarray(against.frames(), dtype=np.float64))
-        name = against.target.patch
-    else:
-        runtime_rotations = cast(TimeMat3, np.asarray(against.rotations(), dtype=np.float64))
-        origins = cast(TimeVec3, np.asarray(against.translations(), dtype=np.float64))
-        up = _up_vector(up_axis)
-        normals = cast(TimeVec3, np.einsum("tij,j->ti", runtime_rotations, up))
-        frames = runtime_rotations
-        name = against.segment_target().segment
-    return TimeIndexedSupport(origins=origins, normals=normals, name=name, frames=frames)
+        runtime = against._runtime()
+        return _FaceSupport(
+            face=against.face(),
+            timestamps=cast(FloatArray, np.asarray(runtime.timestamps, dtype=np.float64)),
+            translations=cast(TimeVec3, np.asarray(runtime.translations, dtype=np.float64)),
+            rotations=cast(TimeMat3, np.asarray(runtime.rotations, dtype=np.float64)),
+            origins=cast(TimeVec3, np.asarray(against.points(), dtype=np.float64)),
+            normals=cast(TimeVec3, np.asarray(against.normals(), dtype=np.float64)),
+            frames=cast(TimeMat3, np.asarray(against.frames(), dtype=np.float64)),
+            name=against.target.patch,
+        )
+    runtime_rotations = cast(TimeMat3, np.asarray(against.rotations(), dtype=np.float64))
+    origins = cast(TimeVec3, np.asarray(against.translations(), dtype=np.float64))
+    up = _up_vector(up_axis)
+    normals = cast(TimeVec3, np.einsum("tij,j->ti", runtime_rotations, up))
+    return TimeIndexedSupport(
+        origins=origins, normals=normals, name=against.segment_target().segment, frames=runtime_rotations
+    )
 
 
 def _resolve_support(
     against: Support,
     data: list[_PatchData],
     resolved: ResolvedConfig,
-) -> SupportModel | TimeIndexedSupport:
+) -> _ResolvedSupport:
     """Resolve ``against`` to a single support shared by every patch in the scope."""
     if isinstance(against, InferredGround):
         cloud = cast(Points3, np.vstack([d.points for d in data]))
@@ -138,20 +177,55 @@ def _resolve_support(
     raise TypeError(f"unsupported `against` value of type {type(against).__name__}")
 
 
+def _face_support_clearance(support: _FaceSupport, sample_points: FloatArray, target: PatchTarget) -> FloatArray:
+    """Signed, *bounded* closest-approach clearance of a footprint to a moving Face support.
+
+    Per footprint sample: the signed perpendicular distance to the support plane plus the lateral
+    overhang beyond the footprint, ``perp + sqrt(max(0, bounded^2 - perp^2))``. Inside the
+    footprint ``bounded == |perp|`` so this is the plain perpendicular clearance (matching the
+    infinite-plane support); off the edge the overhang is added as a positive gap, so a sample off
+    the support never reads as contact. fungeom's ``clearance`` is unsigned, hence the re-signing
+    with the signed perpendicular distance. Occluded samples (``present`` is False -> NaN) cannot
+    be the closest approach and are dropped; a fully occluded frame is NaN.
+    """
+    n_time, n_samples, _ = sample_points.shape
+    if len(support.timestamps) != n_time:
+        raise ValueError(
+            f"moving support length {len(support.timestamps)} does not match patch "
+            f"{target.patch!r} length {n_time} (different timelines?)"
+        )
+    face = face_signal(
+        support.face, support.timestamps, cast(FloatArray, support.translations), cast(FloatArray, support.rotations)
+    )
+    sampling = sampling_at(support.timestamps)
+    bundle = point_bundle_signal(support.timestamps, sample_points, tuple(str(i) for i in range(n_samples)))
+    perp_values, present = face.plane().signed_distance(bundle).resolve_over(sampling)
+    bounded_values, _ = face.clearance(bundle).resolve_over(sampling)
+    perp = np.asarray(perp_values, dtype=np.float64)  # signed perpendicular distance (T, K)
+    bounded = np.asarray(bounded_values, dtype=np.float64)  # unsigned bounded distance (T, K)
+    signed = perp + np.sqrt(np.maximum(0.0, bounded * bounded - perp * perp))
+    signed = np.where(np.asarray(present, dtype=bool), signed, np.inf)  # occluded can't be closest
+    clearance = signed.min(axis=1)
+    return cast(FloatArray, np.where(np.isinf(clearance), np.nan, clearance))
+
+
 def _evaluate_support(
-    support: SupportModel | TimeIndexedSupport,
+    support: _ResolvedSupport,
     sample_points: FloatArray,
     center_points: FloatArray,
     target: PatchTarget,
 ) -> tuple[FloatArray, Points3]:
     """Return ``(closest-approach clearance (T,), normals (T, 3))`` of the footprint.
 
-    Clearance is the minimum over the ``K`` footprint samples in ``sample_points``
-    ``(T, K, 3)`` (the rectangle corners + center; ``K=1`` for point-based), so a
-    patch reads as touching when its nearest part does. The support normal is read at
-    ``center_points`` ``(T, 3)``.
+    Clearance is the minimum over the ``K`` footprint samples in ``sample_points`` ``(T, K, 3)``
+    (the rectangle corners + center; ``K=1`` for point-based), so a patch reads as touching when
+    its nearest part does. A :class:`_FaceSupport` measures *bounded* clearance (the support's
+    footprint edge is respected); other supports measure the infinite-plane / model clearance. The
+    support normal is read at ``center_points`` ``(T, 3)``.
     """
     n_time, n_samples, _ = sample_points.shape
+    if isinstance(support, _FaceSupport):
+        return _face_support_clearance(support, sample_points, target), support.normals
     if isinstance(support, TimeIndexedSupport):
         if len(support) != n_time:
             raise ValueError(
@@ -169,7 +243,7 @@ def _evaluate_support(
 
 def _support_relative_motion(
     data: _PatchData,
-    support: SupportModel | TimeIndexedSupport,
+    support: _ResolvedSupport,
     resolved: ResolvedConfig,
 ) -> tuple[FloatArray, QuietResult]:
     """Motion features (velocity + quiet) measured relative to the support.
@@ -190,7 +264,7 @@ def _support_relative_motion(
     inferred/ground/heightmap supports). The rotational channel is handled the same
     way by :func:`_support_relative_angular_speed`.
     """
-    if not isinstance(support, TimeIndexedSupport):
+    if not isinstance(support, (TimeIndexedSupport, _FaceSupport)):
         return data.velocities, data.quiet
     relative_points = data.points - np.asarray(support.origins, dtype=np.float64)
     velocities = local_polynomial_derivative(
@@ -205,7 +279,7 @@ def _support_relative_motion(
 
 def _support_relative_angular_speed(
     data: _PatchData,
-    support: SupportModel | TimeIndexedSupport,
+    support: _ResolvedSupport,
     resolved: ResolvedConfig,
 ) -> FloatArray:
     """Angular speed of the patch measured relative to the support's orientation.
@@ -226,7 +300,7 @@ def _support_relative_angular_speed(
     """
     window = resolved.quiet.derivative_window_time
     degree = resolved.quiet.derivative_poly_degree
-    if not isinstance(support, TimeIndexedSupport) or support.frames is None:
+    if not isinstance(support, (TimeIndexedSupport, _FaceSupport)) or support.frames is None:
         return angular_speed_from_frames(data.frames, data.timestamps, window, degree)
     support_frames = np.asarray(support.frames, dtype=np.float64)
     relative_frames = cast(TimeMat3, np.einsum("tji,tjk->tik", support_frames, data.frames))
@@ -235,7 +309,7 @@ def _support_relative_angular_speed(
 
 def _patch_features(
     data: _PatchData,
-    support: SupportModel | TimeIndexedSupport,
+    support: _ResolvedSupport,
     resolved: ResolvedConfig,
 ) -> tuple[Features, ChannelNoise]:
     """Compute one patch's per-frame feature channels against one support, plus its noise.
@@ -261,7 +335,7 @@ def _patch_features(
 
 def _detect_patch(
     data: _PatchData,
-    support: SupportModel | TimeIndexedSupport,
+    support: _ResolvedSupport,
     resolved: ResolvedConfig,
 ) -> tuple[TimeBool, FloatArray]:
     """Detect one patch against one support; return ``(contact_mask, confidence)``."""
@@ -424,7 +498,7 @@ class SupportFeatureChannels:
 
 
 def _patch_support_channels(
-    data: _PatchData, support: SupportModel | TimeIndexedSupport, resolved: ResolvedConfig
+    data: _PatchData, support: _ResolvedSupport, resolved: ResolvedConfig
 ) -> SupportFeatureChannels:
     """Build the explainability channels for one patch against one support."""
     features, noise = _patch_features(data, support, resolved)
