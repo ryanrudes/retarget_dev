@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict, cast
 
 import numpy as np
+from fungeom import Point3
 
 from retarget.core.formats import finite_difference_velocity, speed_from_velocity
 from retarget.core.targets import MarkerTarget
@@ -33,9 +34,23 @@ class Marker:
 
     mocap_name: str
     position_segment: Vec3 | None = field(default=None, compare=False)
-    _binding: _MarkerBinding | None = field(
-        default=None, init=False, compare=False, repr=False
-    )
+    _binding: _MarkerBinding | None = field(default=None, init=False, compare=False, repr=False)
+
+    @property
+    def rest(self) -> Point3:
+        """This marker's segment-frame rest position as a fungeom **free variable**.
+
+        Reference it to author patch geometry as data over typed marker symbols -- no string keys,
+        no callable::
+
+            cloud = Point3Bundle.from_map({"heel": heel.rest, "toe": toe.rest, "mid": mid.rest})
+            Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
+
+        The free variable is identified by the marker itself, so a misspelled symbol is a
+        ``NameError`` (statically a mypy error) rather than a silent string. At bind time it
+        resolves to the marker's ``position_segment`` (its segment-frame rest position).
+        """
+        return Point3.free(self)
 
     def positions(self, *, modeled: bool = False) -> TimeVec3:
         """World-frame marker positions with shape ``(T, 3)``.
@@ -56,18 +71,14 @@ class Marker:
         try:
             return cast(TimeVec3, runtime.observed_markers[self.mocap_name])
         except KeyError as exc:
-            raise ValueError(
-                "Observed marker positions require marker_frames on the mocap track"
-            ) from exc
+            raise ValueError("Observed marker positions require marker_frames on the mocap track") from exc
 
     def velocities(self, *, modeled: bool = False) -> TimeVec3:
         """World-frame marker velocities with shape ``(T, 3)``."""
         runtime = self._runtime()
         return cast(
             TimeVec3,
-            finite_difference_velocity(
-                self.positions(modeled=modeled), runtime.timestamps
-            ),
+            finite_difference_velocity(self.positions(modeled=modeled), runtime.timestamps),
         )
 
     def speed(self, *, modeled: bool = False) -> np.ndarray:

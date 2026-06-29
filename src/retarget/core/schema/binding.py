@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Hashable, Mapping
 from typing import Any, cast
+
+import numpy as np
+from fungeom import Face, Point3
 
 from retarget.core.geometry import segment_geometry_at
 from retarget.core.keys import SegmentKey
@@ -95,6 +98,15 @@ def _bind_segment(
         for marker_name, marker in bound_markers.items()
         if marker.position_segment is not None
     }
+    # Free-variable environment for data-authored patches: each authored Marker (the identity its
+    # ``.rest`` free variable carries) -> its segment-frame rest Point3. Keyed by the *authored*
+    # markers (what the Face references); valued from the bound positions (filled from body_model).
+    marker_env: dict[Hashable, Point3] = {}
+    for marker_name, authored_marker in segment.markers.items():
+        position = bound_markers[marker_name].position_segment
+        if position is not None:
+            coords = np.asarray(position, dtype=np.float64).reshape(3)
+            marker_env[authored_marker] = Point3.at(float(coords[0]), float(coords[1]), float(coords[2]))
     bound_patches = {
         patch_name: _bind_patch(
             patch,
@@ -102,6 +114,7 @@ def _bind_segment(
             segment=segment_name,
             patch_name=patch_name,
             marker_positions_segment=marker_positions_segment,
+            marker_env=marker_env,
             runtime=runtime,
         )
         for patch_name, patch in segment.patches.items()
@@ -150,14 +163,20 @@ def _bind_patch(
     segment: str,
     patch_name: str,
     marker_positions_segment: Mapping[str, Vec3],
+    marker_env: Mapping[Hashable, Point3],
     runtime: _SegmentRuntime | None,
 ) -> Patch:
     bound_face = None
-    if patch.geometry is not None:
-        # open patch algebra: evaluate the geometry callable over the segment's bind-time
-        # geometry; the resulting Face is the patch geometry, transported per-frame at query time.
+    geometry = patch.geometry
+    if isinstance(geometry, Face):
+        # open patch algebra (data form): a Face authored over free-variable markers (``m.rest``);
+        # bind substitutes each free with its segment-frame rest position -> the segment-local Face.
+        bound_face = geometry.bind(marker_env)
+    elif geometry is not None:
+        # open patch algebra (callable form): evaluate over the segment's bind-time geometry; the
+        # resulting Face is the patch geometry, transported per-frame at query time.
         seg_geometry = segment_geometry_at(SegmentTarget(subject=subject, segment=segment), marker_positions_segment)
-        bound_face = patch.geometry(seg_geometry)
+        bound_face = geometry(seg_geometry)
     bound = Patch(label=patch.label, frame=patch.frame, geometry=patch.geometry)
     object.__setattr__(
         bound,

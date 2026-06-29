@@ -53,22 +53,28 @@ class _PatchBinding:
 
 @dataclass(frozen=True, slots=True)
 class Patch:
-    """A contact patch: an authored ``geometry`` callable plus bound time-series queries.
+    """A contact patch: an authored ``geometry`` plus bound time-series queries.
 
-    ``geometry`` takes the segment's :class:`~retarget.core.geometry.SegmentGeometry` and
-    returns a fungeom :class:`~fungeom.Face`::
+    ``geometry`` is a fungeom :class:`~fungeom.Face` (an oriented plane + bounded footprint), in
+    either of two equivalent forms. As **data** over typed marker symbols (preferred -- a misspelled
+    marker is a ``NameError``)::
 
-        def sole(seg):
-            return Face.on(seg.markers["a", "b", "c"].fit_plane(), Region2.hull(...))
+        cloud = Point3Bundle.from_map({"heel": heel.rest, "toe": toe.rest, "mid": mid.rest})
+        Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
 
-        Patch(label="sole", geometry=sole)
+    or as a **callable** ``(SegmentGeometry) -> Face`` (when the surface is fixed in the segment
+    frame, or to keep the legacy string-keyed style)::
 
-    A declaration-only patch (no ``geometry``) is targetable but has no contact geometry.
+        Patch(label="sole", geometry=lambda seg: Face.on(seg.markers["a", "b", "c"].fit_plane(), ...))
+
+    The data form's free-variable markers (``heel.rest`` = :meth:`Marker.rest`) are resolved to
+    their segment-frame rest positions at bind time. A declaration-only patch (no ``geometry``) is
+    targetable but has no contact geometry.
     """
 
     label: str
     frame: str | None = None
-    geometry: Callable[[SegmentGeometry], Face] | None = field(default=None, compare=False, repr=False)
+    geometry: Face | Callable[[SegmentGeometry], Face] | None = field(default=None, compare=False, repr=False)
     _binding: _PatchBinding | None = field(default=None, init=False, compare=False, repr=False)
 
     def points(self) -> TimeVec3:
@@ -252,7 +258,7 @@ class Patch:
         )
 
     def has_geometry(self) -> bool:
-        """Whether this patch was authored with a ``geometry`` callable."""
+        """Whether this patch was authored with a ``geometry`` (a Face, as data or a callable)."""
         return self.geometry is not None
 
     def has_region(self) -> bool:
@@ -263,7 +269,7 @@ class Patch:
         """The bound segment-local fungeom ``Face`` for this patch.
 
         The oriented surface (``face.plane()``) + bounded footprint (``face.region()``) in the
-        segment frame. Raises if this patch was not authored with a ``geometry`` callable.
+        segment frame. Raises if this patch was not authored with a ``geometry``.
         """
         binding = self._require_binding()
         if binding.face is None:

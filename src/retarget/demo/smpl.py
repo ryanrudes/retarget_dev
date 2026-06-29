@@ -36,7 +36,6 @@ if TYPE_CHECKING:
     from typing import Any
 
     from retarget.core import Segment, Subject
-    from retarget.core.geometry import SegmentGeometry
 
 
 @runtime_checkable
@@ -249,14 +248,11 @@ def smpl_foot_patch[ParamsT](
     members = {
         str(i): Point3.at(float(local[i, 0]), float(local[i, 1]), float(local[i, 2])) for i in range(local.shape[0])
     }
-
-    def geometry(_seg: SegmentGeometry) -> Face:
-        points = Point3Bundle.from_map(cast("Mapping[Hashable, Point3]", members))
-        # outward normal points away from the bone origin (down, toward the ground for a foot).
-        plane = points.fit_plane().facing(Point3.at(0.0, 0.0, 0.0)).flipped()
-        footprint = Region2.hull(points.in_frame(plane))
-        if padding:
-            footprint = footprint.offset(padding)
-        return Face.on(plane, footprint)
-
-    return Patch(label=label, geometry=geometry)
+    # The sole vertices are already concrete (bone-local), so the Face is plain fungeom data -- no
+    # callable needed; outward normal points away from the bone origin (down, toward the ground).
+    points = Point3Bundle.from_map(cast("Mapping[Hashable, Point3]", members))
+    plane = points.fit_plane().facing(Point3.at(0.0, 0.0, 0.0)).flipped()
+    footprint = Region2.hull(points.in_frame(plane))
+    if padding:
+        footprint = footprint.offset(padding)
+    return Patch(label=label, geometry=Face.on(plane, footprint))
