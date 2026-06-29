@@ -14,6 +14,7 @@ from retarget.demo.demo import (
 )
 from retarget.demo.mocap import MocapTrack
 from retarget.demo.pose_repair import fill_pose_gaps
+from retarget.demo.smpl import SmplTrack, smpl_joint_energy
 from retarget.demo.tracks import (
     Track,
     TrackSyncInfo,
@@ -38,6 +39,7 @@ __all__ = [
     "MocapTrack",
     "ContactTrack",
     "ContactTrackView",
+    "SmplTrack",
     "Track",
     "TrackView",
     "TrackSyncInfo",
@@ -50,6 +52,7 @@ __all__ = [
     "TimelineTransform",
     "TrackAlignment",
     "estimate_alignment_from_signals",
+    "smpl_joint_energy",
 
     # Sync
     "SyncEdge",
