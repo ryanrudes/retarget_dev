@@ -13,10 +13,10 @@ class SmplModel:
     """A SMPL body model: shape + pose params in, world joint transforms out.
 
     This structurally satisfies retarget's ``BodyModel`` protocol (a ``joint_names`` property plus
-    ``forward_joints(params) -> (T, J, 3)``) without importing retarget. Forward kinematics is
-    joint-level only: rest joints are read off the shaped template by the regressor, then the
-    kinematic tree is posed; pose blendshapes and skinning (which only affect *vertices*) are not
-    involved.
+    ``forward_joints(params) -> (T, J, 3)``) without importing retarget. The joint FK reads rest
+    joints off the shaped template by the regressor, then poses the kinematic tree;
+    ``forward_vertices`` additionally runs full linear-blend skinning (pose blendshapes + skinning
+    weights) for the posed mesh, when the model carries them.
     """
 
     body: BodyModelData
@@ -46,3 +46,7 @@ class SmplModel:
     def forward_joints(self, params: SmplParams) -> FloatArray:
         """Return the world joint positions of shape ``(T, J, 3)``."""
         return self.forward_transforms(params)[:, :, :3, 3]
+
+    def forward_vertices(self, params: SmplParams) -> FloatArray:
+        """Return the posed world-frame mesh vertices of shape ``(T, V, 3)`` (needs a mesh model)."""
+        return base.forward_vertices(self.body, params.betas, params.pose, params.transl)

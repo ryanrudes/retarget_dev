@@ -58,3 +58,52 @@ def forward_transforms(
     transl = np.asarray(transl, dtype=np.float64)
     transforms[:, :, :3, 3] += transl[:, None, :]
     return transforms
+
+
+def forward_vertices(
+    body: BodyModelData,
+    betas: FloatArray,
+    pose: FloatArray,
+    transl: FloatArray,
+) -> FloatArray:
+    """Run full linear-blend skinning, returning posed world-frame mesh vertices ``(T, V, 3)``.
+
+    The shaped template is deformed by the pose blendshapes, skinned by the per-vertex blend of the
+    rest-corrected world bone transforms, then translated. Requires ``body.has_mesh`` (pose
+    blendshapes + skinning weights); raises otherwise.
+
+    Args:
+        body: The structured arrays defining the body model (must carry ``posedirs`` + ``weights``).
+        betas: Shape coefficients of shape ``(B,)``.
+        pose: The assembled per-joint axis-angle pose of shape ``(T, J, 3)``; index ``0`` is global.
+        transl: Root translation of shape ``(T, 3)``.
+
+    Returns:
+        World-frame mesh vertices of shape ``(T, V, 3)``.
+    """
+    if body.posedirs is None or body.weights is None:
+        raise ValueError("forward_vertices needs pose blendshapes + skinning weights; this model is joint-only.")
+    pose = np.asarray(pose, dtype=np.float64)
+    num_joints = pose.shape[1] if pose.ndim == 3 else -1
+    if num_joints != body.num_joints:
+        raise ValueError(f"pose has {num_joints} joints but the model has {body.num_joints}.")
+    num_frames = pose.shape[0]
+
+    rest = rest_joints(body, betas)  # (J, 3)
+    v_shaped = shaped_template(body, betas)  # (V, 3)
+    rotations = axis_angle_to_matrix(pose)  # (T, J, 3, 3)
+
+    # pose blendshapes: feature is the non-root rotation matrices minus identity, flattened.
+    pose_feature = (rotations[:, 1:] - np.eye(3)).reshape(num_frames, (num_joints - 1) * 9)
+    v_posed = v_shaped[None] + np.einsum("vcp,tp->tvc", body.posedirs, pose_feature)  # (T, V, 3)
+
+    # rest-corrected world bone transforms (no translation -- that is applied to the vertices below).
+    transforms = forward_kinematics(rotations, rest, body.parents)  # (T, J, 4, 4)
+    unposed = np.broadcast_to(np.eye(4), (num_joints, 4, 4)).copy()
+    unposed[:, :3, 3] = -rest
+    relative = np.einsum("tjab,jbc->tjac", transforms, unposed)  # (T, J, 4, 4)
+
+    blended = np.einsum("vj,tjab->tvab", body.weights, relative)  # (T, V, 4, 4)
+    homogeneous = np.concatenate([v_posed, np.ones((num_frames, v_posed.shape[1], 1))], axis=-1)
+    world: FloatArray = np.einsum("tvab,tvb->tva", blended, homogeneous)[..., :3]  # (T, V, 3)
+    return world + np.asarray(transl, dtype=np.float64)[:, None, :]

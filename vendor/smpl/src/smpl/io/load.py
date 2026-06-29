@@ -15,8 +15,9 @@ class BodyModelData:
 
     SMPL, SMPL-X, SMPL+H, MANO and friends share one math: a template mesh deformed by shape
     blendshapes, a joint regressor that reads rest-pose joints off the (shaped) mesh, and a
-    kinematic tree. This holds exactly those joint-level arrays; pose blendshapes, skinning
-    weights and mesh faces (needed for vertices, not joints) are deliberately out of scope.
+    kinematic tree. The joint-level arrays are required; the pose blendshapes + skinning weights
+    (``posedirs`` / ``weights``) are optional and, when present, enable ``forward_vertices`` (the
+    posed mesh). Mesh faces are out of scope.
     """
 
     v_template: FloatArray
@@ -34,11 +35,21 @@ class BodyModelData:
     joint_names: tuple[str, ...]
     """The name of each joint, ordered to match ``parents`` and the rows of ``j_regressor``."""
 
+    posedirs: FloatArray | None = None
+    """Optional pose-blendshape basis ``(V, 3, (J-1)*9)``; needed (with ``weights``) for vertices."""
+
+    weights: FloatArray | None = None
+    """Optional linear-blend-skinning weights ``(V, J)`` (rows sum to 1); needed for vertices."""
+
     def __post_init__(self) -> None:
         """Validate that the arrays are mutually consistent and describe a valid tree."""
         object.__setattr__(self, "v_template", np.asarray(self.v_template, dtype=np.float64))
         object.__setattr__(self, "shapedirs", np.asarray(self.shapedirs, dtype=np.float64))
         object.__setattr__(self, "j_regressor", np.asarray(self.j_regressor, dtype=np.float64))
+        if self.posedirs is not None:
+            object.__setattr__(self, "posedirs", np.asarray(self.posedirs, dtype=np.float64))
+        if self.weights is not None:
+            object.__setattr__(self, "weights", np.asarray(self.weights, dtype=np.float64))
         object.__setattr__(self, "parents", np.asarray(self.parents, dtype=np.intp))
         object.__setattr__(self, "joint_names", tuple(str(name) for name in self.joint_names))
 
@@ -73,6 +84,24 @@ class BodyModelData:
             )
         if len(set(self.joint_names)) != num_joints:
             raise ValueError("joint_names must be unique.")
+
+        if (self.posedirs is None) != (self.weights is None):
+            raise ValueError("posedirs and weights must both be given (they define the mesh) or both omitted.")
+        if self.posedirs is not None and self.weights is not None:
+            expected_posedirs = (num_vertices, 3, (num_joints - 1) * 9)
+            if self.posedirs.shape != expected_posedirs:
+                raise ValueError(f"posedirs must have shape {expected_posedirs}; got {self.posedirs.shape}.")
+            if self.weights.shape != (num_vertices, num_joints):
+                raise ValueError(
+                    f"weights must have shape ({num_vertices}, {num_joints}); got {self.weights.shape}."
+                )
+            if not np.allclose(self.weights.sum(axis=1), 1.0):
+                raise ValueError("weights rows (per vertex) must sum to 1.")
+
+    @property
+    def has_mesh(self) -> bool:
+        """Whether the model carries the pose blendshapes + skinning weights for ``forward_vertices``."""
+        return self.posedirs is not None and self.weights is not None
 
     @property
     def num_vertices(self) -> int:
@@ -148,12 +177,31 @@ def load_npz(path: str | PathLike[str]) -> BodyModelData:
     except KeyError:
         joint_names = tuple(f"joint_{i}" for i in range(num_joints))
 
+    # Optional mesh arrays (pose blendshapes + skinning weights). posedirs is sometimes saved
+    # flattened as (V*3, (J-1)*9); reshape it to (V, 3, (J-1)*9). Both must be present for a mesh.
+    posedirs: FloatArray | None
+    try:
+        posedirs = np.asarray(_pick(arrays, "posedirs"), dtype=np.float64)
+        if posedirs.ndim == 2:
+            posedirs = posedirs.reshape(v_template.shape[0], 3, -1)
+    except KeyError:
+        posedirs = None
+    weights: FloatArray | None
+    try:
+        weights = _as_dense(_pick(arrays, "weights", "lbs_weights", "skinning_weights"))
+    except KeyError:
+        weights = None
+    if (posedirs is None) != (weights is None):  # only a partial mesh; treat as joint-only
+        posedirs = weights = None
+
     return BodyModelData(
         v_template=v_template,
         shapedirs=shapedirs,
         j_regressor=j_regressor,
         parents=parents,
         joint_names=joint_names,
+        posedirs=posedirs,
+        weights=weights,
     )
 
 
@@ -201,10 +249,24 @@ def synthetic_model(num_joints: int = 3, num_betas: int = 2) -> BodyModelData:
         base_names[i] if i < len(base_names) else f"joint_{i}" for i in range(num_joints)
     )
 
+    # Mesh arrays: small non-zero pose blendshapes (so the path is exercised; they vanish at rest
+    # pose since the pose feature is 0 there) and one-hot skinning weights (vertex i rides joint i,
+    # the spare vertices ride the last joint), so the synthetic model also has a valid mesh.
+    num_pose_features = (num_joints - 1) * 9
+    posedirs = np.zeros((num_vertices, 3, num_pose_features), dtype=np.float64)
+    if num_pose_features:
+        ramp = np.linspace(0.001, 0.005, num=num_vertices * 3 * num_pose_features, dtype=np.float64)
+        posedirs[...] = ramp.reshape(num_vertices, 3, num_pose_features)
+    weights = np.zeros((num_vertices, num_joints), dtype=np.float64)
+    weights[np.arange(num_joints), np.arange(num_joints)] = 1.0
+    weights[num_joints:, num_joints - 1] = 1.0
+
     return BodyModelData(
         v_template=v_template,
         shapedirs=shapedirs,
         j_regressor=j_regressor,
         parents=parents,
         joint_names=joint_names,
+        posedirs=posedirs,
+        weights=weights,
     )

@@ -16,9 +16,9 @@ class SmplxModel:
     but the *math is identical*: this model reuses the very same core LBS forward kernel as
     :class:`~smpl.models.smpl.SmplModel`, differing only in that :class:`SmplxParams` packs the
     extra articulations and assembles them via :meth:`SmplxParams.full_pose`. Like ``SmplModel`` it
-    structurally satisfies retarget's ``BodyModel`` protocol without importing retarget. Forward
-    kinematics is joint-level only; pose blendshapes, skinning and expression (which affect only
-    *vertices*) are not involved.
+    structurally satisfies retarget's ``BodyModel`` protocol without importing retarget. The joint
+    FK is joint-level; ``forward_vertices`` runs full linear-blend skinning (pose blendshapes +
+    skinning weights) for the posed mesh. (Expression blendshapes are not yet modelled.)
     """
 
     body: BodyModelData
@@ -49,6 +49,10 @@ class SmplxModel:
     def forward_joints(self, params: SmplxParams) -> FloatArray:
         """Return the world joint positions of shape ``(T, J, 3)``."""
         return self.forward_transforms(params)[:, :, :3, 3]
+
+    def forward_vertices(self, params: SmplxParams) -> FloatArray:
+        """Return the posed world-frame mesh vertices of shape ``(T, V, 3)`` (needs a mesh model)."""
+        return base.forward_vertices(self.body, params.betas, params.full_pose(), params.transl)
 
 
 def synthetic_smplx_model(num_betas: int = 10) -> BodyModelData:
