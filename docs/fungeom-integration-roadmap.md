@@ -53,8 +53,17 @@ analog of `TransformSignal.from_matrices`). The adapter's `point_bundle_signal` 
 `Point3` grid via `from_frames` — fine for K≈5 footprints, too slow for N markers × T frames.
 Verify `marker_cloud_signal`/`pose_signal` `resolve_over` perf at realistic T before wiring.
 
-**Recommendation:** **do this next.** It's the natural completion of the runtime and the biggest
-coherence/partiality win, and it's what finally makes the adapter pay for itself.
+**Recommendation — REASSESSED (don't do it).** On investigating the runtime (and after fungeom
+delivered the carriers in v0.2.3/v0.3.0, so this is *not* a perf block): the marker/pose query layer
+is almost entirely **pass-through of stored numpy** — `segment.translations()` is literally
+`return runtime.translations`; observed `positions()` returns the raw frames; `rotations()/poses()`
+are numeric *format* conversions; only modeled markers do a trivial sub-ms einsum. So wrapping these
+as signals and resolving back is a **round-trip with overhead and no output change**. The partiality
+benefit is illusory: the marker→pose link happens in the *loader* (pose estimation is statistical →
+parked), so a runtime marker signal can't feed a pose signal — it just re-encodes the existing NaN.
+And `from_matrices` is ~0 ms, so there's nothing to cache for the patches either. **R1/R2 are
+plumbing, not value — skip them.** (This supersedes the "do this next" I originally wrote here; the
+geometry layer that genuinely benefits from fungeom — patches, contacts — is already migrated.)
 
 ### R2 — Exact temporal derivatives via fungeom signals
 
@@ -148,7 +157,22 @@ R3 (contact motion channels) is the gray zone: the normal/tangential/angular *pr
 
 ## Suggested sequence
 
-**R1 → R2** (unify the runtime + exact derivatives; un-orphan the adapter) → **C1 decision** →
-**R4** (resample/sync on the graph) → **R5** (retargeting transfer — separate design). R3
-opportunistic. R1 is the recommended next concrete step; R5 is where the real product value is and
-deserves its own kickoff.
+**Revised after investigating the runtime (2026-06-29).** **Skip R1/R2** — they're pass-through
+round-trips (see R1's reassessment); the data layer gains nothing from fungeom, and the geometry
+layer that does is already migrated. So the *substrate* integration is effectively complete. What
+remains that genuinely uses fungeom:
+
+- **R5 (the retargeting transfer) — the real frontier.** It's a *new capability*, not a migration:
+  express the transfer's geometric constraints (contacts meet target surfaces, footprints align,
+  clearances hold) in fungeom — an unsatisfiable retarget is then *decidably* `Unresolvable` — with
+  the solve (IK/optimization) parked numeric. This needs retarget-side product decisions first
+  (target model, correspondence beyond `relabel`, solver), so it deserves its own design kickoff.
+- **R4 (decidable resampling) — optional/marginal.** A real transformation (not pass-through), so
+  not pure plumbing, but the resampled *values* are unchanged; the only gain is the decidable /
+  partiality framing. Do it only if that framing proves useful, after R5's direction is set.
+- **C1 (adapter):** since R1 won't consume it and R5 is the only plausible future consumer, either
+  keep the `marker_cloud_signal`/`pose_signal`/correspondence/transfer scaffolding *for* R5, or trim
+  the orphaned bits now to cut debt. Decide when R5 is scoped.
+
+**Bottom line: the geometry substrate is done; the next real step is the R5 design, not more
+runtime plumbing.**
