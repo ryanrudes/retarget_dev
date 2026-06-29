@@ -7,7 +7,7 @@ through the schema projects to the authored types with no enums and no codegen.
 
 from __future__ import annotations
 
-from typing import assert_type
+from typing import assert_type, cast
 
 import numpy as np
 
@@ -25,7 +25,7 @@ from retarget.core import (
     Subject,
     Subjects,
 )
-from retarget.core.types import TimeVec3
+from retarget.core.types import TimeVec3, Vec3
 from retarget.demo import Demonstration, MocapTrack, Tracks
 from retarget.demo.contact import ContactTrack
 
@@ -57,8 +57,8 @@ def _track() -> MocapTrack[MySubjects]:
             segments=ShoeSegments(
                 shoe=Segment(
                     markers=ShoeMarkers(
-                        heel=Marker(mocap_name="h", position_segment=np.zeros(3)),
-                        toe=Marker(mocap_name="t", position_segment=np.array([1.0, 0.0, 0.0])),
+                        heel=Marker(mocap_name="h", position_segment=cast(Vec3, np.zeros(3))),
+                        toe=Marker(mocap_name="t", position_segment=cast(Vec3, np.array([1.0, 0.0, 0.0]))),
                     ),
                     patches=ShoePatches(sole=Patch(label="sole")),
                 )
