@@ -20,6 +20,7 @@ dependencies = [
     "rich>=15.0.0",
     "scipy>=1.17.1",
     "urdf",
+    "smpl",
     "fungeom>=0.3.0",
     "matplotlib>=3.11.0",
     "typer>=0.26.7",
@@ -63,10 +64,12 @@ pythonpath = ["src"]
 [tool.uv.workspace]
 members = [
     "vendor/urdf",
+    "vendor/smpl",
 ]
 
 [tool.uv.sources]
 urdf = { workspace = true, editable = true }
+smpl = { workspace = true }
 
 [dependency-groups]
 dev = [
