@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fungeom import Face, Region2
+from fungeom import Face, Point3Bundle, Region2
 
 from retarget.io import read_marker_positions_from_vsk
 
@@ -26,7 +26,6 @@ from retarget.core import (
     Patch,
     Marker,
 )
-from retarget.core.geometry import SegmentGeometry
 
 from .schema import (
     ExampleTracks,
@@ -38,31 +37,6 @@ from .schema import (
     BalanceBoardPatches,
     BalanceBoardMarkers,
 )
-
-# Foot markers whose projected footprint sizes + centers the sole patch (the three
-# "plane" markers are a calibration jig and only fit the plane).
-SOLE_FOOTPRINT_MARKERS = (
-    "heel",
-    "toe",
-    "sole_inner",
-    "sole_outer",
-    "heel_inner_1",
-    "heel_inner_2",
-    "heel_outer_1",
-    "heel_outer_2",
-    "toe_inner",
-    "toe_outer",
-)
-
-BALANCE_BOARD_FOOTPRINT_MARKERS = (
-    "surface1",
-    "surface2",
-    "surface3",
-    "surface4",
-    "edge1",
-    "edge2",
-)
-
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -89,110 +63,92 @@ def unbagged_dir_for(example_name: str) -> Path:
     return REPO_ROOT / "bags" / example_name / "unbagged"
 
 
-def get_left_shoe_markers() -> LeftShoeMarkers:
-    return LeftShoeMarkers(
-        heel=Marker("heel"),
-        toe=Marker("toe"),
-        heel_inner_1=Marker("heel_inner_1"),
-        heel_inner_2=Marker("heel_inner_2"),
-        heel_outer_1=Marker("heel_outer_1"),
-        heel_outer_2=Marker("heel_outer_2"),
-        toe_inner=Marker("toe_inner"),
-        toe_outer=Marker("toe_outer"),
-        toe_grid_1=Marker("toe_grid_1"),
-        toe_grid_2=Marker("toe_grid_2"),
-        toe_grid_3=Marker("toe_grid_3"),
-        toe_grid_4=Marker("toe_grid_4"),
-        sole_inner=Marker("sole_inner"),
-        sole_outer=Marker("sole_outer"),
-        plane_rear=Marker("plane_rear"),
-        plane_inner=Marker("plane_inner"),
-        plane_outer=Marker("plane_outer"),
-    )
+def get_left_foot_segments() -> LeftFootSegments:
+    # Author the shoe markers once as typed symbols, then express the sole patch as plain fungeom
+    # DATA over those symbols (``m.rest`` -- the marker's segment-frame rest position as a free
+    # variable). No string keys, no callable; a misspelled marker is a NameError, not a silent key.
+    heel = Marker("heel")
+    toe = Marker("toe")
+    heel_inner_1 = Marker("heel_inner_1")
+    heel_inner_2 = Marker("heel_inner_2")
+    heel_outer_1 = Marker("heel_outer_1")
+    heel_outer_2 = Marker("heel_outer_2")
+    toe_inner = Marker("toe_inner")
+    toe_outer = Marker("toe_outer")
+    toe_grid_1 = Marker("toe_grid_1")
+    toe_grid_2 = Marker("toe_grid_2")
+    toe_grid_3 = Marker("toe_grid_3")
+    toe_grid_4 = Marker("toe_grid_4")
+    sole_inner = Marker("sole_inner")
+    sole_outer = Marker("sole_outer")
+    plane_rear = Marker("plane_rear")
+    plane_inner = Marker("plane_inner")
+    plane_outer = Marker("plane_outer")
 
-
-def get_balance_board_markers() -> BalanceBoardMarkers:
-    return BalanceBoardMarkers(
-        surface1=Marker("Surface1"),
-        surface2=Marker("Surface2"),
-        surface3=Marker("Surface3"),
-        surface4=Marker("Surface4"),
-        edge1=Marker("Edge1"),
-        edge2=Marker("Edge2"),
-    )
-
-
-# Patch definitions. The sole frame is fit at bind time from the three plane
-# calibration markers using their body_model segment-frame positions.
-#
-# Instead of guessing which way the fitted normal points (and therefore the sign
-# of normal_offset), we anchor it to a marker we KNOW the side of: the shoe body
-# (toe_grid_1) is on the INWARD side, so the outward normal points the other way --
-# down, toward the board the sole contacts. With "outward = toward the contact",
-# +normal_offset always nudges the plane toward the board.
-def _sole_geometry(seg: SegmentGeometry) -> Face:
-    # Fit the contact plane through the three calibration markers. The shoe body
-    # (toe_grid_1) is on the INWARD side, so the outward normal points the other way --
-    # toward the board the sole contacts; ``facing(toe_grid_1).flipped()`` orients it that
-    # way, then +offset nudges the plane toward the board. The footprint is the convex hull
-    # of the foot markers flattened into that plane, padded 5 mm.
+    # Fit the contact plane through the three calibration markers. The shoe body (toe_grid_1) is on
+    # the INWARD side, so ``facing(toe_grid_1.rest).flipped()`` points the outward normal the other
+    # way -- toward the board the sole contacts -- then +offset nudges the plane to the physical
+    # contact. The footprint is the convex hull of the foot markers flattened into that plane, +5 mm.
     plane = (
-        seg.markers["plane_rear", "plane_inner", "plane_outer"]
+        Point3Bundle.from_map({m.mocap_name: m.rest for m in (plane_rear, plane_inner, plane_outer)})
         .fit_plane()
-        .facing(seg.markers["toe_grid_1"])
+        .facing(toe_grid_1.rest)
         .flipped()
         .offset(SOLE_PLANE_NORMAL_OFFSET)
     )
-    footprint = Region2.hull(seg.markers[SOLE_FOOTPRINT_MARKERS].in_frame(plane)).offset(0.005)
-    return Face.on(plane, footprint)
-
-
-def get_left_shoe_patches() -> LeftShoePatches:
-    return LeftShoePatches(
-        sole=Patch(label="sole", geometry=_sole_geometry, frame="sole_frame"),
-    )
-
-
-def _surface_geometry(seg: SegmentGeometry) -> Face:
-    # Fit the deck plane through the four surface markers. The deck edge (edge1) sits below
-    # the surface (INWARD), so the outward normal points up toward the shoe;
-    # ``facing(edge1).flipped()`` orients it that way (offset is inward, negative). The hull
-    # of the footprint markers in-plane gives the tight, naturally-oriented footprint -- no
-    # explicit min-area-rectangle needed, the hull captures the orientation intrinsically.
-    plane = (
-        seg.markers["surface1", "surface2", "surface3", "surface4"]
-        .fit_plane()
-        .facing(seg.markers["edge1"])
-        .flipped()
-        .offset(BALANCE_BOARD_PLANE_NORMAL_OFFSET)
+    footprint_markers = (
+        heel, toe, sole_inner, sole_outer,
+        heel_inner_1, heel_inner_2, heel_outer_1, heel_outer_2, toe_inner, toe_outer,
     )
     footprint = Region2.hull(
-        seg.markers[BALANCE_BOARD_FOOTPRINT_MARKERS].in_frame(plane)
+        Point3Bundle.from_map({m.mocap_name: m.rest for m in footprint_markers}).in_frame(plane)
     ).offset(0.005)
-    return Face.on(plane, footprint)
 
-
-def get_balance_board_patches() -> BalanceBoardPatches:
-    return BalanceBoardPatches(
-        surface=Patch(label="surface", geometry=_surface_geometry, frame="surface_frame"),
-    )
-
-
-def get_left_foot_segments() -> LeftFootSegments:
     return LeftFootSegments(
         shoe=Segment(
-            markers=get_left_shoe_markers(),
-            patches=get_left_shoe_patches(),
+            markers=LeftShoeMarkers(
+                heel=heel, toe=toe,
+                heel_inner_1=heel_inner_1, heel_inner_2=heel_inner_2,
+                heel_outer_1=heel_outer_1, heel_outer_2=heel_outer_2,
+                toe_inner=toe_inner, toe_outer=toe_outer,
+                toe_grid_1=toe_grid_1, toe_grid_2=toe_grid_2, toe_grid_3=toe_grid_3, toe_grid_4=toe_grid_4,
+                sole_inner=sole_inner, sole_outer=sole_outer,
+                plane_rear=plane_rear, plane_inner=plane_inner, plane_outer=plane_outer,
+            ),
+            patches=LeftShoePatches(sole=Patch(label="sole", geometry=Face.on(plane, footprint), frame="sole_frame")),
             mocap_name="Left_Shoe_Improved",
         )
     )
 
 
 def get_balance_board_segments() -> BalanceBoardSegments:
+    surface1 = Marker("Surface1")
+    surface2 = Marker("Surface2")
+    surface3 = Marker("Surface3")
+    surface4 = Marker("Surface4")
+    edge1 = Marker("Edge1")
+    edge2 = Marker("Edge2")
+
+    # Fit the deck plane through the four surface markers. The deck edge (edge1) sits below the
+    # surface (INWARD), so ``facing(edge1.rest).flipped()`` orients the outward normal up toward the
+    # shoe (offset is inward, negative). The hull of the footprint markers in-plane is the footprint.
+    plane = (
+        Point3Bundle.from_map({m.mocap_name: m.rest for m in (surface1, surface2, surface3, surface4)})
+        .fit_plane()
+        .facing(edge1.rest)
+        .flipped()
+        .offset(BALANCE_BOARD_PLANE_NORMAL_OFFSET)
+    )
+    footprint = Region2.hull(
+        Point3Bundle.from_map({m.mocap_name: m.rest for m in (surface1, surface2, surface3, surface4, edge1, edge2)}).in_frame(plane)
+    ).offset(0.005)
+
     return BalanceBoardSegments(
         board=Segment(
-            markers=get_balance_board_markers(),
-            patches=get_balance_board_patches(),
+            markers=BalanceBoardMarkers(
+                surface1=surface1, surface2=surface2, surface3=surface3, surface4=surface4, edge1=edge1, edge2=edge2
+            ),
+            patches=BalanceBoardPatches(surface=Patch(label="surface", geometry=Face.on(plane, footprint), frame="surface_frame")),
             mocap_name="Balance_Board",
         )
     )
