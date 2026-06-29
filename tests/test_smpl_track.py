@@ -5,7 +5,10 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from dataclasses import dataclass
+
 from retarget.demo import (
+    BodyModel,
     Demonstration,
     EnergySignal,
     SmplTrack,
@@ -15,6 +18,35 @@ from retarget.demo import (
     estimate_sync,
     smpl_joint_energy,
 )
+
+
+@dataclass(frozen=True)
+class _StubParams:
+    """Stand-in for a vendored model's variant-specific params: the joints, given directly."""
+
+    joints: np.ndarray  # (T, J, 3)
+
+
+class _StubBody:
+    """A trivial BodyModel: its 'forward kinematics' just returns the joints in the params.
+
+    Stands in for the vendored ``smpl`` library's SMPL/SMPL-X models so the seam is testable
+    without torch or licensed model files.
+    """
+
+    joint_names = ("left_ankle", "root")
+
+    def forward_joints(self, params: _StubParams) -> np.ndarray:
+        return params.joints
+
+
+def test_from_body_runs_forward_kinematics() -> None:
+    joints = np.random.default_rng(0).standard_normal((5, 2, 3))
+    track = SmplTrack.from_body(_StubBody(), _StubParams(joints), timestamps=np.arange(5.0))
+    assert isinstance(track, SmplTrack)
+    assert track.joint_names == ("left_ankle", "root")
+    np.testing.assert_array_equal(track.joint_positions("left_ankle"), joints[:, 0, :])
+    assert isinstance(_StubBody(), BodyModel)  # the stub satisfies the runtime-checkable Protocol
 
 
 def _ankle_track(shift: float = 0.0) -> SmplTrack:

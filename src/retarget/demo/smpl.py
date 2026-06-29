@@ -16,7 +16,7 @@ spatial registration (SMPL world -> Vicon world) that temporal sync does not do.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import cast
+from typing import Protocol, cast, runtime_checkable
 
 import numpy as np
 
@@ -24,6 +24,24 @@ from retarget.core.formats import finite_difference_velocity, speed_from_velocit
 from retarget.core.types import TimeVec3
 from retarget.demo.alignment import EnergySignal, SignalExtractor
 from retarget.demo.tracks import Track, indices_for_time_range
+
+
+@runtime_checkable
+class BodyModel[ParamsT](Protocol):
+    """A SMPL-family body model: forward kinematics from params to world-frame joints.
+
+    This is the contract retarget depends on; an external ``smpl`` library (SMPL / SMPL-X / SMPL+H
+    / MANO / FLAME / …, the URDF-style vendored counterpart) implements it. ``forward_joints``
+    returns world-frame joints ``(T, J, 3)`` for ``T`` frames of ``params`` (the model's own
+    variant-specific parameter object — pose / shape / translation); ``joint_names`` names the ``J``
+    joints in column order. An implementation may use torch internally but must return a numpy
+    array, so retarget stays torch-free and the track is model-agnostic downstream.
+    """
+
+    @property
+    def joint_names(self) -> tuple[str, ...]: ...
+
+    def forward_joints(self, params: ParamsT) -> np.ndarray: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +77,31 @@ class SmplTrack(Track):
         object.__setattr__(self, "joints", joints)
         object.__setattr__(self, "timestamps", timestamps)
         object.__setattr__(self, "joint_names", names)
+
+    @classmethod
+    def from_body[ParamsT](
+        cls,
+        model: BodyModel[ParamsT],
+        params: ParamsT,
+        timestamps: np.ndarray,
+        *,
+        nominal_hz_override: float | None = None,
+    ) -> SmplTrack:
+        """Build a track by running a body model's forward kinematics.
+
+        ``model`` is any SMPL-family :class:`BodyModel` (e.g. from the vendored ``smpl`` library);
+        ``params`` is that model's per-frame parameter object (variant-specific pose / shape /
+        translation). The track holds the resulting world-frame joints, so contact + sync
+        downstream are model- and variant-agnostic. This is the ergonomic entry point: pass a model
+        and params instead of hand-computing joints.
+        """
+        joints = np.asarray(model.forward_joints(params), dtype=np.float64)
+        return cls(
+            joints=joints,
+            joint_names=model.joint_names,
+            timestamps=np.asarray(timestamps, dtype=np.float64),
+            nominal_hz_override=nominal_hz_override,
+        )
 
     def joint_index(self, name: str) -> int:
         """Column index of the named joint."""
