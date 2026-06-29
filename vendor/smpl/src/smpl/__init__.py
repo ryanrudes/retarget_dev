@@ -8,6 +8,7 @@ from smpl.params.smplx import SMPLX_NUM_JOINTS, SmplxParams
 from smpl.registry import (
     AnyModel,
     ModelFactory,
+    Variant,
     get_model_class,
     load,
     register_model,
@@ -24,6 +25,7 @@ __all__ = [
     "SmplParams",
     "SmplxModel",
     "SmplxParams",
+    "Variant",
     "get_model_class",
     "load",
     "load_npz",

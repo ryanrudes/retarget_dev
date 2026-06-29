@@ -9,6 +9,7 @@ from smpl import (
     BodyModelData,
     SmplModel,
     SmplxModel,
+    Variant,
     get_model_class,
     load,
     register_model,
@@ -23,6 +24,17 @@ def test_builtin_variants_resolve_to_their_classes() -> None:
     assert get_model_class("smpl") is SmplModel
     assert get_model_class("smplx") is SmplxModel
     assert {"smpl", "smplx"} <= registered_variants()
+
+
+def test_variant_enum_is_the_closed_builtin_family() -> None:
+    # The built-ins are a closed StrEnum (like urdf's RobotId); members ARE their strings, so they
+    # resolve and compare exactly like the plain variant strings, and the enum + string interoperate.
+    assert set(Variant) == {Variant.SMPL, Variant.SMPLX}
+    assert Variant.SMPL == "smpl"
+    assert Variant.SMPLX == "smplx"
+    assert get_model_class(Variant.SMPL) is SmplModel
+    assert get_model_class(Variant.SMPLX) is SmplxModel
+    assert {Variant.SMPL, Variant.SMPLX} <= registered_variants()
 
 
 def test_get_model_class_unknown_variant_raises() -> None:
@@ -50,7 +62,7 @@ def test_load_roundtrips_smpl_and_smplx(tmp_path: Path) -> None:
 
     smplx_path = tmp_path / "smplx.npz"
     _save(smplx_path, synthetic_smplx_model(num_betas=2))
-    smplx_model = load("smplx", smplx_path)
+    smplx_model = load(Variant.SMPLX, smplx_path)  # the enum path narrows the return type
     assert isinstance(smplx_model, SmplxModel)
     assert smplx_model.body.num_joints == 55
 
