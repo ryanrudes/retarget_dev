@@ -5,6 +5,8 @@ import pytest
 
 from fungeom import Face, Point3, Region2
 
+from dataclasses import dataclass
+
 from conftest import (
     SEGMENT,
     SUBJECT,
@@ -39,21 +41,25 @@ _POSITIONS = {
 }
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoPatchPatches(Patches):
     sole: Patch
     heel_cap: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoPatchMarkers(Markers):
     heel: Marker
     toe: Marker
     mid: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoPatchSegments(Segments):
     segment: Segment[_TwoPatchMarkers, _TwoPatchPatches]
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoPatchSubjects(Subjects):
     subject: Subject[_TwoPatchSegments]
 

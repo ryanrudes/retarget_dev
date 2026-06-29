@@ -121,6 +121,7 @@ def test_smpl_track_syncs_to_reference_recovering_lag() -> None:
     reference = _ankle_track(shift=0.0)
     video = _ankle_track(shift=0.07)
 
+    @dataclass(frozen=True, slots=True)
     class _Tracks(Tracks):
         reference: SmplTrack
         video: SmplTrack
@@ -165,17 +166,21 @@ def test_smpl_drives_a_typed_scene_and_contact_detection_reuses() -> None:
         plane = seg.markers["heel", "toe", "mid"].fit_plane().facing(Point3.at(0.0, 0.0, 1.0))  # type: ignore[attr-defined]
         return Face.on(plane, Region2.rectangle(0.2, 0.1))
 
+    @dataclass(frozen=True, slots=True)
     class FootMarkers(Markers):
         heel: Marker
         toe: Marker
         mid: Marker
 
+    @dataclass(frozen=True, slots=True)
     class FootPatches(Patches):
         sole: Patch
 
+    @dataclass(frozen=True, slots=True)
     class FootSegments(Segments):
         foot: Segment[FootMarkers, FootPatches]
 
+    @dataclass(frozen=True, slots=True)
     class BodySubjects(Subjects):
         body: Subject[FootSegments]
 
@@ -212,15 +217,19 @@ def test_smpl_mocap_track_rejects_unknown_bone() -> None:
     from retarget.core import Marker, Markers, Patches, Segment, Segments, Subject, Subjects
     from retarget.demo import smpl_mocap_track
 
+    @dataclass(frozen=True, slots=True)
     class M(Markers):
         a: Marker
 
+    @dataclass(frozen=True, slots=True)
     class P(Patches):
         pass
 
+    @dataclass(frozen=True, slots=True)
     class S(Segments):
         seg: Segment[M, P]
 
+    @dataclass(frozen=True, slots=True)
     class Subs(Subjects):
         body: Subject[S]
 
@@ -279,15 +288,19 @@ def test_smpl_foot_patch_from_mesh_vertices() -> None:
     transl[:, 2] = np.linspace(0.1, 0.0, num_frames)  # descend to the ground
     params = smpl.SmplParams(betas=np.zeros(1), pose=np.zeros((num_frames, 2, 3)), transl=transl)
 
+    @dataclass(frozen=True, slots=True)
     class FootMarkers(Markers):
         pass
 
+    @dataclass(frozen=True, slots=True)
     class FootPatches(Patches):
         sole: Patch
 
+    @dataclass(frozen=True, slots=True)
     class FootSegments(Segments):
         foot: Segment[FootMarkers, FootPatches]
 
+    @dataclass(frozen=True, slots=True)
     class BodySubjects(Subjects):
         body: Subject[FootSegments]
 

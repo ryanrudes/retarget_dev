@@ -104,9 +104,22 @@ class DummyTrackView(TrackView[DummyTrack]):
         )
 
 
+@dataclass(frozen=True, slots=True)
 class TypedSyncTracks(Tracks):
     reference: DummyTrack
     mocap: DummyTrack
+
+
+@dataclass(frozen=True, slots=True)
+class _ReferenceTracks(Tracks):
+    reference: DummyTrack
+
+
+@dataclass(frozen=True, slots=True)
+class _RefMocapContactTracks(Tracks):
+    reference: DummyTrack
+    mocap: DummyTrack
+    contact: DummyTrack
 
 
 def _signal(track: Track) -> EnergySignal:
@@ -169,7 +182,7 @@ def test_sync_plan_rejects_disconnected_graph() -> None:
 
 def test_estimate_sync_rejects_missing_tracks() -> None:
     plan = SyncPlan(reference=REFERENCE, edges=(_edge(MOCAP, REFERENCE),))
-    demo = Demonstration(tracks={REFERENCE: _dummy_track()})
+    demo = Demonstration(_ReferenceTracks(reference=_dummy_track()))
     with pytest.raises(KeyError, match="missing tracks"):
         estimate_sync(demo, plan)
 
@@ -180,11 +193,11 @@ def test_estimate_sync_returns_pairwise_alignments() -> None:
         edges=(_edge(MOCAP, REFERENCE, 0.5), _edge(CONTACT, MOCAP, 0.5)),
     )
     demo = Demonstration(
-        tracks={
-            REFERENCE: _dummy_track(0.0),
-            MOCAP: _dummy_track(0.1),
-            CONTACT: _dummy_track(0.2),
-        }
+        _RefMocapContactTracks(
+            reference=_dummy_track(0.0),
+            mocap=_dummy_track(0.1),
+            contact=_dummy_track(0.2),
+        )
     )
     alignments = estimate_sync(demo, plan)
     assert [(a.source, a.reference) for a in alignments] == [(MOCAP, REFERENCE), (CONTACT, MOCAP)]
@@ -234,7 +247,9 @@ def test_estimate_sync_to_reference_returns_root_alignments() -> None:
         edges=(_edge(MOCAP, REFERENCE, 0.5), _edge(CONTACT, MOCAP, 0.5)),
     )
     demo = Demonstration(
-        tracks={REFERENCE: _dummy_track(0.0), MOCAP: _dummy_track(0.1), CONTACT: _dummy_track(0.2)}
+        _RefMocapContactTracks(
+            reference=_dummy_track(0.0), mocap=_dummy_track(0.1), contact=_dummy_track(0.2)
+        )
     )
     alignments = estimate_sync_to_reference(demo, plan)
     assert {a.source for a in alignments} == {MOCAP, CONTACT}
@@ -243,7 +258,7 @@ def test_estimate_sync_to_reference_returns_root_alignments() -> None:
 
 def test_estimate_sync_and_resample_to_reference_returns_reference_time_view() -> None:
     plan = SyncPlan(reference=REFERENCE, edges=(_edge(MOCAP, REFERENCE, 0.5),))
-    demo = Demonstration(tracks={REFERENCE: _dummy_track(0.0), MOCAP: _dummy_track(0.1)})
+    demo = Demonstration(TypedSyncTracks(reference=_dummy_track(0.0), mocap=_dummy_track(0.1)))
     resampled = estimate_sync_and_resample_to_reference(demo, plan, start=0.75, stop=1.25)
     reference_timestamps = resampled[REFERENCE].timestamps
     np.testing.assert_array_equal(resampled[MOCAP].timestamps, reference_timestamps)

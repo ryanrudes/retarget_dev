@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -9,8 +11,14 @@ from retarget.demo.alignment import (
     TrackAlignment,
     estimate_alignment_from_signals,
 )
-from retarget.demo.demo import Demonstration
+from retarget.demo.demo import Demonstration, Tracks
+from retarget.demo.mocap import MocapTrack
 from conftest import make_mocap_track
+
+
+@dataclass(frozen=True, slots=True)
+class _MocapTracks(Tracks):
+    mocap: MocapTrack
 
 SOURCE = "source"
 REFERENCE = "reference"
@@ -453,7 +461,7 @@ def test_demonstration_accepts_alignments_in_constructor() -> None:
         score=score,
     )
     demo = Demonstration(
-        tracks={"mocap": mocap},
+        _MocapTracks(mocap=mocap),
         alignments=(alignment,),
     )
     assert len(demo.alignments) == 1

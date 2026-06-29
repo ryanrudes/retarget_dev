@@ -2,10 +2,12 @@
 
 This package defines a single set of dual-purpose types:
 
-* ``Markers`` / ``Patches`` / ``Segments`` / ``Subjects`` are ``TypedDict`` bases
+* ``Markers`` / ``Patches`` / ``Segments`` / ``Subjects`` are empty frozen
+  ``@dataclass`` bases (subclasses of :class:`~retarget.core.schema.base._Schema`)
   the user subclasses to declare the *shape* of a scene. Because each subclass is
-  a concrete ``TypedDict``, literal-key access projects to the declared field
-  type, which is what gives the deep query chain perfect static typing.
+  a concrete frozen dataclass, **attribute access** (``segment.markers.heel``)
+  projects to the declared field type, which is what gives the deep query chain
+  perfect static typing -- no codegen, no plugins.
 * ``Marker`` / ``Patch`` / ``Segment`` / ``Subject`` are frozen dataclasses the
   user instantiates to author concrete scene data. The same instances double as
   the runtime query surface: once a :class:`~retarget.demo.mocap.MocapTrack`

@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 from fungeom import Point3
 
 from retarget.core.formats import finite_difference_velocity, speed_from_velocity
+from retarget.core.schema.base import _Schema
 from retarget.core.targets import MarkerTarget
 from retarget.core.types import TimeVec3, Vec3
 
@@ -16,7 +17,8 @@ if TYPE_CHECKING:
     from retarget.core.schema.segment import _SegmentRuntime
 
 
-class Markers(TypedDict):
+@dataclass(frozen=True, slots=True)
+class Markers(_Schema):
     """Base class for typed marker schema declarations."""
 
 

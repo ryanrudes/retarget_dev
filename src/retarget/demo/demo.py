@@ -14,17 +14,30 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Any, TypedDict, cast
+from typing import Any, cast
 
 import numpy as np
 
+from retarget.core.schema.base import _Schema, _schema_items
 from retarget.demo.alignment import TrackAlignment
 from retarget.demo.resampling import ResampleMethod
 from retarget.demo.tracks import Track
 
 
-class Tracks(TypedDict):
+@dataclass(frozen=True, slots=True)
+class Tracks(_Schema):
     """Base class for typed demonstration track-schema declarations."""
+
+
+def _track_mapping(tracks: Tracks) -> Mapping[str, Track]:
+    """The track schema's ``{name: Track}`` view, derived from its dataclass fields.
+
+    The secondary, string-keyed surface (``demo["mocap"]``, ``in``, ``track_ids()``,
+    ``slice_time``) reads through this; the authored dataclass stays the primary,
+    statically-typed ``demo.tracks`` access.
+    """
+    tracks_by_name: dict[str, Track] = dict(_schema_items(tracks))
+    return MappingProxyType(tracks_by_name)
 
 
 class _TrackMapping:
@@ -76,11 +89,14 @@ class Demonstration[TracksT: Tracks = Tracks](_TrackMapping):
     alignments: tuple[TrackAlignment, ...] = ()
 
     def __post_init__(self) -> None:
-        frozen = _freeze_tracks(cast(Mapping[str, Track], self.tracks))
-        object.__setattr__(self, "tracks", cast(TracksT, frozen))
+        for name, value in _schema_items(self.tracks):
+            if not isinstance(value, Track):
+                raise TypeError(
+                    f"Track {name!r} must be a Track; got {type(value).__name__}"
+                )
 
     def _track_map(self) -> Mapping[str, Track]:
-        return cast(Mapping[str, Track], self.tracks)
+        return _track_mapping(self.tracks)
 
     def _root(self) -> Demonstration[Any]:
         return self
@@ -172,13 +188,3 @@ def _alignments_to_reference(
             )
         alignment_by_source[alignment.source] = alignment
     return MappingProxyType(alignment_by_source)
-
-
-def _freeze_tracks(tracks: Mapping[str, Track]) -> Mapping[str, Track]:
-    copied = dict(tracks)
-    for key, value in copied.items():
-        if not isinstance(value, Track):
-            raise TypeError(
-                f"Track {key!r} must be a Track; got {type(value).__name__}"
-            )
-    return MappingProxyType(copied)

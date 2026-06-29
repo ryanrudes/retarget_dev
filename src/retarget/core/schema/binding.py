@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 from collections.abc import Hashable, Mapping
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 from fungeom import Face, Point3
 
 from retarget.core.geometry import segment_geometry_at
 from retarget.core.keys import SegmentKey
+from retarget.core.schema.base import (
+    _rebuild_schema,
+    _schema_fields,
+    _schema_items,
+    _schema_values,
+)
 from retarget.core.schema.marker import Marker, _MarkerBinding
 from retarget.core.schema.patch import Patch, _PatchBinding
 from retarget.core.schema.segment import Segment, _SegmentBinding, _SegmentRuntime
@@ -42,11 +48,10 @@ def _bind_subjects[SubjectsT: Subjects](
     *,
     runtimes: Mapping[SegmentKey, _SegmentRuntime] | None,
 ) -> SubjectsT:
-    bound = {
-        name: _bind_subject(subject, name=name, runtimes=runtimes)
-        for name, subject in cast(Mapping[str, Subject[Any]], subjects).items()
-    }
-    return cast(SubjectsT, bound)
+    return _rebuild_schema(
+        subjects,
+        lambda name, subject: _bind_subject(subject, name=name, runtimes=runtimes),
+    )
 
 
 def _bind_subject(
@@ -55,18 +60,18 @@ def _bind_subject(
     name: str,
     runtimes: Mapping[SegmentKey, _SegmentRuntime] | None,
 ) -> Subject[Any]:
-    bound_segments = {
-        segment_name: _bind_segment(
+    bound_segments = _rebuild_schema(
+        subject.segments,
+        lambda segment_name, segment: _bind_segment(
             segment,
             subject=name,
             segment_name=segment_name,
             body_model=subject.body_model,
             runtime=(None if runtimes is None else runtimes.get(SegmentKey(name, segment_name))),
-        )
-        for segment_name, segment in subject.segments.items()
-    }
+        ),
+    )
     bound = Subject(
-        segments=cast(Any, bound_segments),
+        segments=bound_segments,
         mocap_name=subject.mocap_name,
         body_model=subject.body_model,
     )
@@ -82,33 +87,38 @@ def _bind_segment(
     body_model: Mapping[str, Vec3] | None,
     runtime: _SegmentRuntime | None,
 ) -> Segment[Any, Any]:
-    bound_markers = {
-        marker_name: _bind_marker(
+    bound_markers = _rebuild_schema(
+        segment.markers,
+        lambda marker_name, marker: _bind_marker(
             marker,
             subject=subject,
             segment=segment_name,
             marker_name=marker_name,
             body_model=body_model,
             runtime=runtime,
-        )
-        for marker_name, marker in segment.markers.items()
-    }
+        ),
+    )
     marker_positions_segment = {
         marker_name: marker.position_segment
-        for marker_name, marker in bound_markers.items()
+        for marker_name, marker in _schema_items(bound_markers)
         if marker.position_segment is not None
     }
     # Free-variable environment for data-authored patches: each authored Marker (the identity its
     # ``.rest`` free variable carries) -> its segment-frame rest Point3. Keyed by the *authored*
     # markers (what the Face references); valued from the bound positions (filled from body_model).
+    # Authored and bound markers share field order, so zip pairs each authored identity with its
+    # bound position.
     marker_env: dict[Hashable, Point3] = {}
-    for marker_name, authored_marker in segment.markers.items():
-        position = bound_markers[marker_name].position_segment
+    for authored_marker, bound_marker in zip(
+        _schema_values(segment.markers), _schema_values(bound_markers), strict=True
+    ):
+        position = bound_marker.position_segment
         if position is not None:
             coords = np.asarray(position, dtype=np.float64).reshape(3)
             marker_env[authored_marker] = Point3.at(float(coords[0]), float(coords[1]), float(coords[2]))
-    bound_patches = {
-        patch_name: _bind_patch(
+    bound_patches = _rebuild_schema(
+        segment.patches,
+        lambda patch_name, patch: _bind_patch(
             patch,
             subject=subject,
             segment=segment_name,
@@ -116,12 +126,11 @@ def _bind_segment(
             marker_positions_segment=marker_positions_segment,
             marker_env=marker_env,
             runtime=runtime,
-        )
-        for patch_name, patch in segment.patches.items()
-    }
+        ),
+    )
     bound = Segment(
-        markers=cast(Any, bound_markers),
-        patches=cast(Any, bound_patches),
+        markers=bound_markers,
+        patches=bound_patches,
         mocap_name=segment.mocap_name,
     )
     object.__setattr__(
@@ -192,14 +201,11 @@ def _bind_patch(
     return bound
 
 
-def _validate_subjects(subjects: Mapping[str, Any]) -> None:
-    if not subjects:
+def _validate_subjects(subjects: Subjects) -> None:
+    if not _schema_fields(subjects):
         raise ValueError("A scene must declare at least one subject")
-    for subject_name, subject in subjects.items():
-        if not subject_name:
-            raise ValueError("Subject names must be non-empty")
-        segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
-        for segment_name, segment in segments.items():
+    for subject_name, subject in _schema_items(subjects):
+        for segment_name, segment in _schema_items(subject.segments):
             _validate_segment(subject_name, segment_name, segment)
 
 
@@ -209,7 +215,7 @@ def _validate_segment(
     segment: Segment[Any, Any],
 ) -> None:
     seen_vicon: dict[str, str] = {}
-    for marker_name, marker in segment.markers.items():
+    for marker_name, marker in _schema_items(segment.markers):
         previous = seen_vicon.get(marker.mocap_name)
         if previous is not None:
             raise ValueError(

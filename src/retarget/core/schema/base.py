@@ -27,7 +27,7 @@ class _Schema:
     # migration from subscript to attribute access. Removed once every access site is
     # attribute-based -- after which a stray subscript is a hard mypy + runtime error.
     def __getitem__(self, name: str) -> Any:
-        return getattr(self, name)
+        return _schema_get(self, name)
 
     def __iter__(self) -> Iterator[str]:
         return iter(_schema_fields(self))

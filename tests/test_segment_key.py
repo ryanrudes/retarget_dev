@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from retarget.core import (
@@ -20,18 +22,22 @@ from retarget.core import (
 from retarget.demo import MocapTrack
 
 
+@dataclass(frozen=True, slots=True)
 class _Markers(Markers):
     a: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class _Patches(Patches):
     p: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class _Segments(Segments):
     shoe: Segment[_Markers, _Patches]
 
 
+@dataclass(frozen=True, slots=True)
 class _Subjects(Subjects):
     left_shoe: Subject[_Segments]
     right_shoe: Subject[_Segments]

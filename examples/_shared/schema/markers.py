@@ -1,6 +1,9 @@
+from dataclasses import dataclass
+
 from retarget.core import Markers, Marker
 
 
+@dataclass(frozen=True, slots=True)
 class LeftShoeMarkers(Markers):
     heel: Marker
     toe: Marker
@@ -26,6 +29,7 @@ class LeftShoeMarkers(Markers):
     plane_outer: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class BalanceBoardMarkers(Markers):
     surface1: Marker
     surface2: Marker

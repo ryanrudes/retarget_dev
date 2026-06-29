@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -28,19 +30,23 @@ from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
 
 
+@dataclass(frozen=True, slots=True)
 class ShoeMarkers(Markers):
     heel: Marker
     toe: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class ShoePatches(Patches):
     sole: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class ShoeSegments(Segments):
     shoe: Segment[ShoeMarkers, ShoePatches]
 
 
+@dataclass(frozen=True, slots=True)
 class ShoeSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
 

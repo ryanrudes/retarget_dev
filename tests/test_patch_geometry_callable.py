@@ -7,6 +7,8 @@ per-frame by the segment pose — same contracts as a calibrated patch.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from fungeom import Face, Region2
@@ -28,20 +30,24 @@ from retarget.core.geometry import SegmentGeometry
 from retarget.demo.mocap import MocapTrack
 
 
+@dataclass(frozen=True, slots=True)
 class _GMarkers(Markers):
     heel: Marker
     toe: Marker
     mid: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class _GPatches(Patches):
     sole: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class _GSegments(Segments):
     seg: Segment[_GMarkers, _GPatches]
 
 
+@dataclass(frozen=True, slots=True)
 class _GSubjects(Subjects):
     body: Subject[_GSegments]
 

@@ -4,13 +4,15 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, TypedDict, cast
+from typing import Any, cast
 
+from retarget.core.schema.base import _Schema
 from retarget.core.schema.segment import Segment, Segments
 from retarget.core.types import Vec3
 
 
-class Subjects(TypedDict):
+@dataclass(frozen=True, slots=True)
+class Subjects(_Schema):
     """Base class for typed subject schema declarations."""
 
 

@@ -8,6 +8,7 @@ a real bound MocapTrack.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -512,19 +513,23 @@ def test_readback_arrays_are_owned_and_writeable() -> None:
 # --------------------------------------------------------------------------- #
 # multi-segment pose_signal: pins per-segment column assignment
 # --------------------------------------------------------------------------- #
+@dataclass(frozen=True, slots=True)
 class _PMarkers(Markers):
     pass
 
 
+@dataclass(frozen=True, slots=True)
 class _PPatches(Patches):
     pass
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoSegments(Segments):
     a: Segment[_PMarkers, _PPatches]
     b: Segment[_PMarkers, _PPatches]
 
 
+@dataclass(frozen=True, slots=True)
 class _TwoSegSubjects(Subjects):
     body: Subject[_TwoSegments]
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
@@ -78,22 +79,27 @@ def _marker_message(
     }
 
 
+@dataclass(frozen=True, slots=True)
 class _LoadMarkers(Markers):
     heel: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class _LoadPatches(Patches):
     sole: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class _LoadSegments(Segments):
     shoe: Segment[_LoadMarkers, _LoadPatches]
 
 
+@dataclass(frozen=True, slots=True)
 class _LoadSubjects(Subjects):
     left_shoe: Subject[_LoadSegments]
 
 
+@dataclass(frozen=True, slots=True)
 class _DuplicateSubjects(Subjects):
     left_shoe: Subject[_LoadSegments]
     right_shoe: Subject[_LoadSegments]

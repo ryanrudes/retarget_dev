@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import assert_type
 
 import pytest
@@ -14,11 +15,13 @@ from retarget.demo import (
 from retarget.demo.mocap import MocapTrack
 
 
+@dataclass(frozen=True, slots=True)
 class GroundEstimationTracks(Tracks):
     mocap: MocapTrack
     contacts: ContactTrack
 
 
+@dataclass(frozen=True, slots=True)
 class MocapTracks(Tracks):
     mocap: MocapTrack
 
@@ -33,10 +36,10 @@ def _typed_demo() -> Demonstration[GroundEstimationTracks]:
 def test_demonstration_constructor_returns_typed_demonstration() -> None:
     demo = _typed_demo()
     assert isinstance(demo, Demonstration)
-    assert isinstance(demo.tracks["mocap"], MocapTrack)
-    assert isinstance(demo.tracks["contacts"], ContactTrack)
-    assert_type(demo.tracks["mocap"], MocapTrack)
-    assert_type(demo.tracks["contacts"], ContactTrack)
+    assert isinstance(demo.tracks.mocap, MocapTrack)
+    assert isinstance(demo.tracks.contacts, ContactTrack)
+    assert_type(demo.tracks.mocap, MocapTrack)
+    assert_type(demo.tracks.contacts, ContactTrack)
 
 
 def test_tracks_mapping_and_string_getitem_agree() -> None:
@@ -50,9 +53,9 @@ def test_tracks_mapping_and_string_getitem_agree() -> None:
 
 def test_deep_chain_through_typed_demo() -> None:
     demo = Demonstration(MocapTracks(mocap=make_mocap_track()))
-    shoe = demo.tracks["mocap"].subjects["subject"].segments["segment"]
-    assert shoe.markers["heel"].positions().shape == (3, 3)
-    assert shoe.patches["sole"].points().shape == (3, 3)
+    shoe = demo.tracks.mocap.subjects.subject.segments.segment
+    assert shoe.markers.heel.positions().shape == (3, 3)
+    assert shoe.patches.sole.points().shape == (3, 3)
 
 
 def test_slice_time_returns_demonstration_view_with_sliced_tracks() -> None:
@@ -67,7 +70,7 @@ def test_slice_time_returns_demonstration_view_with_sliced_tracks() -> None:
 
 def test_demonstration_rejects_non_track_values() -> None:
     with pytest.raises(TypeError, match="must be a Track"):
-        Demonstration(tracks={"mocap": object()})  # type: ignore[dict-item]
+        Demonstration(MocapTracks(mocap=object()))  # type: ignore[arg-type]
 
 
 def test_resample_to_preserves_reference_track() -> None:

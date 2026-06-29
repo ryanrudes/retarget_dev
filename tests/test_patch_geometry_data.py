@@ -5,6 +5,8 @@ open algebra, resolved at bind time via fungeom's ``Face.bind(env)`` (>= 0.4.0).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
@@ -27,21 +29,25 @@ from retarget.core.geometry import SegmentGeometry
 from retarget.demo.mocap import MocapTrack
 
 
+@dataclass(frozen=True, slots=True)
 class _Markers(Markers):
     heel: Marker
     toe: Marker
     mid: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class _Patches(Patches):
     from_callable: Patch
     from_data: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class _Segs(Segments):
     seg: Segment[_Markers, _Patches]
 
 
+@dataclass(frozen=True, slots=True)
 class _Subs(Subjects):
     body: Subject[_Segs]
 

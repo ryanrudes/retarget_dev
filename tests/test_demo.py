@@ -1,12 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import pytest
 
 from retarget.core.targets import PatchTarget
 from retarget.demo.alignment import TimelineTransform, TrackAlignment
 from retarget.demo.contact import ContactTrack
-from retarget.demo.demo import Demonstration, DemonstrationView
+from retarget.demo.demo import Demonstration, DemonstrationView, Tracks
 from retarget.demo.resampling import ResampleMethod
 from retarget.demo.tracks import Track
 
@@ -40,6 +42,23 @@ class ReferenceOnlyTrack(Track):
         return self._timestamps
 
 
+@dataclass(frozen=True, slots=True)
+class _RefSourceTracks(Tracks):
+    reference: Track
+    source: Track
+
+
+@dataclass(frozen=True, slots=True)
+class _MocapContactTracks(Tracks):
+    mocap: Track
+    contact: Track
+
+
+@dataclass(frozen=True, slots=True)
+class _SingleTrack(Tracks):
+    track: Track
+
+
 def test_demonstration_view_resample_to_reference_track() -> None:
     reference_target = _target("reference")
     source_target = _target("source")
@@ -56,7 +75,7 @@ def test_demonstration_view_resample_to_reference_track() -> None:
         confidences=[0.4, 0.5, 0.6],
     )
     demo = Demonstration(
-        tracks={"reference": reference_track, "source": source_track},
+        _RefSourceTracks(reference=reference_track, source=source_track),
         alignments=(
             TrackAlignment(
                 source="source",
@@ -106,7 +125,7 @@ def test_demonstration_view_resample_to_mocap_reference_and_contact_source() -> 
         confidences=[0.4, 0.5, 0.6],
     )
     demo = Demonstration(
-        tracks={"mocap": reference_track, "contact": source_track},
+        _MocapContactTracks(mocap=reference_track, contact=source_track),
         alignments=(
             TrackAlignment(
                 source="contact",
@@ -154,7 +173,7 @@ def test_demonstration_view_resample_to_forwards_discrete_method() -> None:
         confidences=[0.1, 0.2, 0.3],
     )
     demo = Demonstration(
-        tracks={"reference": reference_track, "source": source_track},
+        _RefSourceTracks(reference=reference_track, source=source_track),
         alignments=(
             TrackAlignment(
                 source="source",
@@ -188,7 +207,7 @@ def test_demonstration_view_resample_to_does_not_resample_reference_track() -> N
         confidences=[0.4, 0.5, 0.6],
     )
     demo = Demonstration(
-        tracks={"reference": reference_track, "source": source_track},
+        _RefSourceTracks(reference=reference_track, source=source_track),
         alignments=(
             TrackAlignment(
                 source="source",
@@ -226,7 +245,7 @@ def test_demonstration_view_resample_to_requires_non_reference_resampling() -> N
     )
     source_track = ReferenceOnlyTrack([0.0, 1.0, 2.0])
     demo = Demonstration(
-        tracks={"reference": reference_track, "source": source_track},
+        _RefSourceTracks(reference=reference_track, source=source_track),
         alignments=(
             TrackAlignment(
                 source="source",
@@ -248,14 +267,14 @@ def test_demonstration_view_resample_to_requires_non_reference_resampling() -> N
 def test_demonstration_view_resample_to_missing_reference_raises_key_error() -> None:
     target = _target("track")
     demo = Demonstration(
-        tracks={
-            "track": _contact_track(
+        _SingleTrack(
+            track=_contact_track(
                 target=target,
                 timestamps=[0.0, 1.0],
                 contacts=[False, True],
                 confidences=[0.1, 0.2],
             )
-        }
+        )
     )
     view = demo.slice_time(0.0, 2.0)
 
@@ -267,20 +286,20 @@ def test_demonstration_view_resample_to_missing_alignment_raises_value_error() -
     reference_target = _target("reference")
     source_target = _target("source")
     demo = Demonstration(
-        tracks={
-            "reference": _contact_track(
+        _RefSourceTracks(
+            reference=_contact_track(
                 target=reference_target,
                 timestamps=[0.0, 1.0],
                 contacts=[False, True],
                 confidences=[0.1, 0.2],
             ),
-            "source": _contact_track(
+            source=_contact_track(
                 target=source_target,
                 timestamps=[0.0, 1.0],
                 contacts=[True, False],
                 confidences=[0.3, 0.4],
             ),
-        }
+        )
     )
     view = demo.slice_time(0.0, 2.0)
 
@@ -292,20 +311,20 @@ def test_demonstration_view_resample_to_duplicate_alignment_raises_value_error()
     reference_target = _target("reference")
     source_target = _target("source")
     demo = Demonstration(
-        tracks={
-            "reference": _contact_track(
+        _RefSourceTracks(
+            reference=_contact_track(
                 target=reference_target,
                 timestamps=[0.0, 1.0],
                 contacts=[False, True],
                 confidences=[0.1, 0.2],
             ),
-            "source": _contact_track(
+            source=_contact_track(
                 target=source_target,
                 timestamps=[0.0, 1.0],
                 contacts=[True, False],
                 confidences=[0.3, 0.4],
             ),
-        },
+        ),
         alignments=(
             TrackAlignment(
                 source="source",

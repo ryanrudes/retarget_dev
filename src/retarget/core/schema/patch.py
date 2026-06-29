@@ -10,12 +10,13 @@ the query methods below transport those per-frame by the segment pose.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
 from retarget.core.formats import JumpDetector, finite_difference_velocity
 from retarget.core.geometry import face_signal, sampling_at
+from retarget.core.schema.base import _Schema
 from retarget.core.support_resolve import ResolveFn, SupportResolver, as_resolver, most_confident
 from retarget.core.targets import PatchTarget
 from retarget.core.types import (
@@ -36,7 +37,8 @@ if TYPE_CHECKING:
     from retarget.core.schema.segment import _SegmentRuntime
 
 
-class Patches(TypedDict):
+@dataclass(frozen=True, slots=True)
+class Patches(_Schema):
     """Base class for typed patch schema declarations."""
 
 

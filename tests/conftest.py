@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -45,21 +46,25 @@ _MARKER_POSITIONS = {
 }
 
 
+@dataclass(frozen=True, slots=True)
 class DemoMarkers(Markers):
     heel: Marker
     toe: Marker
     mid: Marker
 
 
+@dataclass(frozen=True, slots=True)
 class DemoPatches(Patches):
     sole: Patch
     toe: Patch
 
 
+@dataclass(frozen=True, slots=True)
 class DemoSegments(Segments):
     segment: Segment[DemoMarkers, DemoPatches]
 
 
+@dataclass(frozen=True, slots=True)
 class DemoSubjects(Subjects):
     subject: Subject[DemoSegments]
 

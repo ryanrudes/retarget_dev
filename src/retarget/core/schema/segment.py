@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -16,6 +16,7 @@ from retarget.core.formats import (
     rotation_matrices_to_format,
     speed_from_velocity,
 )
+from retarget.core.schema.base import _Schema
 from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import FloatArray1D, TimeBool, TimeMat3, TimeQuat, TimeVec3
@@ -25,7 +26,8 @@ if TYPE_CHECKING:
     from retarget.core.schema.patch import Patch
 
 
-class Segments(TypedDict):
+@dataclass(frozen=True, slots=True)
+class Segments(_Schema):
     """Base class for typed segment schema declarations."""
 
 
