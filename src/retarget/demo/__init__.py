@@ -14,7 +14,7 @@ from retarget.demo.demo import (
 )
 from retarget.demo.mocap import MocapTrack
 from retarget.demo.pose_repair import fill_pose_gaps
-from retarget.demo.smpl import BodyModel, SmplTrack, smpl_joint_energy
+from retarget.demo.smpl import BodyModel, SmplTrack, smpl_joint_energy, smpl_mocap_track
 from retarget.demo.tracks import (
     Track,
     TrackSyncInfo,
@@ -54,6 +54,7 @@ __all__ = [
     "TrackAlignment",
     "estimate_alignment_from_signals",
     "smpl_joint_energy",
+    "smpl_mocap_track",
 
     # Sync
     "SyncEdge",

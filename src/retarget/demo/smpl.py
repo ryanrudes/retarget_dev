@@ -16,32 +16,47 @@ spatial registration (SMPL world -> Vicon world) that temporal sync does not do.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, cast, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import numpy as np
 
+from retarget.core import Subjects
 from retarget.core.formats import finite_difference_velocity, speed_from_velocity
+from retarget.core.keys import SegmentKey
+from retarget.core.state import SceneState, SegmentPoseTrajectory
+from retarget.core.transform import RigidTransform
 from retarget.core.types import TimeVec3
 from retarget.demo.alignment import EnergySignal, SignalExtractor
+from retarget.demo.mocap import MocapTrack
 from retarget.demo.tracks import Track, indices_for_time_range
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+    from typing import Any
+
+    from retarget.core import Segment, Subject
 
 
 @runtime_checkable
 class BodyModel[ParamsT](Protocol):
-    """A SMPL-family body model: forward kinematics from params to world-frame joints.
+    """A SMPL-family body model: forward kinematics from params to world-frame joints + bones.
 
     This is the contract retarget depends on; an external ``smpl`` library (SMPL / SMPL-X / SMPL+H
-    / MANO / FLAME / …, the URDF-style vendored counterpart) implements it. ``forward_joints``
-    returns world-frame joints ``(T, J, 3)`` for ``T`` frames of ``params`` (the model's own
-    variant-specific parameter object — pose / shape / translation); ``joint_names`` names the ``J``
-    joints in column order. An implementation may use torch internally but must return a numpy
-    array, so retarget stays torch-free and the track is model-agnostic downstream.
+    / MANO / FLAME / …, the URDF-style vendored counterpart) implements it. For ``T`` frames of
+    ``params`` (the model's own variant-specific parameter object — pose / shape / translation):
+    ``forward_joints`` returns world-frame joint positions ``(T, J, 3)``; ``forward_transforms``
+    returns full world-frame bone transforms ``(T, J, 4, 4)`` (the joint position is its
+    ``[:3, 3]``) — these drive the typed scene's segment poses in :func:`smpl_mocap_track`.
+    ``joint_names`` names the ``J`` joints in column order. An implementation may use torch
+    internally but must return a numpy array, so retarget stays torch-free and model-agnostic.
     """
 
     @property
     def joint_names(self) -> tuple[str, ...]: ...
 
     def forward_joints(self, params: ParamsT) -> np.ndarray: ...
+
+    def forward_transforms(self, params: ParamsT) -> np.ndarray: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,3 +166,39 @@ def smpl_joint_energy(joint: str, *, axis: int | None = None) -> SignalExtractor
         return EnergySignal(timestamps=track.timestamps, values=values, name=f"smpl:{joint}:{label}")
 
     return extract
+
+
+def smpl_mocap_track[ParamsT, SubjectsT: Subjects](
+    model: BodyModel[ParamsT],
+    params: ParamsT,
+    subjects: SubjectsT,
+    timestamps: np.ndarray,
+) -> MocapTrack[SubjectsT]:
+    """Drive a typed scene from a SMPL body model, so contact detection + sync reuse for SMPL.
+
+    Each ``Segment`` in ``subjects`` whose ``mocap_name`` is one of the model's ``joint_names`` is
+    posed by that bone's forward kinematics (``forward_transforms``); patches authored on it
+    (``geometry=`` -> ``Face``) and its markers then behave exactly as in a mocap scene. The result
+    is an ordinary :class:`~retarget.demo.mocap.MocapTrack` -- ``detect_contacts(...)`` on its
+    patches, the marker/segment queries, and ``estimate_sync`` all work unchanged. SMPL becomes
+    "just another subject" in the typed/fungeom substrate.
+    """
+    transforms = np.asarray(model.forward_transforms(params), dtype=np.float64)  # (T, J, 4, 4)
+    times = np.asarray(timestamps, dtype=np.float64)
+    index = {name: i for i, name in enumerate(model.joint_names)}
+    segment_poses: dict[SegmentKey, SegmentPoseTrajectory] = {}
+    for subject_name, subject in cast("Mapping[str, Subject[Any]]", subjects).items():
+        for segment_name, segment in cast("Mapping[str, Segment[Any, Any]]", subject.segments).items():
+            bone = segment.mocap_name
+            if bone is None or bone not in index:
+                raise KeyError(
+                    f"segment {subject_name!r}/{segment_name!r} has mocap_name {bone!r}, not a "
+                    f"joint of the model (available: {', '.join(model.joint_names)})"
+                )
+            world = transforms[:, index[bone]]  # (T, 4, 4)
+            poses = tuple(
+                RigidTransform.from_rotation_translation(rotation=world[t, :3, :3], translation=world[t, :3, 3])
+                for t in range(world.shape[0])
+            )
+            segment_poses[SegmentKey(subject_name, segment_name)] = SegmentPoseTrajectory(poses)
+    return MocapTrack(subjects=subjects, state=SceneState(segment_poses=segment_poses), timestamps=times)
