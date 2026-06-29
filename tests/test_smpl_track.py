@@ -231,3 +231,82 @@ def test_smpl_mocap_track_rejects_unknown_bone() -> None:
     params = smpl.SmplParams(betas=np.zeros(2), pose=np.zeros((2, len(model.joint_names), 3)), transl=np.zeros((2, 3)))
     with pytest.raises(KeyError, match="not a joint of the model"):
         smpl_mocap_track(model, params, subjects, timestamps=np.arange(2.0))
+
+
+def test_smpl_foot_patch_from_mesh_vertices() -> None:
+    # The mesh payoff: author a sole Patch from the foot bone's actual mesh vertices (not a
+    # bone-frame rectangle). A tiny model -- pelvis(0) + foot(1) at z=0.5, with 4 sole vertices
+    # forming a 0.2x0.1 rectangle at z=0 -- stands in for a real SMPL foot region.
+    import smpl
+
+    from retarget.contacts import detect_contacts, ground_plane
+    from retarget.core import Markers, Patch, Patches, Segment, Segments, Subject, Subjects
+    from retarget.demo import smpl_foot_patch, smpl_mocap_track
+
+    v_template = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [0.0, 0.0, 0.5],
+            [-0.1, -0.05, 0.0],
+            [0.1, -0.05, 0.0],
+            [0.1, 0.05, 0.0],
+            [-0.1, 0.05, 0.0],
+        ]
+    )
+    j_regressor = np.zeros((2, 6))
+    j_regressor[0, 0] = 1.0
+    j_regressor[1, 1] = 1.0
+    weights = np.zeros((6, 2))
+    weights[0, 0] = 1.0
+    weights[1:, 1] = 1.0  # the foot + its sole vertices ride the foot bone
+    body = smpl.BodyModelData(
+        v_template=v_template,
+        shapedirs=np.zeros((6, 3, 1)),
+        j_regressor=j_regressor,
+        parents=np.array([-1, 0]),
+        joint_names=("pelvis", "foot"),
+        posedirs=np.zeros((6, 3, 9)),
+        weights=weights,
+    )
+    model = smpl.SmplModel(body)
+    rest = smpl.SmplParams(betas=np.zeros(1), pose=np.zeros((1, 2, 3)), transl=np.zeros((1, 3)))
+
+    patch = smpl_foot_patch(model, rest, bone="foot", vertex_indices=[2, 3, 4, 5])
+    assert patch.geometry is not None
+
+    num_frames = 10
+    transl = np.zeros((num_frames, 3))
+    transl[:, 2] = np.linspace(0.1, 0.0, num_frames)  # descend to the ground
+    params = smpl.SmplParams(betas=np.zeros(1), pose=np.zeros((num_frames, 2, 3)), transl=transl)
+
+    class FootMarkers(Markers):
+        pass
+
+    class FootPatches(Patches):
+        sole: Patch
+
+    class FootSegments(Segments):
+        foot: Segment[FootMarkers, FootPatches]
+
+    class BodySubjects(Subjects):
+        body: Subject[FootSegments]
+
+    subjects = BodySubjects(
+        body=Subject(
+            segments=FootSegments(
+                foot=Segment(mocap_name="foot", markers=FootMarkers(), patches=FootPatches(sole=patch))
+            )
+        )
+    )
+    track = smpl_mocap_track(model, params, subjects, timestamps=np.arange(num_frames) * 0.05)
+    sole = track.subjects["body"].segments["foot"].patches["sole"]
+    # the bound patch's footprint at frame 0 is the world sole rectangle (z = the descending transl)
+    boundary = np.asarray(sole.boundary_points()[0])  # (K, 3)
+    np.testing.assert_allclose(boundary[:, 0].min(), -0.1, atol=1e-9)
+    np.testing.assert_allclose(boundary[:, 0].max(), 0.1, atol=1e-9)
+    np.testing.assert_allclose(boundary[:, 1].min(), -0.05, atol=1e-9)
+    np.testing.assert_allclose(boundary[:, 1].max(), 0.05, atol=1e-9)
+    np.testing.assert_allclose(boundary[:, 2], 0.1, atol=1e-9)
+    # contact detection reuses on the real foot surface
+    contacts = detect_contacts(sole, against=ground_plane(0.0))
+    assert contacts.contacts[sole.target].shape == (num_frames,)

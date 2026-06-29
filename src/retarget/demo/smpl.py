@@ -19,8 +19,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Protocol, cast, runtime_checkable
 
 import numpy as np
+from fungeom import Face, Point3, Point3Bundle, Region2
 
-from retarget.core import Subjects
+from retarget.core import Patch, Subjects
 from retarget.core.formats import finite_difference_velocity, speed_from_velocity
 from retarget.core.keys import SegmentKey
 from retarget.core.state import SceneState, SegmentPoseTrajectory
@@ -31,10 +32,11 @@ from retarget.demo.mocap import MocapTrack
 from retarget.demo.tracks import Track, indices_for_time_range
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
+    from collections.abc import Hashable, Mapping, Sequence
     from typing import Any
 
     from retarget.core import Segment, Subject
+    from retarget.core.geometry import SegmentGeometry
 
 
 @runtime_checkable
@@ -57,6 +59,18 @@ class BodyModel[ParamsT](Protocol):
     def forward_joints(self, params: ParamsT) -> np.ndarray: ...
 
     def forward_transforms(self, params: ParamsT) -> np.ndarray: ...
+
+
+@runtime_checkable
+class MeshBodyModel[ParamsT](BodyModel[ParamsT], Protocol):
+    """A :class:`BodyModel` that also returns the posed mesh, for mesh-derived contact patches.
+
+    ``forward_vertices`` returns world-frame mesh vertices ``(T, V, 3)`` (the linear-blend-skinned
+    body surface). :func:`smpl_foot_patch` uses it to author a sole ``Patch`` from real foot
+    vertices instead of an approximate bone-frame rectangle.
+    """
+
+    def forward_vertices(self, params: ParamsT) -> np.ndarray: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,3 +216,47 @@ def smpl_mocap_track[ParamsT, SubjectsT: Subjects](
             )
             segment_poses[SegmentKey(subject_name, segment_name)] = SegmentPoseTrajectory(poses)
     return MocapTrack(subjects=subjects, state=SceneState(segment_poses=segment_poses), timestamps=times)
+
+
+def smpl_foot_patch[ParamsT](
+    model: MeshBodyModel[ParamsT],
+    rest_params: ParamsT,
+    bone: str,
+    vertex_indices: Sequence[int],
+    *,
+    label: str = "sole",
+    padding: float = 0.0,
+) -> Patch:
+    """Author a sole ``Patch`` from a SMPL foot bone's mesh vertices, in the bone rest frame.
+
+    ``vertex_indices`` select the foot-sole vertices of the model mesh (from the SMPL body-part
+    segmentation -- real-model data); they are taken at ``rest_params`` (use zero pose and your
+    subject's betas), transformed into the bone's rest frame, and fit to a fungeom ``Face`` -- an
+    oriented plane (normal pointing away from the bone, toward the contact) + their convex-hull
+    footprint (optionally ``padding``-expanded). The patch rides the SMPL bone via
+    :func:`smpl_mocap_track`, so ``detect_contacts`` sees a real foot surface rather than a
+    bone-frame rectangle. Author the foot ``Segment`` with ``mocap_name = bone`` and this patch.
+    """
+    transforms = np.asarray(model.forward_transforms(rest_params), dtype=np.float64)  # (T, J, 4, 4)
+    vertices = np.asarray(model.forward_vertices(rest_params), dtype=np.float64)  # (T, V, 3)
+    names = model.joint_names
+    if bone not in names:
+        raise KeyError(f"bone {bone!r} is not a joint of the model (available: {', '.join(names)}).")
+    rest_bone = transforms[0, names.index(bone)]  # (4, 4)
+    rotation, translation = rest_bone[:3, :3], rest_bone[:3, 3]
+    world = vertices[0][list(vertex_indices)]  # (K, 3) world-frame rest foot vertices
+    local = (world - translation) @ rotation  # (K, 3) bone-local = R^T @ (v - t)
+    members = {
+        str(i): Point3.at(float(local[i, 0]), float(local[i, 1]), float(local[i, 2])) for i in range(local.shape[0])
+    }
+
+    def geometry(_seg: SegmentGeometry) -> Face:
+        points = Point3Bundle.from_map(cast("Mapping[Hashable, Point3]", members))
+        # outward normal points away from the bone origin (down, toward the ground for a foot).
+        plane = points.fit_plane().facing(Point3.at(0.0, 0.0, 0.0)).flipped()
+        footprint = Region2.hull(points.in_frame(plane))
+        if padding:
+            footprint = footprint.offset(padding)
+        return Face.on(plane, footprint)
+
+    return Patch(label=label, geometry=geometry)
