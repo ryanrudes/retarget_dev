@@ -18,7 +18,6 @@ from retarget.contacts.detect import (
     classify_contacts,
     classify_feature_channels,
     detect_contacts,
-    merge_contact_tracks,
 )
 from retarget.contacts.noise import ChannelNoise, DEFAULT_NOISE, NoiseCalibration, estimate_noise
 from retarget.contacts.plan import ContactPlan, ContactQuery, apply_contact_plan
@@ -54,7 +53,6 @@ __all__ = [
     "classify_feature_channels",
     "SupportFeatureChannels",
     "CONTACT_CHANNELS",
-    "merge_contact_tracks",
     "ContactDetectionConfig",
     "ConfidenceCombiner",
     # noise calibration

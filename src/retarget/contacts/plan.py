@@ -85,7 +85,7 @@ def _merge_support_state_tracks(tracks: list[SupportStateTrack]) -> SupportState
 
     Disjoint ``(patch, support)`` keys (the normal case) are a plain union; on a
     genuine collision the booleans are OR-combined and scores take the max, and
-    per-patch ``invalid`` masks OR together. Mirrors ``merge_contact_tracks``.
+    per-patch ``invalid`` masks OR together.
     """
     if not tracks:
         raise ValueError("_merge_support_state_tracks requires at least one track")

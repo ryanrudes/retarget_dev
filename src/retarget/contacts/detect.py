@@ -547,26 +547,3 @@ def classify_feature_channels(
         item.target: {name: _patch_support_channels(item, support, resolved) for name, support in supports.items()}
         for item in data
     }
-
-
-def merge_contact_tracks(*tracks: ContactTrack) -> ContactTrack:
-    """OR-combine boolean contact tracks (max confidence) onto a shared timeline.
-
-    Useful to fuse per-support detections (e.g. ground + skateboard) into a
-    single "supported vs airborne" track.
-    """
-    if not tracks:
-        raise ValueError("merge_contact_tracks requires at least one track")
-    timestamps = np.asarray(tracks[0].timestamps, dtype=np.float64)
-    for track in tracks[1:]:
-        other = np.asarray(track.timestamps, dtype=np.float64)
-        if len(other) != len(timestamps) or not np.allclose(other, timestamps):
-            raise ValueError("contact tracks must share timestamps to merge")
-    contacts: dict[PatchTarget, np.ndarray] = {}
-    confidences: dict[PatchTarget, np.ndarray] = {}
-    for track in tracks:
-        for target, array in track.contacts.items():
-            contacts[target] = array.copy() if target not in contacts else (contacts[target] | array)
-        for target, array in track.confidences.items():
-            confidences[target] = array.copy() if target not in confidences else np.maximum(confidences[target], array)
-    return ContactTrack(contacts=contacts, timestamps=timestamps, confidences=confidences)

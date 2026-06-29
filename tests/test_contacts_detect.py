@@ -13,7 +13,6 @@ from retarget.contacts import (
     classify_feature_channels,
     detect_contacts,
     ground_plane,
-    merge_contact_tracks,
 )
 from retarget.contacts.detect import (
     _PatchData,
@@ -286,17 +285,6 @@ def test_detector_reuse_matches_function() -> None:
     via_detector = detector.detect(_sole(track), against=ground_plane(0.0))
     via_function = detect_contacts(_sole(track), against=ground_plane(0.0), config=config)
     np.testing.assert_array_equal(via_detector.state(target), via_function.state(target))
-
-
-def test_merge_contact_tracks_or_combines() -> None:
-    track = make_descending_mocap_track()
-    sole = _sole(track)
-    ground = detect_contacts(sole, against=ground_plane(0.0))
-    # A floor far below is never contacted; merging should equal the ground result.
-    never = detect_contacts(sole, against=ground_plane(-5.0))
-    merged = merge_contact_tracks(ground, never)
-    target = make_demo_patch_target("sole")
-    np.testing.assert_array_equal(merged.state(target), ground.state(target))
 
 
 def test_classify_feature_channels_explains_the_same_decision() -> None:

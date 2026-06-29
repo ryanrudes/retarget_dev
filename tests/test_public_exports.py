@@ -53,7 +53,6 @@ def test_public_exports_include_critical_symbols() -> None:
             "ContactDetector",
             "detect_contacts",
             "classify_contacts",
-            "merge_contact_tracks",
             "ContactDetectionConfig",
             "ContactPlan",
             "ContactQuery",
