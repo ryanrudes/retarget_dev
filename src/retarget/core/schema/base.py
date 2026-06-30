@@ -18,31 +18,12 @@ from typing import Any
 class _Schema:
     """Structural root of every authored schema container.
 
-    Being a dataclass itself, its bound supplies ``__dataclass_fields__``, so ``fields(x: SchemaT)``
-    type-checks with no ignore for any ``SchemaT: _Schema``.
+    Schemas are accessed by attribute (``markers.heel``); the field-reflection helpers below let the
+    binding layer + runtime walkers stay generic. Being a dataclass itself, its bound supplies
+    ``__dataclass_fields__``, so ``fields(x: SchemaT)`` type-checks with no ignore for any
+    ``SchemaT: _Schema``. Deliberately NOT subscriptable/iterable: ``schema["x"]`` is a hard error,
+    which is what locks the attribute-symbol surface (the transitional bridge was removed in Stage 3).
     """
-
-    # --- transitional bridge ---------------------------------------------------------------------
-    # Keeps un-migrated ``schema["x"]`` / iteration / ``.items()`` working during the staged
-    # migration from subscript to attribute access. Removed once every access site is
-    # attribute-based -- after which a stray subscript is a hard mypy + runtime error.
-    def __getitem__(self, name: str) -> Any:
-        return _schema_get(self, name)
-
-    def __iter__(self) -> Iterator[str]:
-        return iter(_schema_fields(self))
-
-    def __contains__(self, name: object) -> bool:
-        return isinstance(name, str) and name in _schema_fields(self)
-
-    def items(self) -> Iterator[tuple[str, Any]]:
-        return _schema_items(self)
-
-    def values(self) -> Iterator[Any]:
-        return _schema_values(self)
-
-    def keys(self) -> tuple[str, ...]:
-        return _schema_fields(self)
 
 
 def _schema_items(schema: _Schema) -> Iterator[tuple[str, Any]]:

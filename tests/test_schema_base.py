@@ -58,13 +58,9 @@ def test_schema_get_returns_field_or_raises_keyerror() -> None:
         _schema_get(toy, "missing")
 
 
-def test_transitional_bridge_supports_dict_style_access() -> None:
+def test_schema_is_not_subscriptable_after_bridge_removal() -> None:
+    # Stage 3 removed the transitional bridge: a stray schema subscript is now a hard error,
+    # which is exactly what locks the attribute-symbol surface.
     toy = _Toy(a=1, b=2)
-    assert toy["a"] == 1
-    assert list(toy) == ["a", "b"]
-    assert "a" in toy
-    assert "missing" not in toy
-    assert 123 not in toy  # non-str keys are absent, never raise
-    assert list(toy.items()) == [("a", 1), ("b", 2)]
-    assert list(toy.values()) == [1, 2]
-    assert toy.keys() == ("a", "b")
+    with pytest.raises(TypeError):
+        _ = toy["a"]  # type: ignore[index]  # deliberately exercising the removed bridge
