@@ -111,19 +111,13 @@ def test_bind_scene_exposes_targets_and_external_names() -> None:
     assert subject.mocap_name == "Left_Shoe_Improved"
     assert shoe.mocap_name == "Left_Shoe_Improved"
     assert shoe.segment_target() == SegmentTarget("left_shoe", "shoe")
-    assert shoe.marker_target("heel") == MarkerTarget("left_shoe", "shoe", "heel")
-    assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
-
-
-def test_bind_scene_unknown_marker_target_raises() -> None:
-    shoe = bind_scene(_subjects()).left_shoe.segments.shoe
-    with pytest.raises(KeyError, match="has no marker 'missing'"):
-        shoe.marker_target("missing")
+    assert shoe.markers.heel.target == MarkerTarget("left_shoe", "shoe", "heel")
+    assert shoe.patches.sole.target == PatchTarget("left_shoe", "shoe", "sole")
 
 
 def test_declaration_only_patch_is_targetable_without_geometry() -> None:
     shoe = bind_scene(_subjects(with_geometry=False)).left_shoe.segments.shoe
-    assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
+    assert shoe.patches.sole.target == PatchTarget("left_shoe", "shoe", "sole")
     assert shoe.patches.sole.has_geometry() is False
 
 

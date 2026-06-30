@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 
@@ -16,8 +16,8 @@ from retarget.core.formats import (
     rotation_matrices_to_format,
     speed_from_velocity,
 )
-from retarget.core.schema.base import _Schema
-from retarget.core.targets import MarkerTarget, PatchTarget, SegmentTarget
+from retarget.core.schema.base import _Schema, _schema_values
+from retarget.core.targets import SegmentTarget
 from retarget.core.transform import RigidTransform
 from retarget.core.types import FloatArray1D, TimeBool, TimeMat3, TimeQuat, TimeVec3
 
@@ -159,8 +159,8 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
         num = len(runtime.timestamps)
         if jumps is None:
             return np.zeros(num, dtype=np.bool_)
-        geometry_patches = [
-            patch for patch in cast("Mapping[str, Patch]", self.patches).values() if patch.has_geometry()
+        geometry_patches: list[Patch] = [
+            patch for patch in _schema_values(self.patches) if patch.has_geometry()
         ]
         if not geometry_patches:
             return np.asarray(jumps(runtime.translations, runtime.timestamps))
@@ -180,65 +180,64 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
 
     def marker_positions(
         self,
-        *markers: str,
+        markers: Sequence[Marker],
+        *,
         modeled: bool = False,
         as_dict: bool = False,
     ) -> np.ndarray | dict[str, TimeVec3]:
-        """Batch marker positions: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
-        if as_dict:
-            return {name: self._marker(name).positions(modeled=modeled) for name in markers}
-        return self._stack([self._marker(name).positions(modeled=modeled) for name in markers])
+        """Batch marker positions: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``.
 
-    def marker_velocities(
-        self,
-        *markers: str,
-        modeled: bool = False,
-        as_dict: bool = False,
-    ) -> np.ndarray | dict[str, TimeVec3]:
-        """Batch marker velocities: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        ``markers`` are bound marker symbols (e.g. ``segment.markers.heel``); the
+        ``as_dict`` keys are each symbol's own authored marker name.
+        """
         if as_dict:
-            return {name: self._marker(name).velocities(modeled=modeled) for name in markers}
-        return self._stack([self._marker(name).velocities(modeled=modeled) for name in markers])
+            return {m.target.marker: m.positions(modeled=modeled) for m in markers}
+        return self._stack([m.positions(modeled=modeled) for m in markers])
 
     def patch_points(
         self,
-        *patches: str,
+        patches: Sequence[Patch],
+        *,
         as_dict: bool = False,
     ) -> np.ndarray | dict[str, TimeVec3]:
-        """Batch patch points: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        """Batch patch points: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``.
+
+        ``patches`` are bound patch symbols (e.g. ``segment.patches.sole``); the
+        ``as_dict`` keys are each symbol's own authored patch name.
+        """
         if as_dict:
-            return {name: self._patch(name).points() for name in patches}
-        return self._stack([self._patch(name).points() for name in patches])
+            return {p.target.patch: p.points() for p in patches}
+        return self._stack([p.points() for p in patches])
 
     def patch_normals(
         self,
-        *patches: str,
+        patches: Sequence[Patch],
+        *,
         as_dict: bool = False,
     ) -> np.ndarray | dict[str, TimeVec3]:
-        """Batch patch normals: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
-        if as_dict:
-            return {name: self._patch(name).normals() for name in patches}
-        return self._stack([self._patch(name).normals() for name in patches])
+        """Batch patch normals: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``.
 
-    def patch_velocities(
-        self,
-        *patches: str,
-        as_dict: bool = False,
-    ) -> np.ndarray | dict[str, TimeVec3]:
-        """Batch patch-point velocities: ``(T, N, 3)`` stacked, or ``{name: (T, 3)}``."""
+        ``patches`` are bound patch symbols (e.g. ``segment.patches.sole``); the
+        ``as_dict`` keys are each symbol's own authored patch name.
+        """
         if as_dict:
-            return {name: self._patch(name).velocities() for name in patches}
-        return self._stack([self._patch(name).velocities() for name in patches])
+            return {p.target.patch: p.normals() for p in patches}
+        return self._stack([p.normals() for p in patches])
 
     def patch_contacts(
         self,
-        *patches: str,
+        patches: Sequence[Patch],
+        *,
         as_dict: bool = False,
     ) -> np.ndarray | dict[str, np.ndarray]:
-        """Batch patch contact state: ``(T, N)`` stacked, or ``{name: (T,)}``."""
+        """Batch patch contact state: ``(T, N)`` stacked, or ``{name: (T,)}``.
+
+        ``patches`` are bound patch symbols (e.g. ``segment.patches.sole``); the
+        ``as_dict`` keys are each symbol's own authored patch name.
+        """
         if as_dict:
-            return {name: self._patch(name).contacts() for name in patches}
-        arrays = [self._patch(name).contacts() for name in patches]
+            return {p.target.patch: p.contacts() for p in patches}
+        arrays = [p.contacts() for p in patches]
         if not arrays:
             return np.empty((len(self._runtime().timestamps), 0), dtype=np.bool_)
         return np.stack(arrays, axis=1)
@@ -248,49 +247,11 @@ class Segment[MarkersT: Markers, PatchesT: Patches]:
         binding = self._require_binding()
         return SegmentTarget(subject=binding.subject, segment=binding.segment)
 
-    def marker_target(self, marker: str) -> MarkerTarget:
-        """Stable scene-level identity for one marker on this segment."""
-        binding = self._require_binding()
-        if marker not in self.markers:
-            raise KeyError(self._missing_marker_message(marker))
-        return MarkerTarget(subject=binding.subject, segment=binding.segment, marker=marker)
-
-    def patch_target(self, patch: str) -> PatchTarget:
-        """Stable scene-level identity for one patch on this segment."""
-        binding = self._require_binding()
-        if patch not in self.patches:
-            raise KeyError(self._missing_patch_message(patch))
-        return PatchTarget(subject=binding.subject, segment=binding.segment, patch=patch)
-
-    def _marker(self, name: str) -> Marker:
-        from retarget.core.schema.marker import Marker as MarkerCls
-
-        try:
-            return cast(MarkerCls, cast(Any, self.markers)[name])
-        except KeyError as exc:
-            raise KeyError(self._missing_marker_message(name)) from exc
-
-    def _patch(self, name: str) -> Patch:
-        from retarget.core.schema.patch import Patch as PatchCls
-
-        try:
-            return cast(PatchCls, cast(Any, self.patches)[name])
-        except KeyError as exc:
-            raise KeyError(self._missing_patch_message(name)) from exc
-
     def _stack(self, arrays: list[TimeVec3]) -> np.ndarray:
         if not arrays:
             runtime = self._runtime()
             return np.empty((len(runtime.timestamps), 0, 3), dtype=np.float64)
         return np.stack(arrays, axis=1)
-
-    def _missing_marker_message(self, name: str) -> str:
-        label = self._binding.segment if self._binding is not None else "segment"
-        return f"Segment {label!r} has no marker {name!r}"
-
-    def _missing_patch_message(self, name: str) -> str:
-        label = self._binding.segment if self._binding is not None else "segment"
-        return f"Segment {label!r} has no patch {name!r}"
 
     def _require_binding(self) -> _SegmentBinding:
         if self._binding is None:

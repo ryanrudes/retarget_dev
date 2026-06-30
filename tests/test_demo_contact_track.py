@@ -132,7 +132,7 @@ def test_mocap_patch_contacts_resolves_patch_target() -> None:
     np.testing.assert_array_equal(
         segment.patches.sole.contacts(), np.array([True, False, True])
     )
-    assert segment.patch_contacts("sole").shape == (3, 1)
+    assert segment.patch_contacts([segment.patches.sole]).shape == (3, 1)
 
 
 def test_mocap_rejects_mismatched_contact_timestamp_count() -> None:

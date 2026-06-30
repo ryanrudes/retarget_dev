@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Callable
 
@@ -172,7 +173,7 @@ def estimate_alignment_from_signals(
     if stop <= start:
         return TimelineTransform.identity(), 0.0
 
-    median_dt = _median_positive_spacing(ref_times, src_times)
+    median_dt = _median_positive_spacing([ref_times, src_times])
     grid = np.arange(start, stop, median_dt)
     if len(grid) < 2:
         return TimelineTransform.identity(), 0.0
@@ -199,7 +200,7 @@ def estimate_alignment_from_signals(
     return TimelineTransform(scale=1.0, offset=offset), best_score
 
 
-def _median_positive_spacing(*timelines: FloatArray1D) -> float:
+def _median_positive_spacing(timelines: Sequence[FloatArray1D]) -> float:
     dts = np.concatenate([np.diff(timeline) for timeline in timelines])
     dts = dts[dts > 0]
     if len(dts) == 0:

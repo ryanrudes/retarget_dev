@@ -45,7 +45,7 @@ class Marker:
         Reference it to author patch geometry as data over typed marker symbols -- no string keys,
         no callable::
 
-            cloud = Point3Bundle.from_map({"heel": heel.rest, "toe": toe.rest, "mid": mid.rest})
+            cloud = Point3Bundle.of([heel.rest, toe.rest, mid.rest])
             Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
 
         The free variable is identified by the marker itself, so a misspelled symbol is a

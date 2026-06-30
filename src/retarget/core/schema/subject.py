@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, cast
 
 from retarget.core.schema.base import _Schema
-from retarget.core.schema.segment import Segment, Segments
+from retarget.core.schema.segment import Segments
 from retarget.core.types import Vec3
 
 
@@ -39,11 +38,6 @@ class Subject[SegmentsT: Segments]:
     _binding: _SubjectBinding | None = field(
         default=None, init=False, compare=False, repr=False
     )
-
-    def segment_external_name(self, segment: str) -> str:
-        """External (Vicon) name used by IO for one of this subject's segments."""
-        seg = cast(Mapping[str, Segment[Any, Any]], self.segments)[segment]
-        return seg.mocap_name or segment
 
     @property
     def external_name(self) -> str | None:

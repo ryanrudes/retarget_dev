@@ -33,7 +33,7 @@ from retarget.demo.mocap import MocapTrack
 from retarget.demo.tracks import Track, indices_for_time_range
 
 if TYPE_CHECKING:
-    from collections.abc import Hashable, Mapping, Sequence
+    from collections.abc import Sequence
     from typing import Any
 
     from retarget.core import Segment, Subject
@@ -248,12 +248,12 @@ def smpl_foot_patch[ParamsT](
     rotation, translation = rest_bone[:3, :3], rest_bone[:3, 3]
     world = vertices[0][list(vertex_indices)]  # (K, 3) world-frame rest foot vertices
     local = (world - translation) @ rotation  # (K, 3) bone-local = R^T @ (v - t)
-    members = {
-        str(i): Point3.at(float(local[i, 0]), float(local[i, 1]), float(local[i, 2])) for i in range(local.shape[0])
-    }
     # The sole vertices are already concrete (bone-local), so the Face is plain fungeom data -- no
-    # callable needed; outward normal points away from the bone origin (down, toward the ground).
-    points = Point3Bundle.from_map(cast("Mapping[Hashable, Point3]", members))
+    # callable needed; their labels would be pure noise, so build the bundle label-free. The
+    # outward normal points away from the bone origin (down, toward the ground).
+    points = Point3Bundle.of(
+        [Point3.at(float(local[i, 0]), float(local[i, 1]), float(local[i, 2])) for i in range(local.shape[0])]
+    )
     plane = points.fit_plane().facing(Point3.at(0.0, 0.0, 0.0)).flipped()
     footprint = Region2.hull(points.in_frame(plane))
     if padding:

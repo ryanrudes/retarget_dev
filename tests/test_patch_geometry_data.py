@@ -65,7 +65,7 @@ def _subjects() -> _Subs:
 
     # The data form: a Face over the markers' free-variable rest points -- no strings, no callable.
     # A misspelled symbol (e.g. `hel.rest`) is a NameError here, not a silent bind-time KeyError.
-    cloud = Point3Bundle.from_map({"heel": heel.rest, "toe": toe.rest, "mid": mid.rest})
+    cloud = Point3Bundle.of([heel.rest, toe.rest, mid.rest])
     plane = cloud.fit_plane()
     data_face = Face.on(plane, Region2.hull(cloud.in_frame(plane)))
 
@@ -111,7 +111,7 @@ def test_marker_rest_is_a_free_variable_identified_by_the_marker() -> None:
     heel = Marker(mocap_name="heel", position_segment=np.array([0.0, 0.0, 0.0]))
     toe = Marker(mocap_name="toe", position_segment=np.array([1.0, 0.0, 0.0]))
     face = Face.on(
-        Point3Bundle.from_map({"a": heel.rest, "b": toe.rest, "c": heel.rest}).fit_plane(),
+        Point3Bundle.of([heel.rest, toe.rest, heel.rest]).fit_plane(),
         Region2.rectangle(1.0, 1.0),
     )
     # the Face is genuinely partial until bound, and its frees are the marker identities

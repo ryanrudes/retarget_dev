@@ -61,7 +61,7 @@ class Patch:
     either of two equivalent forms. As **data** over typed marker symbols (preferred -- a misspelled
     marker is a ``NameError``)::
 
-        cloud = Point3Bundle.from_map({"heel": heel.rest, "toe": toe.rest, "mid": mid.rest})
+        cloud = Point3Bundle.of([heel.rest, toe.rest, mid.rest])
         Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
 
     or as a **callable** ``(SegmentGeometry) -> Face`` (when the surface is fixed in the segment

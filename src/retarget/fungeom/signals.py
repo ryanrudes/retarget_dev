@@ -207,7 +207,8 @@ def marker_cloud_signal(
     """
     segment_obj = _segment(track, subject, segment)
     names = tuple(markers) if markers is not None else _schema_fields(segment_obj.markers)
-    frames = np.asarray(segment_obj.marker_positions(*names, modeled=modeled), dtype=np.float64)
+    marker_syms = [_schema_get(segment_obj.markers, name) for name in names]
+    frames = np.asarray(segment_obj.marker_positions(marker_syms, modeled=modeled), dtype=np.float64)
     return point_bundle_signal(
         track.timestamps,
         frames,

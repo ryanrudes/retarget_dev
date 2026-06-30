@@ -90,7 +90,7 @@ def get_left_foot_segments() -> LeftFootSegments:
     # way -- toward the board the sole contacts -- then +offset nudges the plane to the physical
     # contact. The footprint is the convex hull of the foot markers flattened into that plane, +5 mm.
     plane = (
-        Point3Bundle.from_map({m.mocap_name: m.rest for m in (plane_rear, plane_inner, plane_outer)})
+        Point3Bundle.of([m.rest for m in (plane_rear, plane_inner, plane_outer)])
         .fit_plane()
         .facing(toe_grid_1.rest)
         .flipped()
@@ -101,7 +101,7 @@ def get_left_foot_segments() -> LeftFootSegments:
         heel_inner_1, heel_inner_2, heel_outer_1, heel_outer_2, toe_inner, toe_outer,
     )
     footprint = Region2.hull(
-        Point3Bundle.from_map({m.mocap_name: m.rest for m in footprint_markers}).in_frame(plane)
+        Point3Bundle.of([m.rest for m in footprint_markers]).in_frame(plane)
     ).offset(0.005)
 
     return LeftFootSegments(
@@ -133,14 +133,14 @@ def get_balance_board_segments() -> BalanceBoardSegments:
     # surface (INWARD), so ``facing(edge1.rest).flipped()`` orients the outward normal up toward the
     # shoe (offset is inward, negative). The hull of the footprint markers in-plane is the footprint.
     plane = (
-        Point3Bundle.from_map({m.mocap_name: m.rest for m in (surface1, surface2, surface3, surface4)})
+        Point3Bundle.of([m.rest for m in (surface1, surface2, surface3, surface4)])
         .fit_plane()
         .facing(edge1.rest)
         .flipped()
         .offset(BALANCE_BOARD_PLANE_NORMAL_OFFSET)
     )
     footprint = Region2.hull(
-        Point3Bundle.from_map({m.mocap_name: m.rest for m in (surface1, surface2, surface3, surface4, edge1, edge2)}).in_frame(plane)
+        Point3Bundle.of([m.rest for m in (surface1, surface2, surface3, surface4, edge1, edge2)]).in_frame(plane)
     ).offset(0.005)
 
     return BalanceBoardSegments(

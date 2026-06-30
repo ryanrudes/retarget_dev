@@ -153,12 +153,12 @@ def test_marker_positions_modeled_and_observed() -> None:
 
 def test_batch_marker_positions_and_as_dict() -> None:
     segment = demo_segment(make_mocap_track())
-    stacked = segment.marker_positions("heel", "toe")
+    stacked = segment.marker_positions([segment.markers.heel, segment.markers.toe])
     assert stacked.shape == (3, 2, 3)
-    by_name = segment.marker_positions("heel", "toe", as_dict=True)
+    by_name = segment.marker_positions([segment.markers.heel, segment.markers.toe], as_dict=True)
     assert set(by_name) == {"heel", "toe"}
     np.testing.assert_allclose(by_name["heel"], segment.markers.heel.positions(), equal_nan=True)
-    assert segment.marker_positions().shape == (3, 0, 3)
+    assert segment.marker_positions([]).shape == (3, 0, 3)
 
 
 def test_marker_velocities_shapes() -> None:
@@ -218,10 +218,10 @@ def test_declaration_only_patch_points_raise() -> None:
 
 def test_multi_patch_points_and_normals() -> None:
     segment = demo_segment(_two_patch_track())
-    stacked = segment.patch_points("sole", "heel_cap")
+    stacked = segment.patch_points([segment.patches.sole, segment.patches.heel_cap])
     assert stacked.shape == (3, 2, 3)
     np.testing.assert_allclose(stacked[:, 0, :], segment.patches.sole.points())
-    by_name = segment.patch_normals("sole", "heel_cap", as_dict=True)
+    by_name = segment.patch_normals([segment.patches.sole, segment.patches.heel_cap], as_dict=True)
     assert set(by_name) == {"sole", "heel_cap"}
 
 
@@ -229,17 +229,9 @@ def test_empty_slice_query_shapes() -> None:
     segment = demo_segment(make_mocap_track().slice_time(100.0, 101.0))
     assert segment.translations().shape == (0, 3)
     assert segment.markers.heel.positions().shape == (0, 3)
-    assert segment.marker_positions("heel", "toe").shape == (0, 2, 3)
+    assert segment.marker_positions([segment.markers.heel, segment.markers.toe]).shape == (0, 2, 3)
     assert segment.patches.sole.points().shape == (0, 3)
-    assert segment.patch_points("sole").shape == (0, 1, 3)
-
-
-def test_unknown_marker_and_patch_names_raise() -> None:
-    segment = demo_segment(make_mocap_track())
-    with pytest.raises(KeyError, match="has no marker 'missing'"):
-        segment.marker_positions("missing")
-    with pytest.raises(KeyError, match="has no patch 'missing'"):
-        segment.patch_points("missing")
+    assert segment.patch_points([segment.patches.sole]).shape == (0, 1, 3)
 
 
 def test_rebase_time_at_construction() -> None:
@@ -288,7 +280,7 @@ def test_patch_contacts_via_attached_contact_track() -> None:
     )
     segment = demo_segment(track)
     np.testing.assert_array_equal(segment.patches.sole.contacts(), np.array([True, False, True]))
-    assert segment.patch_contacts("sole").shape == (3, 1)
+    assert segment.patch_contacts([segment.patches.sole]).shape == (3, 1)
 
 
 def test_patch_contacts_without_track_raises() -> None:
