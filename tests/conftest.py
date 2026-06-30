@@ -9,7 +9,7 @@ from typing import Any
 
 import numpy as np
 
-from fungeom import Face, Point3, Region2
+from fungeom import Face, Point3, Point3Bundle, Region2
 
 from retarget.core import (
     Marker,
@@ -26,7 +26,6 @@ from retarget.core import (
     Subject,
     Subjects,
 )
-from retarget.core.geometry import SegmentGeometry
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
@@ -69,29 +68,21 @@ class DemoSubjects(Subjects):
     subject: Subject[DemoSegments]
 
 
-def _demo_sole_geometry(seg: SegmentGeometry) -> Face:
-    """Open-algebra equivalent of the old ``planar(plane_from(...), fixed(1, 1))`` sole.
-
-    Fits the contact plane through the three markers, pins the normal to +z (matching the
-    old ``axis_normal`` default), and gives a 1x1 rectangular footprint.
-    """
-    markers = seg.markers["heel", "toe", "mid"]
-    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
-    return Face.on(plane, Region2.rectangle(1.0, 1.0))
-
-
 def make_demo_subjects() -> DemoSubjects:
+    heel = Marker(mocap_name="heel", position_segment=_MARKER_POSITIONS["heel"])
+    toe = Marker(mocap_name="toe", position_segment=_MARKER_POSITIONS["toe"])
+    mid = Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"])
+    # Data-form sole: fit the contact plane through the three markers, pin the normal to +z, and
+    # give a 1x1 rectangular footprint -- the markers drop in directly (fungeom ``SupportsPoint3``).
+    plane = Point3Bundle.of([heel, toe, mid]).fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
+    sole = Face.on(plane, Region2.rectangle(1.0, 1.0))
     return DemoSubjects(
         subject=Subject(
             segments=DemoSegments(
                 segment=Segment(
-                    markers=DemoMarkers(
-                        heel=Marker(mocap_name="heel", position_segment=_MARKER_POSITIONS["heel"]),
-                        toe=Marker(mocap_name="toe", position_segment=_MARKER_POSITIONS["toe"]),
-                        mid=Marker(mocap_name="mid", position_segment=_MARKER_POSITIONS["mid"]),
-                    ),
+                    markers=DemoMarkers(heel=heel, toe=toe, mid=mid),
                     patches=DemoPatches(
-                        sole=Patch(label="sole", geometry=_demo_sole_geometry),
+                        sole=Patch(label="sole", geometry=sole),
                         toe=Patch(label="toe"),
                     ),
                 )

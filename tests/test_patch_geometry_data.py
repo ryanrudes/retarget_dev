@@ -1,6 +1,6 @@
-"""A patch authored as fungeom DATA over free-variable marker symbols (``m.rest``) drives the
-query surface *identically* to the equivalent geometry callable -- the "patch is data" form of the
-open algebra, resolved at bind time via fungeom's ``Face.bind(env)`` (>= 0.4.0).
+"""A patch authored as fungeom DATA over the segment's marker symbols -- a fungeom ``Face`` resolved
+at bind time via ``Face.bind(env)`` (>= 0.4.0). Markers drop in directly (``SupportsPoint3``, >= 0.6.0)
+or via ``m.rest``; both bind to the same segment-local geometry, transported per-frame by the pose.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ from retarget.core import (
     Subject,
     Subjects,
 )
-from retarget.core.geometry import SegmentGeometry
 from retarget.demo.mocap import MocapTrack
 
 
@@ -38,7 +37,6 @@ class _Markers(Markers):
 
 @dataclass(frozen=True, slots=True)
 class _Patches(Patches):
-    from_callable: Patch
     from_data: Patch
     from_markers: Patch
 
@@ -51,12 +49,6 @@ class _Segs(Segments):
 @dataclass(frozen=True, slots=True)
 class _Subs(Subjects):
     body: Subject[_Segs]
-
-
-def _callable_sole(seg: SegmentGeometry) -> Face:
-    markers = seg.markers["heel", "toe", "mid"]
-    plane = markers.fit_plane()
-    return Face.on(plane, Region2.hull(markers.in_frame(plane)))
 
 
 def _subjects() -> _Subs:
@@ -82,7 +74,6 @@ def _subjects() -> _Subs:
                 seg=Segment(
                     markers=_Markers(heel=heel, toe=toe, mid=mid),
                     patches=_Patches(
-                        from_callable=Patch(label="c", geometry=_callable_sole),
                         from_data=Patch(label="d", geometry=data_face),
                         from_markers=Patch(label="m", geometry=markers_face),
                     ),
@@ -98,14 +89,12 @@ def _track() -> MocapTrack[_Subs]:
     return MocapTrack(subjects=_subjects(), state=state, timestamps=np.arange(3.0) * 0.1, marker_frames=None)
 
 
-def test_data_patch_equals_callable_patch() -> None:
-    seg = _track().subjects.body.segments.seg
-    from_callable = seg.patches.from_callable
-    from_data = seg.patches.from_data
-    # bind-time free-variable resolution yields a byte-identical Face through the whole pipeline
-    np.testing.assert_allclose(from_data.points(), from_callable.points(), atol=1e-12)
-    np.testing.assert_allclose(from_data.normals(), from_callable.normals(), atol=1e-12)
-    np.testing.assert_allclose(from_data.boundary_points(), from_callable.boundary_points(), atol=1e-12)
+def test_data_patch_geometry_is_correct() -> None:
+    # heel[0,0,0]/toe[1,0,0]/mid[0,1,0] lie in z=0, so the fitted plane normal is the z-axis and the
+    # footprint is the 3-vertex triangle hull -- transported per-frame by the +x-translating pose.
+    from_data = _track().subjects.body.segments.seg.patches.from_data
+    np.testing.assert_allclose(np.abs(from_data.normals()), [[0.0, 0.0, 1.0]] * 3, atol=1e-9)
+    assert from_data.boundary_points().shape == (3, 3, 3)  # (T frames, K=3 hull vertices, 3 coords)
 
 
 def test_data_patch_from_markers_equals_from_rest() -> None:

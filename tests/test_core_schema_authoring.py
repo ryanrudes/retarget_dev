@@ -25,7 +25,6 @@ from retarget.core import (
     Subjects,
     bind_scene,
 )
-from retarget.core.geometry import SegmentGeometry
 from retarget.demo.mocap import MocapTrack
 from retarget.io import MarkerObservation, ViconMarkersFrame
 
@@ -51,27 +50,23 @@ class ShoeSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
 
 
-def _shoe_sole_geometry(seg: SegmentGeometry) -> Face:
-    # An axis-aligned patch anchored at the heel marker: plane through heel with a +z normal
-    # and a fixed 0.10 x 0.25 footprint (the open-algebra form of an identity patch frame).
-    plane = Plane.through(seg.markers["heel"], Direction3.of(0.0, 0.0, 1.0))
-    return Face.on(plane, Region2.rectangle(0.10, 0.25))
-
-
 def _subjects(*, with_geometry: bool = True) -> ShoeSubjects:
-    sole = (
-        Patch(label="sole", geometry=_shoe_sole_geometry, frame="sole_frame") if with_geometry else Patch(label="sole")
-    )
+    heel = Marker(mocap_name="left_shoe_heel", position_segment=np.zeros(3))
+    toe = Marker(mocap_name="left_shoe_toe", position_segment=np.array([1.0, 0.0, 0.0]))
+    if with_geometry:
+        # An axis-aligned patch anchored at the heel marker: plane through heel (it drops in
+        # directly -- SupportsPoint3) with a +z normal and a fixed 0.10 x 0.25 footprint.
+        plane = Plane.through(heel, Direction3.of(0.0, 0.0, 1.0))
+        sole = Patch(label="sole", geometry=Face.on(plane, Region2.rectangle(0.10, 0.25)), frame="sole_frame")
+    else:
+        sole = Patch(label="sole")
     return ShoeSubjects(
         left_shoe=Subject(
             mocap_name="Left_Shoe_Improved",
             segments=ShoeSegments(
                 shoe=Segment(
                     mocap_name="Left_Shoe_Improved",
-                    markers=ShoeMarkers(
-                        heel=Marker(mocap_name="left_shoe_heel", position_segment=np.zeros(3)),
-                        toe=Marker(mocap_name="left_shoe_toe", position_segment=np.array([1.0, 0.0, 0.0])),
-                    ),
+                    markers=ShoeMarkers(heel=heel, toe=toe),
                     patches=ShoePatches(sole=sole),
                 )
             ),

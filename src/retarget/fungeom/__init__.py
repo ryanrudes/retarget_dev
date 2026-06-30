@@ -23,12 +23,6 @@ from __future__ import annotations
 from fungeom import Resolvable, Unresolvable, UnresolvableError
 
 from retarget.fungeom.correspondence import identity_map, roster_map
-from retarget.fungeom.geometry import (
-    MarkerGeometry,
-    SegmentGeometry,
-    patch_face,
-    segment_geometry,
-)
 from retarget.fungeom.readback import (
     Mat4,
     joint_at,
@@ -51,11 +45,6 @@ __all__ = [
     "pose_signal",
     "point_bundle_signal",
     "transform_bundle_signal",
-    # segment geometry view (open patch-algebra consumer surface)
-    "segment_geometry",
-    "SegmentGeometry",
-    "MarkerGeometry",
-    "patch_face",
     # correspondence
     "roster_map",
     "identity_map",

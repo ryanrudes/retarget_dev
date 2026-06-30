@@ -1,10 +1,10 @@
 """Patch schema declaration and bound time-series queries.
 
-A patch is an oriented contact surface + a bounded footprint, authored as a ``geometry``
-callable that, given the segment's :class:`~retarget.core.geometry.SegmentGeometry`, returns a
-fungeom :class:`~fungeom.Face` (an oriented ``Plane`` + a ``Region2``). At bind time the
-binding evaluates the callable and lowers the Face to a segment-local rigid frame + boundary;
-the query methods below transport those per-frame by the segment pose.
+A patch is an oriented contact surface + a bounded footprint, authored as ``geometry`` **data**: a
+fungeom :class:`~fungeom.Face` (an oriented ``Plane`` + a ``Region2``) over the segment's marker
+symbols. At bind time the binding resolves that Face to a segment-local one (``Face.bind(env)``,
+substituting each marker's rest position); the query methods below transport it per-frame by the
+segment pose as a fungeom ``FaceSignal``.
 """
 
 from __future__ import annotations
@@ -29,11 +29,8 @@ from retarget.core.types import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from fungeom import Face, FaceSignal, Sampling
 
-    from retarget.core.geometry import SegmentGeometry
     from retarget.core.schema.segment import _SegmentRuntime
 
 
@@ -57,26 +54,20 @@ class _PatchBinding:
 class Patch:
     """A contact patch: an authored ``geometry`` plus bound time-series queries.
 
-    ``geometry`` is a fungeom :class:`~fungeom.Face` (an oriented plane + bounded footprint), in
-    either of two equivalent forms. As **data** over typed marker symbols (preferred -- a misspelled
-    marker is a ``NameError``)::
+    ``geometry`` is a fungeom :class:`~fungeom.Face` (an oriented plane + bounded footprint) authored
+    as **data** over the segment's typed marker symbols (a misspelled marker is a ``NameError``)::
 
         cloud = Point3Bundle.of([heel, toe, mid])      # markers are fungeom SupportsPoint3
         Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
 
-    or as a **callable** ``(SegmentGeometry) -> Face`` (when the surface is fixed in the segment
-    frame, or to keep the legacy string-keyed style)::
-
-        Patch(label="sole", geometry=lambda seg: Face.on(seg.markers["a", "b", "c"].fit_plane(), ...))
-
-    The data form's free-variable markers (``heel.rest`` = :meth:`Marker.rest`) are resolved to
-    their segment-frame rest positions at bind time. A declaration-only patch (no ``geometry``) is
-    targetable but has no contact geometry.
+    The Face's free-variable markers (``heel`` coerces to ``heel.rest`` = :meth:`Marker.rest`) are
+    resolved to their segment-frame rest positions at bind time via ``Face.bind(env)``. A
+    declaration-only patch (no ``geometry``) is targetable but has no contact geometry.
     """
 
     label: str
     frame: str | None = None
-    geometry: Face | Callable[[SegmentGeometry], Face] | None = field(default=None, compare=False, repr=False)
+    geometry: Face | None = field(default=None, compare=False, repr=False)
     _binding: _PatchBinding | None = field(default=None, init=False, compare=False, repr=False)
 
     def points(self) -> TimeVec3:
@@ -275,7 +266,7 @@ class Patch:
         """
         binding = self._require_binding()
         if binding.face is None:
-            raise ValueError(f"Patch {binding.patch!r} was not authored with a geometry callable")
+            raise ValueError(f"Patch {binding.patch!r} was not authored with a geometry")
         return binding.face
 
     def _face_signal(self) -> FaceSignal:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from fungeom import Face, Point3, Region2
+from fungeom import Face, Point3, Point3Bundle, Region2
 
 from dataclasses import dataclass
 
@@ -29,7 +29,6 @@ from retarget.core import (
     Subject,
     Subjects,
 )
-from retarget.core.geometry import SegmentGeometry
 from retarget.demo.contact import ContactTrack
 from retarget.demo.mocap import MocapTrack
 from retarget.io import ViconMarkersFrame
@@ -64,31 +63,22 @@ class _TwoPatchSubjects(Subjects):
     subject: Subject[_TwoPatchSegments]
 
 
-def _two_sole_geometry(seg: SegmentGeometry) -> Face:
-    markers = seg.markers["heel", "toe", "mid"]
-    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
-    return Face.on(plane, Region2.rectangle(1.0, 1.0))
-
-
-def _two_heel_cap_geometry(seg: SegmentGeometry) -> Face:
-    markers = seg.markers["heel", "toe", "mid"]
-    plane = markers.fit_plane().facing(Point3.at(0.0, 0.0, 1.0)).offset(0.05)
-    return Face.on(plane, Region2.rectangle(0.5, 0.5))
-
-
 def _two_patch_track() -> MocapTrack[_TwoPatchSubjects]:
+    heel = Marker(mocap_name="heel", position_segment=_POSITIONS["heel"])
+    toe = Marker(mocap_name="toe", position_segment=_POSITIONS["toe"])
+    mid = Marker(mocap_name="mid", position_segment=_POSITIONS["mid"])
+    # Two data-form patches sharing the +z fitted plane: a 1x1 sole and a 0.5x0.5 heel cap lifted 5cm.
+    plane = Point3Bundle.of([heel, toe, mid]).fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
+    sole_face = Face.on(plane, Region2.rectangle(1.0, 1.0))
+    heel_cap_face = Face.on(plane.offset(0.05), Region2.rectangle(0.5, 0.5))
     subjects = _TwoPatchSubjects(
         subject=Subject(
             segments=_TwoPatchSegments(
                 segment=Segment(
-                    markers=_TwoPatchMarkers(
-                        heel=Marker(mocap_name="heel", position_segment=_POSITIONS["heel"]),
-                        toe=Marker(mocap_name="toe", position_segment=_POSITIONS["toe"]),
-                        mid=Marker(mocap_name="mid", position_segment=_POSITIONS["mid"]),
-                    ),
+                    markers=_TwoPatchMarkers(heel=heel, toe=toe, mid=mid),
                     patches=_TwoPatchPatches(
-                        sole=Patch(label="sole", geometry=_two_sole_geometry),
-                        heel_cap=Patch(label="heel_cap", geometry=_two_heel_cap_geometry),
+                        sole=Patch(label="sole", geometry=sole_face),
+                        heel_cap=Patch(label="heel_cap", geometry=heel_cap_face),
                     ),
                 )
             )

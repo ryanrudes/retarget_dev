@@ -211,18 +211,14 @@ footprint = Region2.hull(Point3Bundle.of([heel, toe]).in_frame(plane)).offset(0.
 ShoePatches(sole=Patch(label="sole", geometry=Face.on(plane, footprint)))
 ```
 
-`Patch.geometry` accepts a fungeom `Face` (the data form above) **or** a callable
-`(SegmentGeometry) -> Face` (the legacy form, e.g. when the surface is fixed in the segment frame).
-Inside a callable, `seg.markers[name] -> Point3` / `seg.markers[tuple] -> Point3Bundle` is the
-fungeom `SegmentGeometry` *adapter* — the one place a `[...]` subscript remains, and it is **not**
-the schema. At bind time the binding resolves the `Face` to a segment-local one: for the data form
-via `face.bind(env)` (substituting each `marker.rest` free with its segment-frame rest position),
-for a callable by evaluating it. `patch.points()/normals()/frames()/boundary_points()` then
-transport that per-frame by the segment pose via a fungeom `FaceSignal`; `patch.face()` returns the
-bound `Face`. **fungeom (`ryanrudes/fungeom`) is retarget's geometry substrate** — geometry lives
-there, not in retarget (`retarget.core.geometry` holds the `SegmentGeometry` view + the `FaceSignal`
-carrier). fungeom's free variables (`Point3.free` + `Face.bind(env)`, 0.4.0) make the data form
-possible; its `SupportsPoint3` coercion (0.6.0) is what lets the markers be passed without `.rest`.
+`Patch.geometry` is a fungeom `Face` — geometry is **only ever data** over marker symbols (there is no
+callable form; it was retired). At bind time the binding resolves the `Face` to a segment-local one via
+`face.bind(env)` (substituting each marker free with its segment-frame rest position).
+`patch.points()/normals()/frames()/boundary_points()` then transport that per-frame by the segment pose
+via a fungeom `FaceSignal`; `patch.face()` returns the bound `Face`. **fungeom (`ryanrudes/fungeom`) is
+retarget's geometry substrate** — geometry lives there, not in retarget (`retarget.core.geometry` holds
+only the `FaceSignal` pose carrier). fungeom's free variables (`Point3.free` + `Face.bind(env)`, 0.4.0)
+make the data form possible; its `SupportsPoint3` coercion (0.6.0) lets the markers be passed without `.rest`.
 The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
 retarget-side and *consume* fungeom values. Migration design:
 `docs/fungeom-substrate-migration.md`; free-variable design: `docs/fungeom-free-variables-spec.md`.
@@ -361,8 +357,13 @@ variants:
   `PatchCalibration` / `Patch.planar`, and the `<Aspect>Resolver` menu (`PlaneResolver`/
   `NormalResolver`/`TangentialResolver`/`OriginResolver`/`ExtentResolver` + `plane_from`/
   `axis_normal`/`side`/`along_axis`/`min_area_rectangle`/`bounding_box`/`fixed`). Patches are
-  authored as `geometry=` **data** — a fungeom `Face` over `marker.rest` free variables (or a
-  callable returning one); geometry is fungeom's job, not a retarget reimplementation.
+  authored as `geometry=` **data** — a fungeom `Face` over marker symbols; geometry is fungeom's
+  job, not a retarget reimplementation.
+- **the callable patch form + the `SegmentGeometry` adapter** — `Patch.geometry` is a fungeom `Face`,
+  never a `(SegmentGeometry) -> Face` callable. `SegmentGeometry`/`MarkerGeometry`/`segment_geometry`/
+  `patch_face` and the `seg.markers[name]` / `seg.markers[tuple]` subscript adapter were all removed
+  (`retarget.core.geometry` keeps only the `FaceSignal` pose carrier). Author geometry as data over
+  marker symbols (`Point3Bundle.of([heel, toe])`); a marker is a fungeom `SupportsPoint3`.
 
 ## Tests
 

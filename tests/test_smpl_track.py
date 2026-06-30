@@ -149,7 +149,7 @@ def test_smpl_drives_a_typed_scene_and_contact_detection_reuses() -> None:
     # The schema-integration payoff: a SMPL bone drives a typed Segment's pose, a sole Patch
     # (geometry= -> Face) rides it, and detect_contacts runs unchanged -- SMPL is "just a subject".
     import smpl
-    from fungeom import Face, Point3, Region2
+    from fungeom import Face, Point3, Point3Bundle, Region2
 
     from retarget.contacts import detect_contacts, ground_plane
     from retarget.core import Marker, Markers, Patch, Patches, Segment, Segments, Subject, Subjects
@@ -162,9 +162,12 @@ def test_smpl_drives_a_typed_scene_and_contact_detection_reuses() -> None:
     transl[:, 2] = np.linspace(0.1, 0.0, num_frames)  # descend the body to the ground
     params = smpl.SmplParams(betas=np.zeros(2), pose=np.zeros((num_frames, num_joints, 3)), transl=transl)
 
-    def sole(seg: object) -> Face:
-        plane = seg.markers["heel", "toe", "mid"].fit_plane().facing(Point3.at(0.0, 0.0, 1.0))  # type: ignore[attr-defined]
-        return Face.on(plane, Region2.rectangle(0.2, 0.1))
+    heel = Marker(mocap_name="heel", position_segment=np.array([0.0, 0.0, 0.0]))
+    toe = Marker(mocap_name="toe", position_segment=np.array([0.2, 0.0, 0.0]))
+    mid = Marker(mocap_name="mid", position_segment=np.array([0.0, 0.1, 0.0]))
+    # data-form sole: +z fitted plane through the foot markers, 0.2 x 0.1 footprint
+    plane = Point3Bundle.of([heel, toe, mid]).fit_plane().facing(Point3.at(0.0, 0.0, 1.0))
+    sole_face = Face.on(plane, Region2.rectangle(0.2, 0.1))
 
     @dataclass(frozen=True, slots=True)
     class FootMarkers(Markers):
@@ -189,12 +192,8 @@ def test_smpl_drives_a_typed_scene_and_contact_detection_reuses() -> None:
             segments=FootSegments(
                 foot=Segment(
                     mocap_name=model.joint_names[-1],  # drive the foot segment by the last bone
-                    markers=FootMarkers(
-                        heel=Marker(mocap_name="heel", position_segment=np.array([0.0, 0.0, 0.0])),
-                        toe=Marker(mocap_name="toe", position_segment=np.array([0.2, 0.0, 0.0])),
-                        mid=Marker(mocap_name="mid", position_segment=np.array([0.0, 0.1, 0.0])),
-                    ),
-                    patches=FootPatches(sole=Patch(label="sole", geometry=sole)),
+                    markers=FootMarkers(heel=heel, toe=toe, mid=mid),
+                    patches=FootPatches(sole=Patch(label="sole", geometry=sole_face)),
                 )
             )
         )
