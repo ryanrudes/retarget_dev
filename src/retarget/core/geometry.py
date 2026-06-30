@@ -29,6 +29,7 @@ import numpy as np
 
 from fungeom import FaceSignal, Point3, Point3Bundle, Sampling, TransformSignal
 
+from retarget.core.schema.base import _schema_items
 from retarget.core.targets import SegmentTarget
 
 if TYPE_CHECKING:
@@ -119,7 +120,7 @@ def segment_geometry(segment: Segment[Any, Any]) -> SegmentGeometry:
     Reads each marker's ``position_segment`` (segment-frame rest position, set at bind time
     from authoring or the subject ``body_model``). Markers without one are omitted.
     """
-    positions = {name: marker.position_segment for name, marker in segment.markers.items()}
+    positions = {name: marker.position_segment for name, marker in _schema_items(segment.markers)}
     return SegmentGeometry(
         markers=MarkerGeometry(MappingProxyType(_marker_points(positions))),
         target=segment.segment_target(),

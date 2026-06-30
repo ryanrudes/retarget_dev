@@ -35,6 +35,8 @@ from matplotlib.patches import Polygon as MplPolygon
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from rich.progress import BarColumn, MofNCompleteColumn, Progress, TextColumn, TimeRemainingColumn
 
+from retarget.core.schema.base import _schema_values
+
 from .console import console
 from .contact_timeline import TimelineSpec, _draw_timeline
 
@@ -76,19 +78,18 @@ class _Geom3DSeries:
 
 def _marker_series(segment: Any) -> npt.NDArray[np.float64]:
     # modeled=True -> clean rigid-body world positions over every frame.
-    names = list(segment.markers.keys())
     return np.stack(
-        [np.asarray(segment.markers[name].positions(modeled=True), dtype=np.float64) for name in names],
+        [np.asarray(marker.positions(modeled=True), dtype=np.float64) for marker in _schema_values(segment.markers)],
         axis=1,
     )
 
 
 def _build_geom3d_series(spec: TimelineSpec) -> _Geom3DSeries:
     mocap = spec.mocap
-    shoe = mocap.subjects["left_foot"].segments["shoe"]
-    board = mocap.subjects["balance_board"].segments["board"]
-    sole = shoe.patches["sole"]
-    surface = board.patches["surface"]
+    shoe = mocap.subjects.left_foot.segments.shoe
+    board = mocap.subjects.balance_board.segments.board
+    sole = shoe.patches.sole
+    surface = board.patches.surface
 
     foot = _marker_series(shoe)
     deck = _marker_series(board)

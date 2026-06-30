@@ -21,7 +21,7 @@ from conftest import demo_segment, make_demo_patch_target, make_descending_mocap
 
 
 def _sole(track: Any) -> Any:
-    return demo_segment(track).patches["sole"]
+    return demo_segment(track).patches.sole
 
 
 def test_with_contacts_is_immutable_and_reads_through_patch() -> None:
@@ -32,7 +32,7 @@ def test_with_contacts_is_immutable_and_reads_through_patch() -> None:
     assert track.contacts is None  # original is unchanged
     assert attached.contacts is not None
 
-    sole = demo_segment(attached).patches["sole"]
+    sole = demo_segment(attached).patches.sole
     target = make_demo_patch_target("sole")
     np.testing.assert_array_equal(sole.contacts(), contacts.state(target))
     np.testing.assert_array_equal(sole.confidence(), contacts.confidence(target))
@@ -57,7 +57,7 @@ def test_with_support_states_reads_through_patch() -> None:
     )
     attached = track.with_support_states(states)
 
-    sole = demo_segment(attached).patches["sole"]
+    sole = demo_segment(attached).patches.sole
     assert set(sole.support_contacts()) == {"ground", "board"}
 
     rest = (t >= 1.2) & (t <= 2.8)
@@ -68,7 +68,7 @@ def test_with_support_states_reads_through_patch() -> None:
 
 def test_patch_support_state_without_attachment_is_none() -> None:
     track = make_descending_mocap_track()
-    sole = demo_segment(track).patches["sole"]
+    sole = demo_segment(track).patches.sole
     assert sole.support_contacts() == {}
     assert all(label is None for label in sole.support_state())
     assert (sole.support_state(none="air") == "air").all()
@@ -88,7 +88,7 @@ def test_resample_attached_contacts_preserves_booleans() -> None:
     attached = track.with_contacts(detect_contacts(_sole(track), against=ground_plane(0.0)))
     coarse = np.linspace(0.0, 3.0, 31)
     resampled = attached.resample_to(coarse, method=ResampleMethod.NEAREST)
-    sole = demo_segment(resampled).patches["sole"]
+    sole = demo_segment(resampled).patches.sole
     assert sole.contacts().dtype == np.bool_
     assert sole.contacts().shape == coarse.shape
 
@@ -97,7 +97,7 @@ def test_slice_materializes_support_states() -> None:
     track = make_descending_mocap_track()
     states = classify_contacts(_sole(track), against={"ground": ground_plane(0.0)})
     clip = track.with_support_states(states).slice_time(1.5, 2.5)
-    sole = demo_segment(clip).patches["sole"]
+    sole = demo_segment(clip).patches.sole
     labels = sole.support_state()
     assert labels.shape[0] == clip.timestamps.shape[0]
     assert (labels == "ground").all()

@@ -201,14 +201,14 @@ def test_smpl_drives_a_typed_scene_and_contact_detection_reuses() -> None:
     )
 
     track = smpl_mocap_track(model, params, subjects, timestamps=np.arange(num_frames) * 0.05)
-    foot = track.subjects["body"].segments["foot"]
+    foot = track.subjects.body.segments.foot
     # the typed segment pose is exactly the SMPL bone's forward kinematics
     bone = model.forward_transforms(params)[:, -1]  # (T, 4, 4)
     np.testing.assert_allclose(foot.translations(), bone[:, :3, 3], atol=1e-9)
     # the sole patch transports by the SMPL bone pose, and contact detection reuses unchanged
-    assert foot.patches["sole"].points().shape == (num_frames, 3)
-    contacts = detect_contacts(foot.patches["sole"], against=ground_plane(0.0))
-    assert contacts.contacts[foot.patches["sole"].target].shape == (num_frames,)
+    assert foot.patches.sole.points().shape == (num_frames, 3)
+    contacts = detect_contacts(foot.patches.sole, against=ground_plane(0.0))
+    assert contacts.contacts[foot.patches.sole.target].shape == (num_frames,)
 
 
 def test_smpl_mocap_track_rejects_unknown_bone() -> None:
@@ -312,7 +312,7 @@ def test_smpl_foot_patch_from_mesh_vertices() -> None:
         )
     )
     track = smpl_mocap_track(model, params, subjects, timestamps=np.arange(num_frames) * 0.05)
-    sole = track.subjects["body"].segments["foot"].patches["sole"]
+    sole = track.subjects.body.segments.foot.patches.sole
     # the bound patch's footprint at frame 0 is the world sole rectangle (z = the descending transl)
     boundary = np.asarray(sole.boundary_points()[0])  # (K, 3)
     np.testing.assert_allclose(boundary[:, 0].min(), -0.1, atol=1e-9)

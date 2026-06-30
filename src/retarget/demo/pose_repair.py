@@ -14,8 +14,7 @@ and long dropouts are not fabricated.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
 from scipy.spatial.transform import Rotation, Slerp
@@ -23,6 +22,7 @@ from scipy.spatial.transform import Rotation, Slerp
 from retarget.core.formats import JumpDetector
 from retarget.core.keys import SegmentKey
 from retarget.core.schema import Segment, Subject, Subjects
+from retarget.core.schema.base import _schema_items
 from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.transform import RigidTransform
 from retarget.demo.mocap import MocapTrack
@@ -59,8 +59,10 @@ def fill_pose_gaps[S: Subjects](
     timestamps = np.asarray(mocap.timestamps, dtype=np.float64)
     repaired: dict[SegmentKey, SegmentPoseTrajectory] = dict(mocap.state.segment_poses)
     pose_filled: dict[SegmentKey, np.ndarray] = {}
-    for subject_name, subject in cast(Mapping[str, Subject[Any]], mocap.subjects).items():
-        for segment_name, segment in cast(Mapping[str, Segment[Any, Any]], subject.segments).items():
+    subject: Subject[Any]
+    segment: Segment[Any, Any]
+    for subject_name, subject in _schema_items(mocap.subjects):
+        for segment_name, segment in _schema_items(subject.segments):
             key = SegmentKey(subject_name, segment_name)
             trajectory = mocap.state.segment_poses.get(key)
             if trajectory is None:

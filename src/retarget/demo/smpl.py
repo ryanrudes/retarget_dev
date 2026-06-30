@@ -23,6 +23,7 @@ from fungeom import Face, Point3, Point3Bundle, Region2
 
 from retarget.core import Patch, Subjects
 from retarget.core.formats import finite_difference_velocity, speed_from_velocity
+from retarget.core.schema.base import _schema_items
 from retarget.core.keys import SegmentKey
 from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.transform import RigidTransform
@@ -200,8 +201,10 @@ def smpl_mocap_track[ParamsT, SubjectsT: Subjects](
     times = np.asarray(timestamps, dtype=np.float64)
     index = {name: i for i, name in enumerate(model.joint_names)}
     segment_poses: dict[SegmentKey, SegmentPoseTrajectory] = {}
-    for subject_name, subject in cast("Mapping[str, Subject[Any]]", subjects).items():
-        for segment_name, segment in cast("Mapping[str, Segment[Any, Any]]", subject.segments).items():
+    subject: Subject[Any]
+    segment: Segment[Any, Any]
+    for subject_name, subject in _schema_items(subjects):
+        for segment_name, segment in _schema_items(subject.segments):
             bone = segment.mocap_name
             if bone is None or bone not in index:
                 raise KeyError(

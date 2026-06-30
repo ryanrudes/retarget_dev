@@ -26,7 +26,7 @@ from retarget.demo.mocap import MocapTrack
 
 
 def _sole(track: Any) -> Any:
-    return demo_segment(track).patches["sole"]
+    return demo_segment(track).patches.sole
 
 
 def _static_noisy_track(sigma_z: float, *, n: int = 300, seed: int = 0) -> MocapTrack:

@@ -42,7 +42,7 @@ def test_region_contact_config_defaults_on_and_threads() -> None:
 
 def test_gather_patch_data_samples_the_footprint() -> None:
     track = make_descending_mocap_track()
-    sole = demo_segment(track).patches["sole"]
+    sole = demo_segment(track).patches.sole
     t = len(track.timestamps)
 
     on = _gather_patch_data(sole, ContactDetectionConfig(region_contact=True).resolve())
@@ -57,7 +57,7 @@ def test_gather_patch_data_samples_the_footprint() -> None:
 
 def _labels(track, region: bool):
     states = classify_contacts(
-        demo_segment(track).patches["sole"],
+        demo_segment(track).patches.sole,
         against={"ground": ground_plane(0.0)},
         config=ContactDetectionConfig(region_contact=region),
     )

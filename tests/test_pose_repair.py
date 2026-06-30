@@ -79,7 +79,7 @@ def test_fill_marks_filled_frames_as_valid() -> None:
     assert segment.pose_coverage()[2] == 1.0
     # ...and is reported as synthesized (not measured) via pose_filled().
     assert segment.pose_filled()[2]
-    assert segment.patches["sole"].pose_filled()[2]
+    assert segment.patches.sole.pose_filled()[2]
     assert not segment.pose_filled()[0]
 
 

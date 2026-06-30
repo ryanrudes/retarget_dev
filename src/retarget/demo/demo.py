@@ -1,7 +1,7 @@
 """Typed demonstration container and sliced/resampled views.
 
-A :class:`Demonstration` owns a typed ``Tracks`` mapping (a ``TypedDict`` of
-named tracks). ``demo.tracks["mocap"]`` is statically typed from the user's
+A :class:`Demonstration` owns a typed ``Tracks`` schema (a frozen dataclass of
+named tracks). ``demo.tracks.mocap`` is statically typed from the user's
 schema. ``slice_time(...)`` returns a :class:`DemonstrationView`, whose
 ``tracks`` are sliced/view tracks typed through the common ``Track`` surface.
 

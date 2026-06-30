@@ -91,9 +91,9 @@ def _track() -> MocapTrack[_Subs]:
 
 
 def test_data_patch_equals_callable_patch() -> None:
-    seg = _track().subjects["body"].segments["seg"]
-    from_callable = seg.patches["from_callable"]
-    from_data = seg.patches["from_data"]
+    seg = _track().subjects.body.segments.seg
+    from_callable = seg.patches.from_callable
+    from_data = seg.patches.from_data
     # bind-time free-variable resolution yields a byte-identical Face through the whole pipeline
     np.testing.assert_allclose(from_data.points(), from_callable.points(), atol=1e-12)
     np.testing.assert_allclose(from_data.normals(), from_callable.normals(), atol=1e-12)
@@ -102,7 +102,7 @@ def test_data_patch_equals_callable_patch() -> None:
 
 def test_data_patch_centroid_is_triangle_centroid_transported() -> None:
     # heel/toe/mid form a triangle whose centroid is (1/3, 1/3); poses translate +x by i
-    pts = _track().subjects["body"].segments["seg"].patches["from_data"].points()
+    pts = _track().subjects.body.segments.seg.patches.from_data.points()
     np.testing.assert_allclose(pts[0], [1 / 3, 1 / 3, 0.0], atol=1e-9)
     np.testing.assert_allclose(pts[2], [2 + 1 / 3, 1 / 3, 0.0], atol=1e-9)
 

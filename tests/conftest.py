@@ -194,7 +194,7 @@ def make_gliding_mocap_track(
 
 def demo_segment(track: MocapTrack[Any]) -> Segment[DemoMarkers, DemoPatches]:
     """Return the canonical demo segment from a (possibly sliced) mocap track."""
-    return track.subjects[SUBJECT].segments[SEGMENT]
+    return track.subjects.subject.segments.segment
 
 
 def make_string_patch_target(

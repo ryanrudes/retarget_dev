@@ -34,7 +34,7 @@ from conftest import (
 
 
 def _sole(track: MocapTrack[Any]) -> Any:
-    return demo_segment(track).patches["sole"]
+    return demo_segment(track).patches.sole
 
 
 def _gliding_support(track: MocapTrack[Any], glide_speed: float) -> TimeIndexedSupport:

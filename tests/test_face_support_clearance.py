@@ -137,7 +137,7 @@ def test_patch_support_resolves_to_face_support_and_detects() -> None:
     # Integration: a bound Patch passed as the support routes through _moving_support_from to a
     # _FaceSupport (not the infinite-plane TimeIndexedSupport), and a full detect runs end-to-end.
     track = make_mocap_track()
-    sole = demo_segment(track).patches["sole"]
+    sole = demo_segment(track).patches.sole
     support = _moving_support_from(sole, up_axis=2)
     assert isinstance(support, _FaceSupport)
     assert support.name == "sole"

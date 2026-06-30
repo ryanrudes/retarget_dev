@@ -105,8 +105,8 @@ def _track(*, with_geometry: bool = True) -> MocapTrack[ShoeSubjects]:
 
 def test_bind_scene_exposes_targets_and_external_names() -> None:
     scene = bind_scene(_subjects())
-    subject = scene["left_shoe"]
-    shoe = subject.segments["shoe"]
+    subject = scene.left_shoe
+    shoe = subject.segments.shoe
     assert subject.external_name == "Left_Shoe_Improved"
     assert subject.mocap_name == "Left_Shoe_Improved"
     assert shoe.mocap_name == "Left_Shoe_Improved"
@@ -116,30 +116,30 @@ def test_bind_scene_exposes_targets_and_external_names() -> None:
 
 
 def test_bind_scene_unknown_marker_target_raises() -> None:
-    shoe = bind_scene(_subjects())["left_shoe"].segments["shoe"]
+    shoe = bind_scene(_subjects()).left_shoe.segments.shoe
     with pytest.raises(KeyError, match="has no marker 'missing'"):
         shoe.marker_target("missing")
 
 
 def test_declaration_only_patch_is_targetable_without_geometry() -> None:
-    shoe = bind_scene(_subjects(with_geometry=False))["left_shoe"].segments["shoe"]
+    shoe = bind_scene(_subjects(with_geometry=False)).left_shoe.segments.shoe
     assert shoe.patch_target("sole") == PatchTarget("left_shoe", "shoe", "sole")
-    assert shoe.patches["sole"].has_geometry() is False
+    assert shoe.patches.sole.has_geometry() is False
 
 
 def test_loaded_track_observed_and_modeled_positions() -> None:
-    shoe = _track().subjects["left_shoe"].segments["shoe"]
-    np.testing.assert_allclose(shoe.markers["heel"].positions()[0], np.array([1.0, 2.0, 3.0]))
-    np.testing.assert_allclose(shoe.markers["heel"].positions(modeled=True)[0], np.zeros(3))
-    np.testing.assert_allclose(shoe.patches["sole"].points()[0], np.zeros(3))
-    np.testing.assert_allclose(shoe.patches["sole"].normals()[0], np.array([0.0, 0.0, 1.0]))
-    assert shoe.markers["heel"].target == MarkerTarget("left_shoe", "shoe", "heel")
+    shoe = _track().subjects.left_shoe.segments.shoe
+    np.testing.assert_allclose(shoe.markers.heel.positions()[0], np.array([1.0, 2.0, 3.0]))
+    np.testing.assert_allclose(shoe.markers.heel.positions(modeled=True)[0], np.zeros(3))
+    np.testing.assert_allclose(shoe.patches.sole.points()[0], np.zeros(3))
+    np.testing.assert_allclose(shoe.patches.sole.normals()[0], np.array([0.0, 0.0, 1.0]))
+    assert shoe.markers.heel.target == MarkerTarget("left_shoe", "shoe", "heel")
 
 
 def test_declaration_only_patch_points_raise_on_loaded_track() -> None:
-    shoe = _track(with_geometry=False).subjects["left_shoe"].segments["shoe"]
+    shoe = _track(with_geometry=False).subjects.left_shoe.segments.shoe
     with pytest.raises(ValueError, match="no calibrated geometry"):
-        shoe.patches["sole"].points()
+        shoe.patches.sole.points()
 
 
 def _body_model_subjects(*, override_heel: bool = False) -> ShoeSubjects:
@@ -168,14 +168,14 @@ def _body_model_subjects(*, override_heel: bool = False) -> ShoeSubjects:
 
 
 def test_body_model_supplies_marker_segment_positions() -> None:
-    shoe = bind_scene(_body_model_subjects())["left_shoe"].segments["shoe"]
-    np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.array([0.5, 0.0, 0.0]))
-    np.testing.assert_allclose(shoe.markers["toe"].position_segment, np.array([1.0, 0.0, 0.0]))
+    shoe = bind_scene(_body_model_subjects()).left_shoe.segments.shoe
+    np.testing.assert_allclose(shoe.markers.heel.position_segment, np.array([0.5, 0.0, 0.0]))
+    np.testing.assert_allclose(shoe.markers.toe.position_segment, np.array([1.0, 0.0, 0.0]))
 
 
 def test_explicit_position_segment_overrides_body_model() -> None:
-    shoe = bind_scene(_body_model_subjects(override_heel=True))["left_shoe"].segments["shoe"]
-    np.testing.assert_allclose(shoe.markers["heel"].position_segment, np.zeros(3))
+    shoe = bind_scene(_body_model_subjects(override_heel=True)).left_shoe.segments.shoe
+    np.testing.assert_allclose(shoe.markers.heel.position_segment, np.zeros(3))
 
 
 def test_bind_scene_rejects_duplicate_mocap_name_within_segment() -> None:

@@ -27,7 +27,7 @@ from conftest import (
 
 
 def _sole(track: MocapTrack[DemoSubjects]):
-    return demo_segment(track).patches["sole"]
+    return demo_segment(track).patches.sole
 
 
 def test_contact_plan_rejects_empty_queries() -> None:

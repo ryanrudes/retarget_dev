@@ -11,6 +11,7 @@ from scipy.spatial.transform import Rotation
 
 from retarget.core.keys import SegmentKey
 from retarget.core.schema import Segment, Subject, Subjects
+from retarget.core.schema.base import _schema_items
 from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.transform import RigidTransform
 from retarget.core.types import Vec3
@@ -124,10 +125,11 @@ def _segment_keys_by_external_name(
 ) -> dict[tuple[str, str], SegmentKey]:
     """Map (external subject name, external segment name) -> compiled SegmentKey."""
     mapping: dict[tuple[str, str], SegmentKey] = {}
-    for subject_name, subject in cast(Mapping[str, Subject[Any]], subjects).items():
+    subject: Subject[Any]
+    segment: Segment[Any, Any]
+    for subject_name, subject in _schema_items(subjects):
         subject_external = subject.mocap_name or subject_name
-        segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
-        for segment_name, segment in segments.items():
+        for segment_name, segment in _schema_items(subject.segments):
             segment_external = segment.mocap_name or segment_name
             key = SegmentKey(subject_name, segment_name)
             label_pair = (subject_external, segment_external)

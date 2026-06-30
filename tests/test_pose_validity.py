@@ -134,12 +134,12 @@ def test_classify_flags_jump_as_unknown() -> None:
 
     track = _resting_track_with_jump()
     states = classify_contacts(
-        demo_segment(track).patches["sole"],
+        demo_segment(track).patches.sole,
         against={"ground": ground_plane(0.0)},
         config=ContactDetectionConfig(jumps=speed_limit(10.0)),
     )
     track = track.with_support_states(states)
-    labels = demo_segment(track).patches["sole"].support_state(unknown="unknown")
+    labels = demo_segment(track).patches.sole.support_state(unknown="unknown")
     assert labels[5] == "unknown"
 
 
@@ -154,7 +154,7 @@ def test_pose_coverage_counts_visible_markers() -> None:
 def test_patch_validity_matches_segment() -> None:
     track = make_mocap_track(num_timesteps=3)
     segment = demo_segment(track)
-    sole = segment.patches["sole"]
+    sole = segment.patches.sole
     np.testing.assert_allclose(sole.pose_coverage(), segment.pose_coverage())
     np.testing.assert_array_equal(sole.valid(min_coverage=0.3), segment.valid(min_coverage=0.3))
 
@@ -187,10 +187,10 @@ def test_resolver_where_rejects_shape_mismatch() -> None:
 def test_classify_emits_unknown_on_sustained_dropout() -> None:
     track = _resting_track_with_dropout()
     states = classify_contacts(
-        demo_segment(track).patches["sole"], against={"ground": ground_plane(0.0)}
+        demo_segment(track).patches.sole, against={"ground": ground_plane(0.0)}
     )
     track = track.with_support_states(states)
-    sole = demo_segment(track).patches["sole"]
+    sole = demo_segment(track).patches.sole
     labels = sole.support_state(none="air", unknown="lost")
 
     # Resting on the floor with full coverage -> ground; the dropout -> your label.
@@ -203,9 +203,9 @@ def test_unknown_is_opt_in_by_naming() -> None:
     # Untrusted frames only become a label if you name one -- nothing magic appears.
     track = _resting_track_with_dropout()
     states = classify_contacts(
-        demo_segment(track).patches["sole"], against={"ground": ground_plane(0.0)}
+        demo_segment(track).patches.sole, against={"ground": ground_plane(0.0)}
     )
     track = track.with_support_states(states)
-    sole = demo_segment(track).patches["sole"]
+    sole = demo_segment(track).patches.sole
     assert "lost" not in set(sole.support_state(none="air"))  # not named -> not surfaced
     assert "lost" in set(sole.support_state(none="air", unknown="lost"))

@@ -130,7 +130,7 @@ def test_mocap_patch_contacts_resolves_patch_target() -> None:
     )
     segment = demo_segment(track)
     np.testing.assert_array_equal(
-        segment.patches["sole"].contacts(), np.array([True, False, True])
+        segment.patches.sole.contacts(), np.array([True, False, True])
     )
     assert segment.patch_contacts("sole").shape == (3, 1)
 
@@ -165,6 +165,6 @@ def test_empty_slice_patch_contacts_returns_empty_bool_array() -> None:
         contacts=contacts,
     )
     segment = demo_segment(track.slice_time(100.0, 101.0))
-    values = segment.patches["sole"].contacts()
+    values = segment.patches.sole.contacts()
     assert values.shape == (0,)
     assert values.dtype == np.bool_

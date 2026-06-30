@@ -67,8 +67,8 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     # σ its clearance/motion sit from "resting contact". The shoe is ~4.4 cm above
     # the floor (tens of σ -> ~0 confidence) and ~0 from the board (high confidence),
     # so the default most-confident resolver picks "board" for any confidence level.
-    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
-    board = mocap.subjects["balance_board"].segments["board"].patches["surface"]
+    sole = mocap.subjects.left_foot.segments.shoe.patches.sole
+    board = mocap.subjects.balance_board.segments.board.patches.surface
     against = {"ground": ground_plane(0.0), "board": board}
     # min_coverage here is a SEPARATE knob from fill_pose_gaps' (this one paints the
     # categorical "lost" band via support_invalid; that one governs interpolation).
@@ -83,7 +83,7 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
 
     # Read the categorical state off a cheap patch view, with labels you choose,
     # and hand the shared plotter the category styling for this experiment.
-    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
+    sole = mocap.subjects.left_foot.segments.shoe.patches.sole
     return TimelineSpec(
         mocap=mocap,
         patch=sole,

@@ -5,9 +5,9 @@ optional attached contact track, plus the authored ``Subjects`` schema. On
 construction it binds the schema to that data, so the public query surface is
 the schema itself::
 
-    mocap.subjects["left_shoe"].segments["shoe"].translations()
-    mocap.subjects["left_shoe"].segments["shoe"].markers["heel"].positions()
-    mocap.subjects["left_shoe"].segments["shoe"].patches["sole"].points()
+    mocap.subjects.left_shoe.segments.shoe.translations()
+    mocap.subjects.left_shoe.segments.shoe.markers.heel.positions()
+    mocap.subjects.left_shoe.segments.shoe.patches.sole.points()
 
 Resampling policy:
 
@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import InitVar, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -34,6 +34,7 @@ from retarget.core.schema import (
     _SegmentRuntime,
     bind_subjects_runtime,
 )
+from retarget.core.schema.base import _schema_fields, _schema_items, _schema_values
 from retarget.core.state import SceneState, SegmentPoseTrajectory
 from retarget.core.targets import PatchTarget
 from retarget.core.transform import RigidTransform
@@ -404,10 +405,11 @@ def _build_segment_runtimes(
 ) -> dict[SegmentKey, _SegmentRuntime]:
     runtimes: dict[SegmentKey, _SegmentRuntime] = {}
     num_timesteps = len(timestamps)
-    for subject_name, subject in cast(Mapping[str, Subject[Any]], subjects).items():
+    subject: Subject[Any]
+    segment: Segment[Any, Any]
+    for subject_name, subject in _schema_items(subjects):
         subject_external = subject.mocap_name or subject_name
-        segments = cast(Mapping[str, Segment[Any, Any]], subject.segments)
-        for segment_name, segment in segments.items():
+        for segment_name, segment in _schema_items(subject.segments):
             key = SegmentKey(subject_name, segment_name)
             trajectory = state.segment_poses.get(key)
             if trajectory is None:
@@ -457,7 +459,7 @@ def _observed_markers(
         return {}
     observed = {
         marker.mocap_name: np.full((num_timesteps, 3), np.nan, dtype=np.float64)
-        for marker in segment.markers.values()
+        for marker in _schema_values(segment.markers)
     }
     for timestep, frame in enumerate(marker_frames):
         for obs in frame.markers:
@@ -483,7 +485,7 @@ def _segment_contacts(
         return {}, {}
     state_map: dict[str, np.ndarray] = {}
     confidence_map: dict[str, np.ndarray] = {}
-    for patch_name in segment.patches:
+    for patch_name in _schema_fields(segment.patches):
         target = PatchTarget(
             subject=subject_name, segment=segment_name, patch=patch_name
         )
@@ -509,7 +511,7 @@ def _segment_support_states(
     contacts_map: dict[str, Mapping[str, np.ndarray]] = {}
     scores_map: dict[str, Mapping[str, np.ndarray]] = {}
     invalid_map: dict[str, np.ndarray] = {}
-    for patch_name in segment.patches:
+    for patch_name in _schema_fields(segment.patches):
         target = PatchTarget(subject=subject_name, segment=segment_name, patch=patch_name)
         if target in support_states.contacts:
             contacts_map[patch_name] = dict(support_states.contacts[target])

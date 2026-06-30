@@ -76,8 +76,8 @@ def test_same_segment_name_across_subjects_does_not_collide() -> None:
         subjects=_subjects(), state=state, timestamps=np.array([0.0])
     )
 
-    left = track.subjects["left_shoe"].segments["shoe"]
-    right = track.subjects["right_shoe"].segments["shoe"]
+    left = track.subjects.left_shoe.segments.shoe
+    right = track.subjects.right_shoe.segments.shoe
 
     np.testing.assert_allclose(left.translations()[0], np.array([0.0, 0.0, 0.1]))
     np.testing.assert_allclose(right.translations()[0], np.array([0.0, 0.0, 0.9]))

@@ -34,6 +34,8 @@ from fungeom import (
 )
 from fungeom.values import RigidTransform
 
+from retarget.core.schema.base import _schema_fields, _schema_get
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
@@ -204,7 +206,7 @@ def marker_cloud_signal(
     requires raw marker frames; it is unavailable on a resampled track.
     """
     segment_obj = _segment(track, subject, segment)
-    names = tuple(markers) if markers is not None else _names(segment_obj.markers)
+    names = tuple(markers) if markers is not None else _schema_fields(segment_obj.markers)
     frames = np.asarray(segment_obj.marker_positions(*names, modeled=modeled), dtype=np.float64)
     return point_bundle_signal(
         track.timestamps,
@@ -233,13 +235,13 @@ def pose_signal(
     authored segment names, which are unique within a subject.
     """
     subject_obj = _subject(track, subject)
-    names = tuple(segments) if segments is not None else _names(subject_obj.segments)
+    names = tuple(segments) if segments is not None else _schema_fields(subject_obj.segments)
     num_times = int(np.asarray(track.timestamps).shape[0])
     num_entities = len(names)
     translations = np.empty((num_times, num_entities, 3), dtype=np.float64)
     rotations = np.empty((num_times, num_entities, 3, 3), dtype=np.float64)
     for index, name in enumerate(names):
-        seg = subject_obj.segments[name]
+        seg = _schema_get(subject_obj.segments, name)
         translations[:, index, :] = np.asarray(seg.translations(), dtype=np.float64)
         rotations[:, index, :, :] = np.asarray(seg.rotations(), dtype=np.float64)
     return transform_bundle_signal(
@@ -255,16 +257,12 @@ def pose_signal(
 
 
 # --------------------------------------------------------------------------- #
-# internal name/lookup helpers (authored TypedDicts are dict-like at runtime;
-# iterating a generic TypedDict yields broad values, so we narrow to str here)
+# internal lookup helpers: resolve authored string names against a schema's
+# dataclass fields (the public builders keep their string params at this seam)
 # --------------------------------------------------------------------------- #
-def _names(mapping: Any) -> tuple[str, ...]:
-    return tuple(str(key) for key in mapping)
-
-
 def _subject(track: MocapTrack[Any], subject: str) -> Any:
-    return track.subjects[subject]
+    return _schema_get(track.subjects, subject)
 
 
 def _segment(track: MocapTrack[Any], subject: str, segment: str) -> Any:
-    return track.subjects[subject].segments[segment]
+    return _schema_get(_schema_get(track.subjects, subject).segments, segment)

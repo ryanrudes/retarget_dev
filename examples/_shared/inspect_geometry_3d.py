@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from rich.table import Table
 
+from retarget.core.schema.base import _schema_items
 from retarget.demo import Demonstration
 
 from .console import console
@@ -28,8 +29,8 @@ def seg_marker_world(segment) -> dict[str, np.ndarray]:
     # modeled=True -> clean rigid-body world positions (observed are NaN/garbage when
     # a marker is briefly unobserved, e.g. at frame 0).
     return {
-        name: np.asarray(segment.markers[name].positions(modeled=True), dtype=np.float64)[FRAME]
-        for name in segment.markers.keys()
+        name: np.asarray(marker.positions(modeled=True), dtype=np.float64)[FRAME]
+        for name, marker in _schema_items(segment.markers)
     }
 
 
@@ -48,11 +49,11 @@ def _equal_aspect(ax, points: np.ndarray) -> None:
 
 
 def main(demo: Demonstration[ExampleTracks]) -> None:
-    mocap = demo.tracks["mocap"]
-    shoe = mocap.subjects["left_foot"].segments["shoe"]
-    board = mocap.subjects["balance_board"].segments["board"]
-    sole = shoe.patches["sole"]
-    surface = board.patches["surface"]
+    mocap = demo.tracks.mocap
+    shoe = mocap.subjects.left_foot.segments.shoe
+    board = mocap.subjects.balance_board.segments.board
+    sole = shoe.patches.sole
+    surface = board.patches.surface
 
     foot = seg_marker_world(shoe)
     deck = seg_marker_world(board)

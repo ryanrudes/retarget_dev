@@ -7,9 +7,10 @@ way, so the logic lives here to avoid an import cycle between them.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
-from typing import Any, cast
+from collections.abc import Iterable
+from typing import Any
 
+from retarget.core.schema.base import _schema_values
 from retarget.core.schema.patch import Patch
 from retarget.core.schema.segment import Segment
 from retarget.core.schema.subject import Subject
@@ -25,19 +26,19 @@ def normalize_scope(scope: Scope) -> list[Patch]:
             raise ValueError("the given patch has no calibrated geometry to detect on")
         return [scope]
     if isinstance(scope, Segment):
-        patches: list[Patch] = list(cast(Mapping[str, Patch], scope.patches).values())
+        patches: list[Patch] = list(_schema_values(scope.patches))
     elif isinstance(scope, Subject):
         patches = [
             patch
-            for segment in cast(Mapping[str, Segment[Any, Any]], scope.segments).values()
-            for patch in cast(Mapping[str, Patch], segment.patches).values()
+            for segment in _schema_values(scope.segments)
+            for patch in _schema_values(segment.patches)
         ]
     elif isinstance(scope, MocapTrack):
         patches = [
             patch
-            for subject in cast(Mapping[str, Subject[Any]], scope.subjects).values()
-            for segment in cast(Mapping[str, Segment[Any, Any]], subject.segments).values()
-            for patch in cast(Mapping[str, Patch], segment.patches).values()
+            for subject in _schema_values(scope.subjects)
+            for segment in _schema_values(subject.segments)
+            for patch in _schema_values(segment.patches)
         ]
     else:
         patches = list(scope)

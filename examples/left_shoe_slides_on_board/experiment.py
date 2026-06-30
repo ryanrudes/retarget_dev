@@ -60,12 +60,12 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     # so the default most-confident resolver picks "board" for any confidence level.
     against = dict(
         ground = ground_plane(0.0),
-        board = mocap.subjects["balance_board"].segments["board"].patches["surface"],
+        board = mocap.subjects.balance_board.segments.board.patches.surface,
     )
 
     queries = (
         ContactQuery(
-            scope=mocap.subjects["left_foot"].segments["shoe"].patches["sole"],
+            scope=mocap.subjects.left_foot.segments.shoe.patches.sole,
             against=against,
         ),
     )
@@ -73,7 +73,7 @@ def build_timeline(mocap: MocapTrack[ExampleSubjects]) -> TimelineSpec:
     plan = ContactPlan(queries=queries, config=config)
     mocap = apply_contact_plan(mocap, plan)
 
-    sole = mocap.subjects["left_foot"].segments["shoe"].patches["sole"]
+    sole = mocap.subjects.left_foot.segments.shoe.patches.sole
 
     # The per-frame signals behind each decision feed the timeline's per-signal heat strips.
     signals = classify_feature_channels(sole, against=against, config=config)[sole.target]

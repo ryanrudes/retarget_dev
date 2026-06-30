@@ -90,7 +90,7 @@ def _track(num: int = 3) -> MocapTrack[_GSubjects]:
 
 
 def _sole_patch() -> Patch:
-    return _track().subjects["body"].segments["seg"].patches["sole"]
+    return _track().subjects.body.segments.seg.patches.sole
 
 
 def test_geometry_patch_has_geometry() -> None:
@@ -133,13 +133,13 @@ def test_geometry_patch_boundary_transports_under_rotation() -> None:
     trans = np.array([1.0, 2.0, 3.0])
     rotated = (
         _track_from((RigidTransform.from_rotation_translation(rotation=rot, translation=trans),))
-        .subjects["body"]
-        .segments["seg"]
-        .patches["sole"]
+        .subjects.body
+        .segments.seg
+        .patches.sole
         .boundary_points()[0]
     )
     identity = (
-        _track_from((RigidTransform.identity(),)).subjects["body"].segments["seg"].patches["sole"].boundary_points()[0]
+        _track_from((RigidTransform.identity(),)).subjects.body.segments.seg.patches.sole.boundary_points()[0]
     )
     # the rotated-pose boundary is the identity-pose (segment-local) boundary rigidly transported
     np.testing.assert_allclose(rotated, identity @ rot.T + trans, atol=1e-9)

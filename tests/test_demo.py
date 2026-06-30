@@ -5,6 +5,7 @@ from dataclasses import dataclass
 import numpy as np
 import pytest
 
+from retarget.core.schema.base import _schema_items
 from retarget.core.targets import PatchTarget
 from retarget.demo.alignment import TimelineTransform, TrackAlignment
 from retarget.demo.contact import ContactTrack
@@ -218,7 +219,7 @@ def test_demonstration_view_resample_to_does_not_resample_reference_track() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=dict(demo.tracks),
+        tracks=dict(_schema_items(demo.tracks)),
         alignments=demo.alignments,
     )
 
@@ -256,7 +257,7 @@ def test_demonstration_view_resample_to_requires_non_reference_resampling() -> N
     )
     view = DemonstrationView(
         source=demo,
-        tracks=dict(demo.tracks),
+        tracks=dict(_schema_items(demo.tracks)),
         alignments=demo.alignments,
     )
 

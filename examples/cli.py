@@ -89,7 +89,7 @@ def timeline_spec_for(example: str) -> TimelineSpec:
     """Build the example scene and run its contact-detection experiment."""
     demo = get_demo(unbagged_dir_for(example))
     experiment = load_experiment(example)
-    spec: TimelineSpec = experiment.build_timeline(demo.tracks["mocap"])
+    spec: TimelineSpec = experiment.build_timeline(demo.tracks.mocap)
     return spec
 
 

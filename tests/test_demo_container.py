@@ -44,7 +44,7 @@ def test_demonstration_constructor_returns_typed_demonstration() -> None:
 
 def test_tracks_mapping_and_string_getitem_agree() -> None:
     demo = _typed_demo()
-    assert demo["mocap"] is demo.tracks["mocap"]
+    assert demo["mocap"] is demo.tracks.mocap
     assert "mocap" in demo
     assert "missing" not in demo
     assert demo.track_ids() == ("mocap", "contacts")

@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import cast
 
 import networkx as nx
 
@@ -250,7 +249,7 @@ def _edge_transform(graph: nx.Graph, source: str, reference: str) -> TimelineTra
 def _tracks_of(
     demonstration: Demonstration | DemonstrationView,
 ) -> Mapping[str, Track]:
-    return cast(Mapping[str, Track], demonstration.tracks)
+    return demonstration._track_map()
 
 
 def _validate_plan_tracks(tracks: Mapping[str, Track], plan: SyncPlan) -> None:

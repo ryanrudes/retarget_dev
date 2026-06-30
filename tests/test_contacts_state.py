@@ -22,7 +22,7 @@ from conftest import demo_segment, make_demo_patch_target, make_descending_mocap
 
 
 def _sole(track: Any) -> Any:
-    return demo_segment(track).patches["sole"]
+    return demo_segment(track).patches.sole
 
 
 def _classify_ground_and_board(track: Any) -> SupportStateTrack:

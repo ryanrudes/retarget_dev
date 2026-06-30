@@ -18,12 +18,12 @@ from .schema import ExampleTracks
 
 
 def animate(demo: Demonstration[ExampleTracks]) -> None:
-    mocap = demo.tracks["mocap"]
+    mocap = demo.tracks.mocap
 
-    left_foot = mocap.subjects["left_foot"]
-    left_shoe = left_foot.segments["shoe"]
+    left_foot = mocap.subjects.left_foot
+    left_shoe = left_foot.segments.shoe
 
-    sole = left_shoe.patches["sole"]
+    sole = left_shoe.patches.sole
     sole_points = sole.points()
     sole_unit_normals = sole.normals()
 
