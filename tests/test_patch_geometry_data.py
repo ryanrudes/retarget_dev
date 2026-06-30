@@ -40,6 +40,7 @@ class _Markers(Markers):
 class _Patches(Patches):
     from_callable: Patch
     from_data: Patch
+    from_markers: Patch
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,6 +70,12 @@ def _subjects() -> _Subs:
     plane = cloud.fit_plane()
     data_face = Face.on(plane, Region2.hull(cloud.in_frame(plane)))
 
+    # Same Face, but markers are passed *directly*: a Marker is a fungeom ``SupportsPoint3`` (>= 0.6.0),
+    # so it coerces to its ``.rest`` free variable. This must bind identically to ``data_face``.
+    markers_cloud = Point3Bundle.of([heel, toe, mid])
+    markers_plane = markers_cloud.fit_plane()
+    markers_face = Face.on(markers_plane, Region2.hull(markers_cloud.in_frame(markers_plane)))
+
     return _Subs(
         body=Subject(
             segments=_Segs(
@@ -77,6 +84,7 @@ def _subjects() -> _Subs:
                     patches=_Patches(
                         from_callable=Patch(label="c", geometry=_callable_sole),
                         from_data=Patch(label="d", geometry=data_face),
+                        from_markers=Patch(label="m", geometry=markers_face),
                     ),
                 )
             )
@@ -98,6 +106,24 @@ def test_data_patch_equals_callable_patch() -> None:
     np.testing.assert_allclose(from_data.points(), from_callable.points(), atol=1e-12)
     np.testing.assert_allclose(from_data.normals(), from_callable.normals(), atol=1e-12)
     np.testing.assert_allclose(from_data.boundary_points(), from_callable.boundary_points(), atol=1e-12)
+
+
+def test_data_patch_from_markers_equals_from_rest() -> None:
+    # Passing marker symbols directly (the fungeom ``SupportsPoint3`` coercion = ``.rest``) binds
+    # byte-identically to the explicit ``.rest`` data form through the whole query pipeline.
+    seg = _track().subjects.body.segments.seg
+    from_markers = seg.patches.from_markers
+    from_data = seg.patches.from_data
+    np.testing.assert_allclose(from_markers.points(), from_data.points(), atol=1e-12)
+    np.testing.assert_allclose(from_markers.normals(), from_data.normals(), atol=1e-12)
+    np.testing.assert_allclose(from_markers.boundary_points(), from_data.boundary_points(), atol=1e-12)
+
+
+def test_marker_fungeom_point3_hook_is_rest() -> None:
+    # The coercion hook a Marker exposes to fungeom is its ``.rest`` free variable: a free Point3
+    # identified by the marker. (FreePoint3 has identity equality, so compare by free-variable set.)
+    heel = Marker(mocap_name="heel", position_segment=np.array([0.0, 0.0, 0.0]))
+    assert heel.__fungeom_point3__().free_variables() == frozenset({heel}) == heel.rest.free_variables()
 
 
 def test_data_patch_centroid_is_triangle_centroid_transported() -> None:

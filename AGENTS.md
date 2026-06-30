@@ -198,16 +198,16 @@ equality/repr, so the public constructors stay pure authoring
 ## Patch geometry (the fungeom substrate)
 
 A patch is an **oriented contact surface + a bounded footprint** — a fungeom `Face` (an oriented
-`Plane` + a `Region2`). Author it as **data** over the markers' free-variable rest points
-(`marker.rest` is a fungeom `Point3.free` identified by the marker), so a misspelled marker is a
-`NameError`, not a silent key:
+`Plane` + a `Region2`). Author it as **data** over the segment's marker symbols, passed directly: a
+`Marker` is a fungeom `SupportsPoint3`, coercing to its `marker.rest` free variable (a `Point3.free`
+identified by the marker), so a misspelled marker is a `NameError`, not a silent key:
 
 ```python
 from fungeom import Face, Point3Bundle, Region2
 
-# heel, toe, plane_rear, … are the segment's Marker symbols, referenced directly
-plane = Point3Bundle.of([plane_rear.rest, plane_inner.rest, plane_outer.rest]).fit_plane()
-footprint = Region2.hull(Point3Bundle.of([heel.rest, toe.rest]).in_frame(plane)).offset(0.005)
+# heel, toe, plane_rear, … are the segment's Marker symbols, passed straight in (no .rest threading)
+plane = Point3Bundle.of([plane_rear, plane_inner, plane_outer]).fit_plane()
+footprint = Region2.hull(Point3Bundle.of([heel, toe]).in_frame(plane)).offset(0.005)
 ShoePatches(sole=Patch(label="sole", geometry=Face.on(plane, footprint)))
 ```
 
@@ -221,8 +221,9 @@ for a callable by evaluating it. `patch.points()/normals()/frames()/boundary_poi
 transport that per-frame by the segment pose via a fungeom `FaceSignal`; `patch.face()` returns the
 bound `Face`. **fungeom (`ryanrudes/fungeom`) is retarget's geometry substrate** — geometry lives
 there, not in retarget (`retarget.core.geometry` holds the `SegmentGeometry` view + the `FaceSignal`
-carrier). fungeom 0.4.0's free variables (`Point3.free` + `Face.bind(env)`) are what make the data
-form possible. The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
+carrier). fungeom's free variables (`Point3.free` + `Face.bind(env)`, 0.4.0) make the data form
+possible; its `SupportsPoint3` coercion (0.6.0) is what lets the markers be passed without `.rest`.
+The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
 retarget-side and *consume* fungeom values. Migration design:
 `docs/fungeom-substrate-migration.md`; free-variable design: `docs/fungeom-free-variables-spec.md`.
 

@@ -64,19 +64,19 @@ def unbagged_dir_for(example_name: str) -> Path:
 
 def get_left_foot_segments() -> LeftFootSegments:
     # The shoe markers are declared once on ``LeftShoeMarkers`` (as typed field defaults); construct
-    # the schema and express the sole patch as plain fungeom DATA over those symbols (``m.<marker>.rest``
-    # -- the marker's segment-frame rest position as a free variable). No string keys, no callable, no
-    # second listing of the markers; a misspelled symbol is a mypy error, not a silent key.
+    # the schema and express the sole patch as plain fungeom DATA over those symbols. A marker is a
+    # fungeom ``SupportsPoint3``, so it drops straight into the point APIs (no ``.rest`` threading);
+    # no string keys, no callable, no second listing -- a misspelled symbol is a mypy error, not a key.
     m = LeftShoeMarkers()
 
     # Fit the contact plane through the three calibration markers. The shoe body (toe_grid_1) is on
-    # the INWARD side, so ``facing(toe_grid_1.rest).flipped()`` points the outward normal the other
+    # the INWARD side, so ``facing(toe_grid_1).flipped()`` points the outward normal the other
     # way -- toward the board the sole contacts -- then +offset nudges the plane to the physical
     # contact. The footprint is the convex hull of the foot markers flattened into that plane, +5 mm.
     plane = (
-        Point3Bundle.of([p.rest for p in (m.plane_rear, m.plane_inner, m.plane_outer)])
+        Point3Bundle.of([m.plane_rear, m.plane_inner, m.plane_outer])
         .fit_plane()
-        .facing(m.toe_grid_1.rest)
+        .facing(m.toe_grid_1)
         .flipped()
         .offset(SOLE_PLANE_NORMAL_OFFSET)
     )
@@ -85,7 +85,7 @@ def get_left_foot_segments() -> LeftFootSegments:
         m.heel_inner_1, m.heel_inner_2, m.heel_outer_1, m.heel_outer_2, m.toe_inner, m.toe_outer,
     )
     footprint = Region2.hull(
-        Point3Bundle.of([p.rest for p in footprint_markers]).in_frame(plane)
+        Point3Bundle.of(footprint_markers).in_frame(plane)
     ).offset(0.005)
 
     return LeftFootSegments(
@@ -101,17 +101,17 @@ def get_balance_board_segments() -> BalanceBoardSegments:
     m = BalanceBoardMarkers()
 
     # Fit the deck plane through the four surface markers. The deck edge (edge1) sits below the
-    # surface (INWARD), so ``facing(edge1.rest).flipped()`` orients the outward normal up toward the
+    # surface (INWARD), so ``facing(edge1).flipped()`` orients the outward normal up toward the
     # shoe (offset is inward, negative). The hull of the footprint markers in-plane is the footprint.
     plane = (
-        Point3Bundle.of([p.rest for p in (m.surface1, m.surface2, m.surface3, m.surface4)])
+        Point3Bundle.of([m.surface1, m.surface2, m.surface3, m.surface4])
         .fit_plane()
-        .facing(m.edge1.rest)
+        .facing(m.edge1)
         .flipped()
         .offset(BALANCE_BOARD_PLANE_NORMAL_OFFSET)
     )
     footprint = Region2.hull(
-        Point3Bundle.of([p.rest for p in (m.surface1, m.surface2, m.surface3, m.surface4, m.edge1, m.edge2)]).in_frame(plane)
+        Point3Bundle.of([m.surface1, m.surface2, m.surface3, m.surface4, m.edge1, m.edge2]).in_frame(plane)
     ).offset(0.005)
 
     return BalanceBoardSegments(

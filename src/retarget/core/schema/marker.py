@@ -42,10 +42,10 @@ class Marker:
     def rest(self) -> Point3:
         """This marker's segment-frame rest position as a fungeom **free variable**.
 
-        Reference it to author patch geometry as data over typed marker symbols -- no string keys,
-        no callable::
+        You rarely need ``.rest`` explicitly: a marker is a :class:`~fungeom.SupportsPoint3`, so pass
+        the symbol straight into any fungeom point API and it resolves to ``.rest`` for you::
 
-            cloud = Point3Bundle.of([heel.rest, toe.rest, mid.rest])
+            cloud = Point3Bundle.of([heel, toe, mid])      # == [heel.rest, toe.rest, mid.rest]
             Patch(label="sole", geometry=Face.on(cloud.fit_plane(), Region2.hull(...)))
 
         The free variable is identified by the marker itself, so a misspelled symbol is a
@@ -53,6 +53,12 @@ class Marker:
         resolves to the marker's ``position_segment`` (its segment-frame rest position).
         """
         return Point3.free(self)
+
+    def __fungeom_point3__(self) -> Point3:
+        """fungeom coercion hook (:class:`~fungeom.SupportsPoint3`): a marker resolves to its rest
+        free variable wherever fungeom wants a ``Point3``, so ``Point3Bundle.of([heel, toe])`` and
+        ``plane.facing(toe_grid_1)`` accept marker symbols directly."""
+        return self.rest
 
     def positions(self, *, modeled: bool = False) -> TimeVec3:
         """World-frame marker positions with shape ``(T, 3)``.
