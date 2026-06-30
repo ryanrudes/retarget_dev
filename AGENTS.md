@@ -5,11 +5,13 @@ demonstration loading, synchronization, resampling, contact reasoning, and
 future SMPL/GVHMR/video integrations.
 
 The public model is **typed-first and enum-free**. Scene and demonstration
-structure is authored with `TypedDict` schemas and compiled into dual-purpose
-frozen dataclasses that are *both* the authoring objects and the bound runtime
-query surface. There are no identifier enums (`MarkerId`, `SegmentId`,
-`TrackId`, …). Authored string names are the identity; runtime keys are plain
-string-based targets.
+structure is authored as frozen `@dataclass` schemas (typed attribute fields)
+that are *both* the authoring objects and the bound runtime query surface, and
+are accessed **by attribute** (`markers.heel`, never `markers["heel"]`). Each
+scene element is a typed symbol referenced directly. There are no identifier
+enums (`MarkerId`, `SegmentId`, `TrackId`, …) and no string subscript keys on the
+authoring/query surface. Authored attribute names are the identity; runtime keys
+are plain string-based targets derived from those names.
 
 ## Source of truth (for any agent)
 
@@ -35,30 +37,37 @@ bool. In tests, assert with `np.testing.assert_array_equal` / `assert_allclose`.
 
 Prefer `from __future__ import annotations`; frozen + slotted dataclasses for
 immutable values (mutable lazy caches stay non-frozen); `Mapping` for read-only
-inputs and `MappingProxyType` for stored views. Concrete `TypedDict` subclasses
-project literal keys to declared types — that is what statically types the deep
-chain. Iterating a *generic* `TypedDict` type var still yields broad values, so
-cast internally where needed. Package with `uv` + hatchling; do not introduce
+inputs and `MappingProxyType` for stored views. Concrete `@dataclass` schemas
+project **attribute access** to their declared field types — that is what
+statically types the deep chain. The binding layer and runtime walkers iterate
+schemas generically via the reflection helpers in `core/schema/base.py`
+(`_schema_items`/`_schema_values`/`_schema_fields`/`_schema_get`/`_rebuild_schema`),
+not dict iteration or `cast`. Package with `uv` + hatchling; do not introduce
 another packaging system.
 
 ## The headline guarantee: typed deep chain
 
-Concrete `TypedDict` subclasses project literal keys to their declared field
-types, so the full query chain is statically typed with no codegen:
+Concrete `@dataclass` schemas project **attribute access** to their declared
+field types, so the full query chain is statically typed with no codegen:
 
 ```python
-demo.tracks["mocap"]                                   # MocapTrack[MocapSubjects]
-mocap.subjects["left_shoe"]                            # Subject[ShoeSegments]
-subject.segments["shoe"]                               # Segment[ShoeMarkers, ShoePatches]
-segment.markers["heel"].positions()                    # TimeVec3
-segment.patches["sole"].points()                       # TimeVec3
+demo.tracks.mocap                                      # MocapTrack[MocapSubjects]
+mocap.subjects.left_shoe                               # Subject[ShoeSegments]
+subject.segments.shoe                                  # Segment[ShoeMarkers, ShoePatches]
+segment.markers.heel.positions()                       # TimeVec3
+segment.patches.sole.points()                          # TimeVec3
 ```
 
 Do not regress this. The mechanism is: `Demonstration[TracksT].tracks -> TracksT`
 and `MocapTrack[SubjectsT].subjects -> SubjectsT`, where `TracksT`/`SubjectsT`
-are the user's concrete `TypedDict`s. Do **not** reintroduce identifier enums,
-`SegmentSpec[M, P]`, `SceneView`/`SegmentView`, handles, `TypedDemonstration`,
-or codegen to "improve" typing.
+are the user's concrete `@dataclass` schemas (each a frozen+slotted subclass of
+the internal `_Schema` root). A misspelled field is a hard mypy + runtime error;
+a stray subscript `schema["x"]` is too (schemas are deliberately not
+subscriptable). Do **not** reintroduce `TypedDict` schema bases, string subscript
+access, identifier enums, `SegmentSpec[M, P]`, `SceneView`/`SegmentView`, handles,
+`TypedDemonstration`, or codegen to "improve" typing. The `assert_type` proof
+lives in `tests/test_typed_deep_chain.py`; because it sits outside the gated mypy
+scope, check it explicitly with `uv run mypy --strict tests/test_typed_deep_chain.py`.
 
 ## Autonomy and decision-making
 
@@ -135,33 +144,43 @@ cd examples/process_mocap_data && PYTHONPATH=../../src:. python3 new_api_example
 ```
 
 `uv run mypy` is strict and currently green across all source files — keep it
-that way, and keep the typed deep chain (`demo.tracks["mocap"].subjects[...]`)
-clean. `ruff` is available (`uv run ruff check`) but is not part of the required
-gate.
+that way. The typed deep chain (`demo.tracks.mocap.subjects.left_shoe…`) is
+guarded by `tests/test_typed_deep_chain.py`, which is *outside* the gated mypy
+scope (`packages=["retarget"]`), so verify it explicitly:
+`uv run mypy --strict tests/test_typed_deep_chain.py`. `ruff` is available
+(`uv run ruff check`); keep `src/retarget` clean and add no new violations.
 
 ## Authoring schema (the only public scene model)
 
 The package provides generic primitives:
 
-- `TypedDict` bases: `Markers`, `Patches`, `Segments`, `Subjects`, and (demo
-  layer) `Tracks`.
+- empty `@dataclass(frozen=True, slots=True)` schema bases (subclasses of the
+  internal `_Schema` root): `Markers`, `Patches`, `Segments`, `Subjects`, and
+  (demo layer) `Tracks`.
 - frozen dataclasses: `Marker`, `Patch`, `Segment[MarkersT, PatchesT]`,
   `Subject[SegmentsT]`.
 
-Project/user code declares concrete schemas and instances:
+Project/user code declares concrete schemas as **`@dataclass(frozen=True,
+slots=True)`** subclasses with typed attribute fields (the decorator is
+required — that is what gives the schema its `__init__` and makes its fields the
+typed deep chain), and instances:
 
 ```python
+@dataclass(frozen=True, slots=True)
 class ShoeMarkers(Markers):
     heel: Marker
     toe: Marker
 
+@dataclass(frozen=True, slots=True)
 class ShoePatches(Patches):
     sole: Patch
     toe_contact: Patch
 
+@dataclass(frozen=True, slots=True)
 class ShoeSegments(Segments):
     shoe: Segment[ShoeMarkers, ShoePatches]
 
+@dataclass(frozen=True, slots=True)
 class MocapSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
 ```
@@ -178,29 +197,34 @@ equality/repr, so the public constructors stay pure authoring
 
 ## Patch geometry (the fungeom substrate)
 
-A patch is an **oriented contact surface + a bounded footprint**, authored as a `geometry`
-callable that, given the segment's `SegmentGeometry`, returns a fungeom `Face` (an oriented
-`Plane` + a `Region2`):
+A patch is an **oriented contact surface + a bounded footprint** — a fungeom `Face` (an oriented
+`Plane` + a `Region2`). Author it as **data** over the markers' free-variable rest points
+(`marker.rest` is a fungeom `Point3.free` identified by the marker), so a misspelled marker is a
+`NameError`, not a silent key:
 
 ```python
-from fungeom import Face, Region2
+from fungeom import Face, Point3Bundle, Region2
 
-def sole(seg) -> Face:                         # seg.markers[...] -> fungeom Point3 / Point3Bundle
-    plane = seg.markers["plane_rear", "plane_inner", "plane_outer"].fit_plane()
-    return Face.on(plane, Region2.hull(seg.markers["heel", "toe"].in_frame(plane)).offset(0.005))
-
-ShoePatches(sole=Patch(label="sole", geometry=sole))
+# heel, toe, plane_rear, … are the segment's Marker symbols, referenced directly
+plane = Point3Bundle.of([plane_rear.rest, plane_inner.rest, plane_outer.rest]).fit_plane()
+footprint = Region2.hull(Point3Bundle.of([heel.rest, toe.rest]).in_frame(plane)).offset(0.005)
+ShoePatches(sole=Patch(label="sole", geometry=Face.on(plane, footprint)))
 ```
 
-`seg.markers[name] -> Point3` / `seg.markers[tuple] -> Point3Bundle` are the segment's marker
-rest positions as fungeom resolvers. At bind time the binding evaluates the callable and
-*lowers* the `Face` to a segment-local frame + boundary; `patch.points()/normals()/frames()/
-boundary_points()` transport those per-frame by the segment pose; `patch.face()` returns the
-bound `Face`. **fungeom (`ryanrudes/fungeom`) is retarget's geometry substrate** — geometry
-lives there, not in retarget (`retarget.core.geometry` holds the `SegmentGeometry` view +
-`lower_face`). The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
+`Patch.geometry` accepts a fungeom `Face` (the data form above) **or** a callable
+`(SegmentGeometry) -> Face` (the legacy form, e.g. when the surface is fixed in the segment frame).
+Inside a callable, `seg.markers[name] -> Point3` / `seg.markers[tuple] -> Point3Bundle` is the
+fungeom `SegmentGeometry` *adapter* — the one place a `[...]` subscript remains, and it is **not**
+the schema. At bind time the binding resolves the `Face` to a segment-local one: for the data form
+via `face.bind(env)` (substituting each `marker.rest` free with its segment-frame rest position),
+for a callable by evaluating it. `patch.points()/normals()/frames()/boundary_points()` then
+transport that per-frame by the segment pose via a fungeom `FaceSignal`; `patch.face()` returns the
+bound `Face`. **fungeom (`ryanrudes/fungeom`) is retarget's geometry substrate** — geometry lives
+there, not in retarget (`retarget.core.geometry` holds the `SegmentGeometry` view + the `FaceSignal`
+carrier). fungeom 0.4.0's free variables (`Point3.free` + `Face.bind(env)`) are what make the data
+form possible. The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
 retarget-side and *consume* fungeom values. Migration design:
-`docs/fungeom-substrate-migration.md`.
+`docs/fungeom-substrate-migration.md`; free-variable design: `docs/fungeom-free-variables-spec.md`.
 
 ## Identity, targets, and runtime keys
 
@@ -216,20 +240,22 @@ SegmentKey(subject="left_shoe", segment="shoe")   # SceneState pose key
 
 Contact tracks key off `PatchTarget`. Scene pose state (`SceneState`) keys off
 `SegmentKey`. Do not reintroduce `MarkerHandle`/`PatchHandle` or enum-typed
-identity. `Segment.marker_target(...)`, `.patch_target(...)`,
-`.segment_target()`, and `Marker.target` / `Patch.target` build these from the
-binding.
+identity. `Segment.segment_target()` and the symbols' own `Marker.target` /
+`Patch.target` build these from the binding — e.g. `segment.markers.heel.target`
+is the `MarkerTarget`. (There are no `marker_target`/`patch_target` lookup
+methods; reference the symbol directly.)
 
 ## Demonstration containers
 
 ```python
+@dataclass(frozen=True, slots=True)
 class GroundEstimationTracks(Tracks):
     mocap: MocapTrack[GroundEstimationSubjects]
     contacts: ContactTrack
 
 demo = Demonstration(GroundEstimationTracks(mocap=mocap, contacts=contacts))
-demo.tracks["mocap"]      # statically typed
-demo["mocap"]             # secondary, string-keyed Track access
+demo.tracks.mocap         # statically typed (the deep chain)
+demo["mocap"]             # secondary, string-keyed Track access (broad Track type)
 demo.track_ids()          # ("mocap", "contacts")
 clip = demo.slice_time(0.0, 1.0)   # DemonstrationView (tracks typed as Track)
 ```
@@ -245,19 +271,21 @@ free functions in `retarget.demo.sync`.
 
 ## Batch queries
 
-Single-entity access is mapping-style; batch/`as_dict` are string methods on
-`Segment`:
+Single-entity access is attribute access; the batch/`as_dict` helpers on
+`Segment` take a **`Sequence` of bound symbols** (not string names), mirroring
+`np.stack([...])`:
 
 ```python
-segment.markers["heel"].positions()
-segment.marker_positions("heel", "toe")              # (T, 2, 3)
-segment.marker_positions("heel", "toe", as_dict=True)  # {"heel": (T,3), ...}
-segment.patch_points("sole")                          # (T, 1, 3)
-segment.patch_contacts("sole")                        # (T, 1) bool
+segment.markers.heel.positions()
+segment.marker_positions([segment.markers.heel, segment.markers.toe])              # (T, 2, 3)
+segment.marker_positions([segment.markers.heel, segment.markers.toe], as_dict=True)  # {"heel": (T,3), …}
+segment.patch_points([segment.patches.sole])                          # (T, 1, 3)
+segment.patch_contacts([segment.patches.sole])                        # (T, 1) bool
 ```
 
-No enum-typed query helpers. No underscore "private" query API as the primary
-surface.
+`as_dict` keys come from each symbol's own authored name (`m.target.marker`). No
+string-keyed or enum-typed query helpers. No underscore "private" query API as the
+primary surface.
 
 ## Mocap resampling policy
 
@@ -294,10 +322,11 @@ do not mutate `Demonstration`.
 ## Backend/manual loaders
 
 Backend loaders (e.g. `examples/process_mocap_data/backend_specs/`) author the
-*same* typed `Subjects`/`Tracks` schemas, deriving patch geometry from `geometry=` callables
-(fungeom `Face`s) over marker rest positions read from real VSK files via
-`read_marker_positions_from_vsk` (the subject `body_model`). They return typed
-`Demonstration[TracksT]`. They do not use enums or private query helpers.
+*same* typed `@dataclass` `Subjects`/`Tracks` schemas, deriving patch geometry as
+`geometry=` data (fungeom `Face`s over `marker.rest`) from marker rest positions
+read from real VSK files via `read_marker_positions_from_vsk` (the subject
+`body_model`). They return typed `Demonstration[TracksT]`. They do not use enums,
+string subscript access, or private query helpers.
 
 ## Forbidden patterns
 
@@ -317,15 +346,22 @@ variants:
   `sync` methods on `Demonstration`; use the free functions in
   `retarget.demo.sync` instead.
 - **typing crutches** — codegen, dependent-typing plugins, or extra mypy plugins
-  added to "improve" typing. The deep chain types via plain concrete `TypedDict`
-  projection; keep it that way.
+  added to "improve" typing. The deep chain types via plain concrete `@dataclass`
+  attribute projection; keep it that way.
+- **`TypedDict` schema bases or string subscript access** — schemas are
+  `@dataclass(frozen=True, slots=True)` subclasses of `_Schema`, accessed by
+  attribute (`markers.heel`). Do not reintroduce `TypedDict` schema bases,
+  `schema["x"]` subscript, dict-style `.items()`/`.keys()`/`.values()` on a schema
+  (use the `_schema_*` reflection helpers), or a transitional subscript bridge on
+  `_Schema`. Identifier-string batch helpers (`marker_positions("a","b")`) are
+  likewise gone — batch helpers take a `Sequence` of symbols.
 - **the retired closed patch surface** — the `Patch[RegionT]` generic,
   `ContactRegion`/`RectangularRegion`/`PolygonalRegion`, `calibrate_patch_transform` /
   `PatchCalibration` / `Patch.planar`, and the `<Aspect>Resolver` menu (`PlaneResolver`/
   `NormalResolver`/`TangentialResolver`/`OriginResolver`/`ExtentResolver` + `plane_from`/
   `axis_normal`/`side`/`along_axis`/`min_area_rectangle`/`bounding_box`/`fixed`). Patches are
-  authored as `geometry=` callables returning a fungeom `Face`; geometry is fungeom's job, not
-  a retarget reimplementation.
+  authored as `geometry=` **data** — a fungeom `Face` over `marker.rest` free variables (or a
+  callable returning one); geometry is fungeom's job, not a retarget reimplementation.
 
 ## Tests
 

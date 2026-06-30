@@ -17,19 +17,24 @@ are no identifier enums and no handle layer.
 
 ## Authoring is the identity
 
-Scene structure is authored with `TypedDict` schemas plus frozen dataclasses:
+Scene structure is authored as frozen `@dataclass` schemas with typed attribute
+fields, accessed by attribute (never string subscript):
 
 ```python
+@dataclass(frozen=True, slots=True)
 class ShoeMarkers(Markers):
     heel: Marker
     toe: Marker
 
+@dataclass(frozen=True, slots=True)
 class ShoePatches(Patches):
     sole: Patch
 
+@dataclass(frozen=True, slots=True)
 class ShoeSegments(Segments):
     shoe: Segment[ShoeMarkers, ShoePatches]
 
+@dataclass(frozen=True, slots=True)
 class MocapSubjects(Subjects):
     left_shoe: Subject[ShoeSegments]
     right_shoe: Subject[ShoeSegments]
@@ -55,20 +60,20 @@ constructors stay pure authoring.
 
 ```python
 scene = bind_scene(subjects)
-shoe = scene["left_shoe"].segments["shoe"]
-shoe.marker_target("heel")        # MarkerTarget("left_shoe", "shoe", "heel")
-shoe.patch_target("sole")         # PatchTarget("left_shoe", "shoe", "sole")
+shoe = scene.left_shoe.segments.shoe
+shoe.markers.heel.target          # MarkerTarget("left_shoe", "shoe", "heel")
+shoe.patches.sole.target          # PatchTarget("left_shoe", "shoe", "sole")
 
-mocap = demo.tracks["mocap"]
-shoe = mocap.subjects["left_shoe"].segments["shoe"]
-shoe.markers["heel"].positions()
-shoe.patches["sole"].points()
+mocap = demo.tracks.mocap
+shoe = mocap.subjects.left_shoe.segments.shoe
+shoe.markers.heel.positions()
+shoe.patches.sole.points()
 shoe.translations()
 ```
 
-A declared (geometry-less) patch is still targetable via `patch_target(...)`;
-geometry access (`patches[...].points()`/`.normals()`) requires a calibrated
-patch.
+A declared (geometry-less) patch is still targetable via `patches.<name>.target`;
+geometry access (`patches.<name>.points()`/`.normals()`) requires a patch
+authored with `geometry=`.
 
 ## Runtime targets
 
@@ -90,13 +95,13 @@ Contact tracks key off `PatchTarget`; scene pose state off `SegmentKey`.
 
 ## Why this types perfectly
 
-Concrete `TypedDict` subclasses project literal keys to their declared field
+Concrete `@dataclass` schemas project attribute access to their declared field
 types. Because `Demonstration[TracksT].tracks` is `TracksT` and
 `MocapTrack[SubjectsT].subjects` is `SubjectsT`, the whole chain is statically
 typed without dependent typing, overloads, or codegen:
 
 ```python
-demo.tracks["mocap"]                          # MocapTrack[MocapSubjects]
-mocap.subjects["left_shoe"].segments["shoe"]  # Segment[ShoeMarkers, ShoePatches]
-segment.markers["heel"].positions()           # TimeVec3
+demo.tracks.mocap                          # MocapTrack[MocapSubjects]
+mocap.subjects.left_shoe.segments.shoe     # Segment[ShoeMarkers, ShoePatches]
+segment.markers.heel.positions()           # TimeVec3
 ```
