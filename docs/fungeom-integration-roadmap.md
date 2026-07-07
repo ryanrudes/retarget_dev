@@ -2,8 +2,11 @@
 
 **Audience:** a future retarget session (and whoever plans the work). **From:** the session that
 migrated authoring + runtime + the contact spine onto fungeom. This is the honest "what's left",
-tiered by the governing rule (**exact-combinatorial geometry/time → fungeom; statistical/iterative
-→ stays numeric**), with value / cost / risk, the cross-repo fungeom asks, and a recommended order.
+tiered by **residency** — what fungeom carries as decidable values vs. what stays a retarget-side
+numeric kernel (the criterion is fungeom's two bright lines, canonical in
+[`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md); the
+old *exact→fungeom / statistical→parked* slogan is retired as the rule), with value / cost / risk, the
+cross-repo fungeom asks, and a recommended order.
 
 ## Where we are (done, on `master`)
 
@@ -123,7 +126,10 @@ API). Also fold the `retarget.fungeom` re-exports of `segment_geometry`/`Segment
 
 ## The line that STAYS numeric (do **not** "integrate" these)
 
-Per the governing rule, fungeom carries the *values*; these kernels stay retarget-side:
+fungeom carries the *values*; these kernels stay retarget-side — parked not for being "statistical"
+but because each bakes a **hidden** modeling opinion (a threshold, window, or objective that is domain
+taste) or is not yet resident (see the reframed criterion in
+[`fungeom-needs-for-substrate.md`](fungeom-needs-for-substrate.md) §"The governing rule"):
 
 - **Support fitting** — RANSAC + SVD robust plane fit, percentile heightmaps (`supports.py`,
   `utils/geometry.fit_patch_frame`). Robust/statistical. (A *non-robust* `Point3Bundle.fit_plane` is

@@ -128,9 +128,11 @@ the Plane↔2-D bridge (`Plane.to_local`/`embed`, G3). `Patch.on(plane, region)`
   (classmethod constructors + fluent combinators), `Region2.Value` value type.
 - Reuse the existing 2-D family (`point2`/`segment2`/`frame2`/`direction2`); don't duplicate.
 - 100 % coverage gate; ruff + strict mypy; follow `CHECKLIST.md`'s add-a-primitive procedure.
-- **Exact combinatorial geometry only** (convex hull, polygon clipping, point-in-polygon are
-  in scope — they're exact). Anything statistical/iterative is out of scope, same as the
-  `TimeWarp` "numerics deliberately out of scope" line.
+- **Pure, honest geometry only** — convex hull, polygon clipping, point-in-polygon are in scope
+  (exact, opinion-free). An op that bakes a **hidden** modeling commitment (a fit objective, an
+  inlier threshold, an iteration tolerance) stays out; admission is fungeom's own call now
+  ([`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md)),
+  same spirit as the `TimeWarp` "numerics deliberately out of scope" line.
 
 ---
 

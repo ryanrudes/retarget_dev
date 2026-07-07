@@ -264,7 +264,8 @@ algebra clean. retarget only depends on the **output surface** (a moving patch I
 ## Non-goals / parked (don't build for this)
 
 - Smoothing, hysteresis, statistical/iterative estimators — those stay numeric in retarget
-  (governing rule: exact-combinatorial = fungeom; statistical/iterative = parked).
+  (parked for hidden modeling opinion / not-yet-resident, not for being "statistical"; admission is
+  fungeom's own call — [`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md)).
 - `BoolBundleSignal` is optional — retarget can derive per-support contact from
   `clearances.min().le(0)` if you'd rather not add it.
 - The orphaned `retarget.fungeom` signals adapter (`marker_cloud_signal`/`pose_signal`/`relabel`)

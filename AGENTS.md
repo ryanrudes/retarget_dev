@@ -220,8 +220,12 @@ retarget's geometry substrate** — geometry lives there, not in retarget (`reta
 only the `FaceSignal` pose carrier). fungeom's free variables (`Point3.free` + `Face.bind(env)`, 0.4.0)
 make the data form possible; its `SupportsPoint3` coercion (0.6.0) lets the markers be passed without `.rest`.
 The genuinely-numeric kernels (DTW/ICP, sync estimation, smoothing) stay parked
-retarget-side and *consume* fungeom values. Migration design:
-`docs/fungeom-substrate-migration.md`; free-variable design: `docs/fungeom-free-variables-spec.md`.
+retarget-side and *consume* fungeom values — parked because each bakes a **hidden** modeling opinion
+(a window, threshold, or objective that is domain taste) or is not yet resident, not for being
+"statistical"; what belongs in fungeom is fungeom's own call
+([`functional_api/docs/substrate-membership.md`](../functional_api/docs/substrate-membership.md)).
+Migration design: `docs/fungeom-substrate-migration.md`; free-variable design:
+`docs/fungeom-free-variables-spec.md`.
 
 ## Identity, targets, and runtime keys
 

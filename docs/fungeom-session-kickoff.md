@@ -24,9 +24,16 @@ rung: immutable lazily-evaluated **decidable resolver**, classmethod constructor
 (one class that IS the resolver), partiality first-class (`decide()` → `Resolvable`/`Unresolvable`),
 100% coverage + ruff + strict mypy, with the **rung-3 (`Roster`/`RosterMap`) commit as the template**.
 
-**Governing rule for what belongs here:** exact / closed-form / combinatorial → fungeom; statistical
-/ iterative / smoothing → stays parked in retarget. §4's PARKED list is binding (no RANSAC, smoothing,
-hysteresis, heightmaps, sync estimation, chi-squared, etc.).
+**What belongs here — defer to fungeom's own membership rule** (canonical:
+[`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md), plus
+your repo's AGENTS.md §"What this is"): **admit** an op iff it is **referentially transparent** (every
+seed / tolerance / iteration budget reified as an explicit input) **and honestly resolvable** (success,
+failure, *and approximation character* surfaced through `decide()`); **park** it iff it bakes a
+**hidden** modeling commitment. The geometry-era *exact/closed-form → fungeom; statistical/iterative →
+parked* slogan is **retired as the rule** — it sorts on "kind of math," which stops tracking the right
+thing once geometry isn't fungeom's only instance. For *this* build the §4 PARKED list is still binding
+— those items stay parked in retarget for hidden-opinion / not-yet-resident reasons (no RANSAC,
+smoothing, hysteresis, heightmaps, sync estimation, chi-squared, etc.).
 
 **Start with the geometric foundation for retarget's open patch algebra — a coherent, self-contained
 first rung that composes cleanly on the existing 2-D family (`point2`/`segment2`/`frame2`) and touches

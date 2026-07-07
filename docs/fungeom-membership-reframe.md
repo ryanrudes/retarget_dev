@@ -3,9 +3,10 @@
 > **Audience:** an agent working in the retarget repo (`~/GitHub/retargeting_from_scratch`).
 > **From:** the markovlib / fungeom propagation. The "governing rule" retarget originated has been
 > reframed and canonicalized **fungeom-side**.
-> **Status:** a **reconciliation sweep — nothing moves.** Every kernel retarget parks stays
-> retarget-side; this retires the slogan *as the rule* and re-justifies *why*. No code changes; docs +
-> one memory note.
+> **Status:** ✅ **SWEEP COMPLETE (2026-07-07).** A **reconciliation sweep — nothing moved.** Every
+> kernel retarget parks stayed retarget-side; this retired the slogan *as the rule* and re-justified
+> *why*. No code changes; the doc reframes below are all done and the retarget memory note
+> ([[fungeom-membership-reframe]]) is written.
 > **Canonical rule (read first):**
 > [`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md).
 > **Read order:** that note → this file → the retarget docs under §"The sweep."
@@ -66,13 +67,17 @@ Reframe each: retire the slogan as *the rule*, keep its spirit via the bright li
 - ✅ `docs/fungeom-needs-for-substrate.md` §"The governing rule" — **already reconciled** by the fungeom
   session (defers to the canonical note + states the two bright lines). Verify it reads right; align the
   rest to it. (Its A#/G#/T# inventory stays as-is — per-item residency calls, already correct.)
-- ☐ `docs/fungeom-session-kickoff.md` — §"Governing rule for what belongs here."
-- ☐ `docs/fungeom-integration-roadmap.md` — the tiering preamble + the "Per the governing rule…" lines
-  (lines ~5, ~126). Re-tier by *residency*, not category.
-- ☐ `docs/region2-handoff.md` — "Anything statistical/iterative is out of scope" (~line 132).
-- ☐ `docs/fungeom-runtime-handoff.md` — the non-goals "governing rule: …" line (~line 266).
-- ☐ `AGENTS.md` — the "genuinely-numeric kernels … stay parked" line (~line 225); reframe to the bright
-  line (these stay parked for *hidden opinion / residency*, the conclusion unchanged).
+- ✅ `docs/fungeom-session-kickoff.md` — §"Governing rule for what belongs here" now defers to the
+  canonical note + states the two bright lines; the §4 PARKED list stays binding for that build.
+- ✅ `docs/fungeom-integration-roadmap.md` — the tiering preamble (~line 5) re-tiers by *residency*;
+  the "line that STAYS numeric" header (~line 126) re-reads the parked kernels as hidden opinion /
+  not-yet-resident. (The A#/G#/T# per-item residency notes below it are left as-is — already correct.)
+- ✅ `docs/region2-handoff.md` — the build-scope note reframed to "pure, honest geometry only; hidden
+  modeling commitments stay out; admission is fungeom's call."
+- ✅ `docs/fungeom-runtime-handoff.md` — the non-goals parenthetical reframed to hidden opinion /
+  residency + canonical link.
+- ✅ `AGENTS.md` — §"Patch geometry" "genuinely-numeric kernels … stay parked" reframed to the bright
+  line (hidden opinion / residency), the conclusion unchanged.
 
 ## What NOT to do
 
