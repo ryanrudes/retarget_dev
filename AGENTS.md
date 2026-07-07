@@ -375,3 +375,32 @@ validation + root composition + one-shot workflow, and the typed deep chain
 
 Do not add fixtures or tests that reintroduce anything under "Forbidden
 patterns" above.
+
+## Learned User Preferences
+
+- Pre-public repo with no external users: remove transitional or legacy APIs
+  rather than preserving compatibility shims.
+- Prefer native constructors and classmethods (`Demonstration(...)`,
+  `MocapTrack.from_unbagged(...)`) over thin wrapper helpers such as
+  `build_demonstration` or `load_mocap_track`.
+- When two designs both work, choose the conceptually simpler one even if it
+  requires more implementation work.
+- During large migrations, treat failing or odd test fixtures as suspects that
+  may still encode patterns being removed.
+- Keep example-specific schemas and demo vocabulary under `examples/`; do not
+  add facades or move example specs into `src/retarget`.
+
+## Learned Workspace Facts
+
+- Automated contact detection scores six support-relative feature channels with
+  χ² survival confidence; boolean masks come from hysteresis and interval
+  cleanup, not a Markov or HMM state model.
+- Multi-support categorical labels (ground vs board vs air) are resolved by
+  highest contact confidence among supports in contact, not a paired hypothesis
+  test between supports.
+- `examples/real_data/` is the primary integration reference for real VSK data,
+  subject body models, and contact-detection wiring.
+- Near-term product direction after the core/demo foundation: wire ContactTracks
+  to detection output, add SMPL tracks, then motion retargeting.
+- Subject-level `body_model` supplies segment-frame marker rest positions so
+  individual markers need not repeat `position_segment`.
