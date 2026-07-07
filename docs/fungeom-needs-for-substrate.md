@@ -14,12 +14,29 @@ source. IDs (G#/C#/T#/S#/P#/X#) are stable handles.
 
 ## The governing rule (what belongs in fungeom)
 
-**Exact / closed-form / combinatorial ⇒ fungeom. Statistical / iterative / smoothing ⇒
-parked numeric (retarget-side, consuming fungeom values).** This single rule resolves every
-contested item below. Note the consequence: SVD plane/Kabsch fits, finite-difference
-derivatives, convex hull, polygon clipping, bundle median/argmin are **exact** → in scope;
-Savitzky-Golay/RMS smoothing, RANSAC, SE(3) Fréchet mean, hysteresis, chi-squared confidence,
-heightmaps are **statistical/iterative** → parked.
+> **fungeom now owns its own membership rule** — canonical in
+> [`functional_api/docs/substrate-membership.md`](../../functional_api/docs/substrate-membership.md).
+> This doc states retarget's *needs*; fungeom decides admission. The geometry-era slogan that used to
+> live here — *"exact/closed-form ⇒ fungeom; statistical/iterative ⇒ parked"* — is **retired as the
+> rule**: it sorts on "kind of math," which stops tracking the right thing once geometry isn't
+> fungeom's only instance (exact inference scans like forward–backward are pure and honest, *not*
+> "statistical-and-therefore-out").
+
+The rule is now two bright lines: **admit** an op iff it is **referentially transparent** (a pure
+function of its resolver graph, every seed / initial-guess / iteration-budget reified as an explicit
+input) **and honestly resolvable** (success, failure, *and approximation character* surfaced through
+`decide()`, never a silent `NaN`); **park** it iff it bakes a **hidden** modeling commitment (a prior,
+a kernel bandwidth, a stopping tolerance whose right value is domain *taste*, not a property of the
+inputs). The anti-accretion fence is preserved, just better placed: *reify every opinion and seed as
+an explicit input and surface every approximation in the lattice, or it stays out.*
+
+**For this inventory the practical sort is unchanged, and stays staged retarget-side** (placement is
+gated on a real in-substrate consumer, not on the rule): SVD plane/Kabsch fits, finite-difference
+derivatives, convex hull, polygon clipping, bundle median/argmin remain **in scope** (pure, honest,
+opinion-free); Savitzky-Golay/RMS smoothing, RANSAC, SE(3) Fréchet mean, hysteresis, chi-squared
+confidence, heightmaps remain **parked retarget-side** — now read as *hidden taste / hidden RNG, or
+simply not-yet-resident*, rather than excluded for being "statistical." None of the items below
+change; this is an identity/criterion reframe, not a re-litigation of any A#/G#/T# call.
 
 ---
 
