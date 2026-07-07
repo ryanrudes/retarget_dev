@@ -12,8 +12,10 @@ cross-repo fungeom asks, and a recommended order.
 
 Fungeom is the substrate for the **geometry** of a scene:
 
-- **Authoring** — patches are open `geometry=` callables returning a fungeom `Face`. The closed
-  resolver/calibration surface is retired.
+- **Authoring** — patches are authored as `geometry=` **data**: a fungeom `Face` over the segment's
+  marker symbols (a `Marker` is a fungeom `SupportsPoint3` → its `.rest` free variable), resolved to a
+  segment-local Face at bind time via `Face.bind(env)`. The callable `geometry=` form + the
+  `SegmentGeometry` adapter were retired (Stage C); the closed resolver/calibration surface is retired.
 - **Patch runtime** — `Patch.points()/normals()/frames()/boundary_points()` resolve through
   `FaceSignal.of(face, pose).frame()/boundary()`. `lower_face` + the hand-rolled frame are gone.
 - **Contact clearance** — patch supports use bounded `FaceSignal.clearance` (`_FaceSupport` in
@@ -119,8 +121,10 @@ item. Spec it on its own before any code.
 If R1 lands, `marker_cloud_signal`/`pose_signal` become load-bearing — good. The still-orphaned
 `roster_map`/`identity_map`/`marker_at`/`joint_at`/`resolvability`/`GeometricTransfer` are scaffolding
 for R5; **keep them only if R5 is on the near roadmap, else delete** (don't carry tested-but-unused
-API). Also fold the `retarget.fungeom` re-exports of `segment_geometry`/`SegmentGeometry`/`patch_face`
-(which now live in `core.geometry`) into one place to end the two-surfaces overlap.
+API). The `retarget.fungeom` re-exports of `segment_geometry`/`SegmentGeometry`/`patch_face` that used
+to duplicate `core.geometry` are **already gone** — Stage C retired the callable/adapter surface
+entirely (patches are data now) and deleted `retarget.fungeom.geometry`, so `core.geometry` holds only
+the `FaceSignal` pose carrier and the two-surfaces overlap is resolved.
 
 ---
 
